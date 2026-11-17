@@ -4,6 +4,7 @@ import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.util.UIScale;
 import hopsync.desktop.config.AppVersion;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.i18n.RelativeTime;
 import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.store.PackUiState;
@@ -13,17 +14,18 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.Timer;
 import java.awt.Dimension;
+import java.time.Instant;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 
 /**
  * Flat bar at the bottom: the selected pack's folder, when it was last checked and the app version.
  */
 final class StatusBar extends JPanel {
-    private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
-
     private final ZoneId zone;
+    private Instant lastChecked;
+    private final Timer ageing = new Timer(RelativeTime.REFRESH_MS, e -> showChecked());
     private final JLabel folder = label(Icons.Glyph.FOLDER);
     private final JLabel checked = label(Icons.Glyph.CLOCK);
 
@@ -48,13 +50,31 @@ final class StatusBar extends JPanel {
         if (pack == null) {
             folder.setText(Messages.get("statusBar.noPack"));
             folder.setToolTipText(null);
-            checked.setText(Messages.get("statusBar.notChecked"));
+            lastChecked = null;
+            showChecked();
             return;
         }
         folder.setText(pack.gameDir().toString());
         folder.setToolTipText(pack.gameDir().toString());
-        checked.setText(pack.lastChecked() == null ? Messages.get("statusBar.notChecked")
-            : Messages.get("statusBar.checkedAt", TIME.withZone(zone).format(pack.lastChecked())));
+        lastChecked = pack.lastChecked();
+        showChecked();
+    }
+
+    private void showChecked() {
+        checked.setText(lastChecked == null ? Messages.get("statusBar.notChecked")
+            : Messages.get("statusBar.checkedAt", RelativeTime.ago(lastChecked, Instant.now(), zone)));
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        ageing.start();
+    }
+
+    @Override
+    public void removeNotify() {
+        ageing.stop();
+        super.removeNotify();
     }
 
     private static JLabel label(Icons.Glyph glyph) {

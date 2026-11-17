@@ -13,6 +13,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 
+import static hopsync.desktop.store.StoreFixtures.NOW;
 import static hopsync.desktop.store.StoreFixtures.DEMO;
 import static hopsync.desktop.store.StoreFixtures.OTHER;
 import static hopsync.desktop.store.StoreFixtures.loaded;
@@ -30,7 +31,7 @@ class HeroModelTest {
     private static final String O = OTHER.id();
 
     private static HeroModel hero(UiState state, String packId) {
-        return HeroModel.of(state.packs().get(packId), state, ZoneOffset.UTC);
+        return HeroModel.of(state.packs().get(packId), state, ZoneOffset.UTC, NOW.plusSeconds(5 * 60));
     }
 
     private static List<String> labels(HeroModel model) {
@@ -121,7 +122,7 @@ class HeroModelTest {
         HeroModel model = hero(reduce(loaded(), new SyncEvent.UpdateStarted(D), new SyncEvent.UpToDate(D, upToDatePlan())), D);
 
         assertEquals(StatusMark.Kind.OK, model.mark());
-        assertEquals(Messages.get("hero.detail.checkedAt", "12:00"), model.detail());
+        assertEquals(Messages.get("hero.detail.checkedAt", Messages.get("time.minutes", 5)), model.detail());
         assertEquals(List.of(Messages.get("hero.checkAgain")), labels(model));
         assertNull(model.applying());
     }
