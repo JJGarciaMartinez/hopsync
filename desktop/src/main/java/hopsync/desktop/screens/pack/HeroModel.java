@@ -9,6 +9,7 @@ import hopsync.desktop.kit.Icons.Glyph;
 import hopsync.desktop.kit.StatusMark;
 import hopsync.desktop.kit.StatusTag;
 import hopsync.desktop.screens.mods.VersionLabel;
+import hopsync.desktop.store.PackPhase;
 import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.PackUiState.Progress;
 import hopsync.desktop.store.RowStatus;
@@ -49,6 +50,34 @@ public record HeroModel(StatusMark.Kind mark, String title, String detail, List<
 
 
     public static HeroModel of(PackUiState pack, UiState state, ZoneId zone, Instant now) {
+        HeroModel model = forPhase(pack, state, zone, now);
+        return pack.created() ? forCreated(pack, model) : model;
+    }
+
+    /**
+     * A created pack with no mods yet says so and offers "Añadir mods" as its main action; once it has mods,
+     * "Añadir mods" sits before the phase's actions whenever the pack is not checking, queued or writing.
+     */
+    private static HeroModel forCreated(PackUiState pack, HeroModel model) {
+        Action addMods = new Action(Messages.get("hero.addMods"), Glyph.PLUS, new UiAction.OpenAddMods(pack.packId()),
+            ButtonStyle.SECONDARY);
+        boolean idle = pack.phase() == PackPhase.UNCHECKED || pack.phase() == PackPhase.UP_TO_DATE
+            || pack.phase() == PackPhase.DONE;
+        if (idle && pack.manifest() != null && pack.modCount() == 0) {
+            return new HeroModel(StatusMark.Kind.IDLE, Messages.get("hero.state.empty"), Messages.get("hero.detail.empty"),
+                List.of(), List.of(new Action(addMods.label(), addMods.icon(), addMods.action(), ButtonStyle.PRIMARY)),
+                null);
+        }
+        if (pack.phase() == PackPhase.CHECKING || pack.phase() == PackPhase.QUEUED || pack.phase().isWriting()) {
+            return model;
+        }
+        List<Action> actions = new ArrayList<>();
+        actions.add(addMods);
+        actions.addAll(model.actions());
+        return new HeroModel(model.mark(), model.title(), model.detail(), model.tags(), actions, model.applying());
+    }
+
+    private static HeroModel forPhase(PackUiState pack, UiState state, ZoneId zone, Instant now) {
         String id = pack.packId();
         Action checkAgain = new Action(Messages.get("hero.checkAgain"), Glyph.REFRESH, new UiAction.CheckPack(id),
             ButtonStyle.SECONDARY);

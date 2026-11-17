@@ -3,6 +3,7 @@ package hopsync.desktop.i18n;
 import hopsync.core.failure.SyncFailure;
 
 import java.text.MessageFormat;
+import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
@@ -15,6 +16,12 @@ public final class Messages {
     private static final ResourceBundle BUNDLE = ResourceBundle.getBundle("hopsync.desktop.i18n.messages", LOCALE);
 
     private Messages() {
+    }
+
+    /** Names joined as a sentence says them: "A", "A y B", "A, B y C". */
+    public static String list(List<String> names) {
+        if (names.size() <= 1) return names.isEmpty() ? "" : names.getFirst();
+        return String.join(", ", names.subList(0, names.size() - 1)) + " " + get("list.and") + " " + names.getLast();
     }
 
     /** A mod loader as players write it ("NeoForge"); one HopSync does not know is shown as the pack names it. */

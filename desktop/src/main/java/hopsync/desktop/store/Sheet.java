@@ -1,8 +1,11 @@
 package hopsync.desktop.store;
 
+import hopsync.core.catalog.CatalogProject;
 import hopsync.core.failure.SyncFailure;
 
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 
 /**
  * A sheet open on top of the window. Everything it shows lives here, so it renders like any other view.
@@ -133,6 +136,78 @@ public sealed interface Sheet {
 
         Creation withVersionsError(SyncFailure failure) {
             return new Creation(name, minecraft, loader, versions, failure);
+        }
+    }
+
+    /**
+     * Finding mods for a pack the player created and adding them; each one is saved to the pack as it is added.
+     *
+     * @param results     mods found for {@code query}, {@code null} while searching
+     * @param searchError why the search failed, or {@code null}
+     * @param inPack      catalog projects the pack lists, {@code null} until known
+     * @param adding      projects being added right now
+     * @param added       how many mods this sheet added, dependencies included
+     * @param lastAdded   what the last add did, to say which mods came with it; or {@code null}
+     * @param error       why the last add failed, or {@code null}
+     */
+    record AddMods(String packId, String minecraft, String loader, String query, List<CatalogProject> results,
+                   SyncFailure searchError, Set<String> inPack, Set<String> adding, int added,
+                   Added lastAdded, SyncFailure error) implements Sheet {
+
+        public AddMods {
+            results = results == null ? null : List.copyOf(results);
+            inPack = inPack == null ? null : Set.copyOf(inPack);
+            adding = Set.copyOf(adding);
+        }
+
+        public static AddMods start(String packId, String minecraft, String loader) {
+            return new AddMods(packId, minecraft, loader, "", null, null, null, Set.of(), 0, null, null);
+        }
+
+        AddMods withQuery(String newQuery) {
+            return new AddMods(packId, minecraft, loader, newQuery, null, null, inPack, adding, added, lastAdded, error);
+        }
+
+        AddMods withResults(List<CatalogProject> found, SyncFailure failure) {
+            return new AddMods(packId, minecraft, loader, query, found, failure, inPack, adding, added, lastAdded, error);
+        }
+
+        AddMods withInPack(Set<String> projects) {
+            return new AddMods(packId, minecraft, loader, query, results, searchError, projects, adding, added,
+                lastAdded, error);
+        }
+
+        AddMods withAdding(String projectId) {
+            Set<String> next = new HashSet<>(adding);
+            next.add(projectId);
+            return new AddMods(packId, minecraft, loader, query, results, searchError, inPack, next, added, lastAdded,
+                null);
+        }
+
+        AddMods withAdded(String projectId, Added result, Set<String> projects) {
+            Set<String> next = new HashSet<>(adding);
+            next.remove(projectId);
+            return new AddMods(packId, minecraft, loader, query, results, searchError, projects, next,
+                added + 1 + result.alsoAdded().size(), result, null);
+        }
+
+        AddMods withFailure(String projectId, SyncFailure failure) {
+            Set<String> next = new HashSet<>(adding);
+            if (projectId != null) next.remove(projectId);
+            return new AddMods(packId, minecraft, loader, query, results, searchError, inPack, next, added, lastAdded,
+                failure);
+        }
+    }
+
+    /**
+     * What adding a mod did, for the add-mods sheet to say.
+     *
+     * @param title     the mod's name, or the jar's file name
+     * @param alsoAdded names of the mods it needs that were added with it
+     */
+    record Added(String title, List<String> alsoAdded) {
+        public Added {
+            alsoAdded = List.copyOf(alsoAdded);
         }
     }
 

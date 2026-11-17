@@ -1,5 +1,6 @@
 package hopsync.desktop.store;
 
+import hopsync.core.catalog.CatalogProject;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.pack.Pack;
@@ -11,6 +12,8 @@ import java.util.List;
 import java.util.Set;
 
 import static hopsync.desktop.store.StoreFixtures.DEMO;
+import static hopsync.desktop.store.StoreFixtures.MINE;
+import static hopsync.desktop.store.StoreFixtures.created;
 import static hopsync.desktop.store.StoreFixtures.INFO;
 import static hopsync.desktop.store.StoreFixtures.NOW;
 import static hopsync.desktop.store.StoreFixtures.OTHER;
@@ -675,5 +678,41 @@ class ReducerTest {
         assertNull(((Sheet.AddPack) reduce(failed, new UiAction.StartFromScratch()).sheet()).creation().versionsError());
         assertEquals("", ((Sheet.AddPack) reduce(failed, new UiAction.EditNewPack("  ", null, "fabric")).sheet())
             .creation().name().strip());
+    }
+
+    @Test
+    void addModsOpensOnlyForACreatedPackAndFollowsTheSearchStillTyped() {
+        assertNull(reduce(loaded(), new UiAction.OpenAddMods(DEMO.id())).sheet(), "a linked pack has nothing to add");
+        UiState open = reduce(created(), new UiAction.OpenAddMods(MINE.id()));
+        assertEquals(Sheet.AddMods.start(MINE.id(), "1.21.1", "fabric"), open.sheet());
+
+        CatalogProject sodium = new CatalogProject("AANobbMI", "sodium", "Sodium", "", "jelly", null, 9);
+        UiState searched = reduce(open, new UiAction.SearchMods("sod"), new UiAction.ModsFound("", List.of()),
+            new UiAction.ModsFound("sod", List.of(sodium)));
+        Sheet.AddMods sheet = (Sheet.AddMods) searched.sheet();
+        assertEquals("sod", sheet.query());
+        assertEquals(List.of(sodium), sheet.results(), "the answer for an old search is dropped");
+    }
+
+    @Test
+    void addingAModCountsItsDependenciesAndAFailureIsShown() {
+        UiState open = reduce(created(), new UiAction.OpenAddMods(MINE.id()),
+            new UiAction.PackModsLoaded(MINE.id(), Set.of()), new UiAction.AddCatalogMod("extra"));
+        assertEquals(Set.of("extra"), ((Sheet.AddMods) open.sheet()).adding());
+
+        UiState added = reduce(open, new UiAction.ModAdded("extra", new Sheet.Added("Sodium Extra", List.of("Sodium")),
+            Set.of("extra", "sodium")));
+        Sheet.AddMods sheet = (Sheet.AddMods) added.sheet();
+        assertEquals(Set.of(), sheet.adding());
+        assertEquals(2, sheet.added());
+        assertEquals(Set.of("extra", "sodium"), sheet.inPack());
+        assertEquals(sheet, ((Sheet.AddMods) reduce(added, new UiAction.AddCatalogMod("sodium")).sheet()),
+            "a mod already in the pack is not added again");
+
+        SyncFailure gone = new SyncFailure.ModUnavailable("Iris");
+        Sheet.AddMods failed = (Sheet.AddMods) reduce(added, new UiAction.AddCatalogMod("iris"),
+            new UiAction.ModAddFailed("iris", gone)).sheet();
+        assertEquals(gone, failed.error());
+        assertEquals(Set.of(), failed.adding());
     }
 }

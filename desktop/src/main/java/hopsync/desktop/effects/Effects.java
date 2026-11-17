@@ -11,6 +11,7 @@ import hopsync.core.port.ModCatalog;
 import hopsync.core.session.PackSessions;
 import hopsync.core.session.UpdateState;
 import hopsync.core.usecase.DefinitionResolver;
+import hopsync.core.usecase.PackEditor;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.store.Preferences;
 import hopsync.desktop.store.PackUiState;
@@ -54,9 +55,10 @@ public final class Effects {
     /**
      * @param catalog      the mod catalog created packs pick from
      * @param createdPacks resolves a created pack's definition into the manifest the list shows
+     * @param editor       changes the mods of a created pack
      */
     public Effects(Store store, PackRegistry registry, PackSessions sessions, ManifestService manifests,
-                   ModCatalog catalog, DefinitionResolver createdPacks, ModLoadService modLoadService,
+                   ModCatalog catalog, DefinitionResolver createdPacks, PackEditor editor, ModLoadService modLoadService,
                    InstanceFinder instances, Executor background, Path settingsFile, Clock clock, Runnable exit) {
         this.store = store;
         this.createdPacks = createdPacks;
@@ -67,7 +69,7 @@ public final class Effects {
         this.background = background;
         this.clock = clock;
         this.exit = exit;
-        this.sheets = new SheetEffects(store, registry, manifests, catalog, instances, background, settingsFile,
+        this.sheets = new SheetEffects(store, registry, manifests, catalog, editor, instances, background, settingsFile,
             this::reloadPacks, packId -> sessions.get(packId).startUpdate(),
             packId -> sessions.get(packId).cancelUpdate(),
             packId -> sessions.get(packId).getPhase() == UpdateState.Phase.APPLYING);

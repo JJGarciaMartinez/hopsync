@@ -1,0 +1,160 @@
+package hopsync.core.usecase;
+
+import hopsync.core.catalog.CatalogProject;
+import hopsync.core.catalog.CatalogVersion;
+import hopsync.core.failure.SyncException;
+import hopsync.core.failure.SyncFailure;
+import hopsync.core.manifest.PackInfo;
+import hopsync.core.pack.PackDefinition;
+import hopsync.core.pack.PackRegistry;
+import hopsync.core.port.ModCatalog;
+import hopsync.core.port.PackDefinitionRepository;
+import hopsync.core.util.SafePaths;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+/**
+ * Changes the mods of a pack the player created. Every change is saved to the pack's definition at once; the
+ * files reach the game folder through the usual check, review and apply.
+ */
+public final class PackEditor {
+    private final ModCatalog catalog;
+    private final PackRegistry registry;
+    private final PackDefinitionRepository definitions;
+
+    public PackEditor(ModCatalog catalog, PackRegistry registry, PackDefinitionRepository definitions) {
+        this.catalog = catalog;
+        this.registry = registry;
+        this.definitions = definitions;
+    }
+
+    /**
+     * What adding a mod did.
+     *
+     * @param title     the mod's name
+     * @param alsoAdded names of the mods it needs that were added with it
+     */
+    public record Added(String title, List<String> alsoAdded) {
+        public Added {
+            alsoAdded = List.copyOf(alsoAdded);
+        }
+    }
+
+    /**
+     * Adds a catalog mod at its newest version for the pack's Minecraft version and loader (a stable release when
+     * there is one), together with every mod it requires that the pack does not have yet.
+     *
+     * @throws SyncException with {@link SyncFailure.ModUnavailable} when it, or a mod it requires, has no version
+     *                       for this pack
+     */
+    public Added addFromCatalog(String packId, String projectId) throws IOException {
+        PackDefinition definition = definition(packId);
+        PackInfo info = definition.pack();
+        Set<String> inPack = new LinkedHashSet<>();
+        for (PackDefinition.Mod mod : definition.mods()) {
+            if (mod instanceof PackDefinition.ModrinthMod modrinth) inPack.add(modrinth.projectId());
+        }
+
+        List<CatalogVersion> picked = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        Deque<String> pending = new ArrayDeque<>(List.of(projectId));
+        while (!pending.isEmpty()) {
+            String next = pending.poll();
+            if (inPack.contains(next) || !seen.add(next)) continue;
+            CatalogVersion version = newest(catalog.versions(next, info.minecraft(), info.loader()))
+                .orElseThrow(() -> new SyncException(new SyncFailure.ModUnavailable(titleOf(next))));
+            picked.add(version);
+            for (CatalogVersion.Dependency dependency : version.required()) {
+                dependencyProject(dependency).ifPresent(pending::add);
+            }
+        }
+        if (picked.isEmpty()) {
+            return new Added(titleOf(projectId), List.of());
+        }
+
+        Map<String, CatalogProject> projects = catalog.projects(seen);
+        List<PackDefinition.Mod> mods = new ArrayList<>(definition.mods());
+        List<String> alsoAdded = new ArrayList<>();
+        for (CatalogVersion version : picked) {
+            CatalogProject project = projects.get(version.projectId());
+            mods.add(new PackDefinition.ModrinthMod(version.projectId(),
+                project == null ? version.projectId() : project.slug(), version.id(), version.versionNumber()));
+            if (!version.projectId().equals(projectId)) {
+                alsoAdded.add(project == null ? version.projectId() : project.title());
+            }
+        }
+        registry.saveDefinition(packId, definition.withMods(mods));
+        CatalogProject added = projects.get(projectId);
+        return new Added(added == null ? projectId : added.title(), alsoAdded);
+    }
+
+    /**
+     * Copies a jar the player picked into the pack's own mods and lists it; a jar with the same name is replaced.
+     *
+     * @return the jar's file name
+     */
+    public String addOwnJar(String packId, Path jar) throws IOException {
+        PackDefinition definition = definition(packId);
+        String file = jar.getFileName().toString();
+        if (!file.toLowerCase(Locale.ROOT).endsWith(".jar") || !SafePaths.isSafeFileName(file)) {
+            throw new SyncException(new SyncFailure.UnsafePath(file));
+        }
+        Path ownMods = definitions.folder(packId).resolve(DefinitionResolver.OWN_MODS);
+        Files.createDirectories(ownMods);
+        Files.copy(jar, SafePaths.resolveInside(ownMods, file), StandardCopyOption.REPLACE_EXISTING);
+        boolean listed = definition.mods().stream()
+            .anyMatch(mod -> mod instanceof PackDefinition.OwnMod own && own.file().equals(file));
+        if (!listed) {
+            List<PackDefinition.Mod> mods = new ArrayList<>(definition.mods());
+            mods.add(new PackDefinition.OwnMod(file));
+            registry.saveDefinition(packId, definition.withMods(mods));
+        }
+        return file;
+    }
+
+    /** The catalog projects a created pack already lists, so the search can mark them as added. */
+    public Set<String> catalogProjects(String packId) throws IOException {
+        Set<String> projects = new LinkedHashSet<>();
+        for (PackDefinition.Mod mod : definition(packId).mods()) {
+            if (mod instanceof PackDefinition.ModrinthMod modrinth) projects.add(modrinth.projectId());
+        }
+        return projects;
+    }
+
+    private PackDefinition definition(String packId) throws SyncException {
+        return registry.definition(packId)
+            .orElseThrow(() -> new SyncException(new SyncFailure.DefinitionMissing(packId)));
+    }
+
+    /** The newest stable release, else the newest version of any kind; the catalog lists them newest first. */
+    static Optional<CatalogVersion> newest(List<CatalogVersion> versions) {
+        return versions.stream().filter(CatalogVersion::release).findFirst().or(() -> versions.stream().findFirst());
+    }
+
+    private Optional<String> dependencyProject(CatalogVersion.Dependency dependency) throws IOException {
+        if (dependency.projectId() != null) return Optional.of(dependency.projectId());
+        if (dependency.versionId() == null) return Optional.empty();
+        return catalog.versionsById(List.of(dependency.versionId())).stream().findFirst().map(CatalogVersion::projectId);
+    }
+
+    private String titleOf(String projectId) {
+        try {
+            CatalogProject project = catalog.projects(List.of(projectId)).get(projectId);
+            return project == null ? projectId : project.title();
+        } catch (IOException e) {
+            return projectId;
+        }
+    }
+}

@@ -8,6 +8,7 @@ import hopsync.core.session.ApplyQueue;
 import hopsync.core.session.PackSessions;
 import hopsync.core.usecase.DefinitionResolver;
 import hopsync.core.usecase.ModUpdateService;
+import hopsync.core.usecase.PackEditor;
 import hopsync.desktop.config.AppConfig;
 import hopsync.platform.http.DownloadService;
 import hopsync.platform.manifest.ManifestService;
@@ -34,6 +35,7 @@ public final class AppContainer {
     private final ManifestService manifestService;
     private final ModCatalog modCatalog;
     private final DefinitionResolver definitionResolver;
+    private final PackEditor packEditor;
     private final PackSessions packSessions;
     private final ExecutorService backgroundExecutor =
         Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("hopsync-update-", 0).factory());
@@ -47,6 +49,7 @@ public final class AppContainer {
         manifestService = new ManifestService(downloadService, settingsStore.getFile().resolveSibling("manifests"));
         modCatalog = new ModrinthClient(downloadService::getUrlString);
         definitionResolver = new DefinitionResolver(modCatalog, definitions);
+        packEditor = new PackEditor(modCatalog, packRegistry, definitions);
         ModUpdateService modUpdateService = new ModUpdateService(manifestService, definitionResolver, downloadService,
             packRegistry::parallelDownloads);
         ApplyQueue applyQueue = new ApplyQueue(backgroundExecutor, packRegistry::chainQueue);
@@ -86,6 +89,10 @@ public final class AppContainer {
 
     public DefinitionResolver definitionResolver() {
         return definitionResolver;
+    }
+
+    public PackEditor packEditor() {
+        return packEditor;
     }
 
     /** Virtual threads for background work: checks, applies, listing files, fetching manifests. */

@@ -9,6 +9,7 @@ import hopsync.core.pack.PackDefinition;
 import hopsync.core.pack.PackRegistry;
 import hopsync.core.pack.PackSource;
 import hopsync.core.port.ModCatalog;
+import hopsync.core.usecase.PackEditor;
 import hopsync.desktop.config.AppVersion;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.store.GameFolder;
@@ -38,11 +39,15 @@ import java.util.function.Predicate;
 final class SheetEffects {
     private static final System.Logger LOG = System.getLogger(SheetEffects.class.getName());
     static final String NEW_PACK_VERSION = "1.0.0";
+    static final int SEARCH_RESULTS = 20;
 
     private final Store store;
     private final PackRegistry registry;
     private final ManifestService manifests;
     private final ModCatalog catalog;
+    private final PackEditor editor;
+    /** The sheet open before the action being handled; closing the add-mods sheet needs to know what it added. */
+    private Sheet previous;
     private final InstanceFinder instances;
     private final java.util.concurrent.Executor background;
     private final Path settingsFile;
@@ -57,13 +62,15 @@ final class SheetEffects {
      * @param dropUpdate  drops a pack's check, plan or place in the queue, made for its old link or folder
      * @param writing     whether a pack is writing files right now, when its settings cannot change
      */
-    SheetEffects(Store store, PackRegistry registry, ManifestService manifests, ModCatalog catalog, InstanceFinder instances,
+    SheetEffects(Store store, PackRegistry registry, ManifestService manifests, ModCatalog catalog, PackEditor editor,
+                 InstanceFinder instances,
                  java.util.concurrent.Executor background, Path settingsFile, Runnable reloadPacks,
                  Consumer<String> checkPack, Consumer<String> dropUpdate, Predicate<String> writing) {
         this.store = store;
         this.registry = registry;
         this.manifests = manifests;
         this.catalog = catalog;
+        this.editor = editor;
         this.instances = instances;
         this.background = background;
         this.settingsFile = settingsFile;
@@ -74,7 +81,28 @@ final class SheetEffects {
     }
 
     void run(UiAction action, UiState state) {
+        try {
+            handle(action, state);
+        } finally {
+            previous = state.sheet();
+        }
+    }
+
+    private void handle(UiAction action, UiState state) {
         switch (action) {
+            case UiAction.OpenAddMods a when state.sheet() instanceof Sheet.AddMods sheet -> {
+                loadPackMods(sheet.packId());
+                search(sheet);
+            }
+            case UiAction.SearchMods a when state.sheet() instanceof Sheet.AddMods sheet && sheet.results() == null ->
+                search(sheet);
+            case UiAction.AddCatalogMod a when state.sheet() instanceof Sheet.AddMods sheet
+                && sheet.adding().contains(a.projectId()) -> addCatalogMod(sheet.packId(), a.projectId());
+            // Outside the sheet nothing else will check the pack, so the jar is checked at once
+            case UiAction.AddOwnJar a -> addOwnJar(a.packId(), a.jar(), !(state.sheet() instanceof Sheet.AddMods));
+            // What was added reaches the game folder through the usual check and review
+            case UiAction.CloseSheet a when previous instanceof Sheet.AddMods closed && state.sheet() == null
+                && closed.added() > 0 -> checkPack.accept(closed.packId());
             case UiAction.CheckLink a -> fetchLink(state.sheet());
             case UiAction.StartFromScratch a when state.sheet() instanceof Sheet.AddPack wizard
                 && wizard.creation() != null && wizard.creation().versions() == null -> loadGameVersions();
@@ -127,6 +155,56 @@ final class SheetEffects {
         return registry.packUsing(folder, exceptPackId)
             .map(Pack::label)
             .orElse(null);
+    }
+
+    private void loadPackMods(String packId) {
+        background.execute(() -> {
+            try {
+                store.dispatch(new UiAction.PackModsLoaded(packId, editor.catalogProjects(packId)));
+            } catch (IOException | RuntimeException e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not read the mods of pack " + packId, e);
+            }
+        });
+    }
+
+    private void search(Sheet.AddMods sheet) {
+        String query = sheet.query();
+        background.execute(() -> {
+            try {
+                store.dispatch(new UiAction.ModsFound(query,
+                    catalog.search(query, sheet.minecraft(), sheet.loader(), SEARCH_RESULTS)));
+            } catch (Exception e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not search mods for \"" + query + "\"", e);
+                store.dispatch(new UiAction.ModSearchFailed(query, SyncFailures.from(e, "")));
+            }
+        });
+    }
+
+    private void addCatalogMod(String packId, String projectId) {
+        background.execute(() -> {
+            try {
+                PackEditor.Added added = editor.addFromCatalog(packId, projectId);
+                store.dispatch(new UiAction.ModAdded(projectId, new Sheet.Added(added.title(), added.alsoAdded()),
+                    editor.catalogProjects(packId)));
+            } catch (Exception e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not add " + projectId + " to pack " + packId, e);
+                store.dispatch(new UiAction.ModAddFailed(projectId, SyncFailures.from(e, "")));
+            }
+        });
+    }
+
+    private void addOwnJar(String packId, Path jar, boolean checkAfter) {
+        background.execute(() -> {
+            try {
+                String file = editor.addOwnJar(packId, jar);
+                store.dispatch(new UiAction.ModAdded(null, new Sheet.Added(file, List.of()),
+                    editor.catalogProjects(packId)));
+                if (checkAfter) checkPack.accept(packId);
+            } catch (Exception e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not add " + jar + " to pack " + packId, e);
+                store.dispatch(new UiAction.ModAddFailed(null, SyncFailures.from(e, jar.toString())));
+            }
+        });
     }
 
     private void loadGameVersions() {

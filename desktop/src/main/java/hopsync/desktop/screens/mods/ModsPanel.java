@@ -2,10 +2,15 @@ package hopsync.desktop.screens.mods;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.util.UIScale;
+import hopsync.core.manifest.PackInfo;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.kit.ButtonStyle;
+import hopsync.desktop.kit.Fonts;
 import hopsync.desktop.kit.Icons;
+import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.SegmentedControl;
+import hopsync.desktop.screens.FileChoosers;
 import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
@@ -15,24 +20,36 @@ import hopsync.desktop.store.UiState.Tab;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.GridBagLayout;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
  * The selected pack's files: tabs (Pack, Tus mods, Configs) with their counts, the "Solo cambios / Todos"
- * filter when there is a plan, a search box (one search per tab) and the list.
+ * filter when there is a plan, a search box (one search per tab) and the list. A pack the player created with
+ * no mods yet shows "Tu caja está vacía" with the ways to fill it instead of an empty list.
  */
 public final class ModsPanel extends JPanel {
     private final SegmentedControl<Tab> tabs;
     private final SegmentedControl<Filter> filter;
     private final JTextField search = new JTextField();
     private final ModTable table;
+    private final CardLayout cards = new CardLayout();
+    private final JPanel center = new JPanel(cards);
+    private final JLabel emptyText = new JLabel();
+    private String packId;
     private boolean rendering;
 
     public ModsPanel(Consumer<UiAction> dispatch) {
@@ -83,8 +100,57 @@ public final class ModsPanel extends JPanel {
         bar.add(search);
 
         table = new ModTable(dispatch);
+        center.setOpaque(false);
+        center.add(table, LIST);
+        center.add(emptyBox(dispatch), EMPTY);
         add(bar, BorderLayout.NORTH);
-        add(table, BorderLayout.CENTER);
+        add(center, BorderLayout.CENTER);
+    }
+
+    private static final String LIST = "list";
+    private static final String EMPTY = "empty";
+
+    /** The box without its pieces, the coral one still on its way: nothing is yours yet. */
+    private JPanel emptyBox(Consumer<UiAction> dispatch) {
+        JLabel mark = new JLabel(new LogoIcon(64,
+            new LogoIcon.Colors(Palette.edge(), Palette.background(), Palette.action())));
+        JLabel title = new JLabel(Messages.get("mods.empty.title"));
+        title.setFont(Fonts.display(title.getFont(), 7));
+        emptyText.setForeground(Palette.textSecondary());
+        emptyText.setHorizontalAlignment(JLabel.CENTER);
+        JButton search = new JButton(Messages.get("mods.empty.search"), Icons.get(Icons.Glyph.SEARCH));
+        ButtonStyle.apply(search, ButtonStyle.PRIMARY);
+        search.addActionListener(e -> {
+            if (packId != null) dispatch.accept(new UiAction.OpenAddMods(packId));
+        });
+        JButton jar = new JButton(Messages.get("addMods.addJar"), Icons.get(Icons.Glyph.FILE));
+        ButtonStyle.apply(jar, ButtonStyle.SECONDARY);
+        jar.addActionListener(e -> {
+            String id = packId;
+            if (id != null) FileChoosers.chooseJar(this).ifPresent(path -> dispatch.accept(new UiAction.AddOwnJar(id, path)));
+        });
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, UIScale.scale(8), 0));
+        buttons.setOpaque(false);
+        buttons.add(search);
+        buttons.add(jar);
+
+        JPanel column = new JPanel();
+        column.setOpaque(false);
+        column.setLayout(new BoxLayout(column, BoxLayout.Y_AXIS));
+        for (JComponent part : new JComponent[] {mark, title, emptyText, buttons}) {
+            part.setAlignmentX(Component.CENTER_ALIGNMENT);
+        }
+        column.add(mark);
+        column.add(Box.createVerticalStrut(UIScale.scale(14)));
+        column.add(title);
+        column.add(Box.createVerticalStrut(UIScale.scale(6)));
+        column.add(emptyText);
+        column.add(Box.createVerticalStrut(UIScale.scale(18)));
+        column.add(buttons);
+        JPanel box = new JPanel(new GridBagLayout());
+        box.setOpaque(false);
+        box.add(column);
+        return box;
     }
 
     public void render(PackUiState pack, UiState state) {
@@ -101,6 +167,16 @@ public final class ModsPanel extends JPanel {
                 search.setText(state.query());
             }
             table.setRows(model.rows(), state.expandedRow());
+            packId = pack.packId();
+            boolean empty = pack.created() && pack.manifest() != null && pack.modCount() == 0
+                && state.tab() == Tab.PACK;
+            if (empty) {
+                PackInfo info = pack.packInfo();
+                emptyText.setText("<html><div style='text-align:center;width:" + UIScale.scale(360) + "px'>"
+                    + ModRowRenderer.escape(Messages.get("mods.empty.text", info.minecraft(),
+                    Messages.loader(info.loader()))) + "</div></html>");
+            }
+            cards.show(center, empty ? EMPTY : LIST);
         } finally {
             rendering = false;
         }

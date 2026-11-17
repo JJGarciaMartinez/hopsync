@@ -1,5 +1,6 @@
 package hopsync.desktop.store;
 
+import hopsync.core.catalog.CatalogProject;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.Manifest;
@@ -75,6 +76,30 @@ public sealed interface UiAction {
     record RemovePack(String packId) implements UiAction {}
 
     // Sheets
+
+    /** "Añadir mods" of a pack the player created; Effects loads what it has and the most downloaded mods. */
+    record OpenAddMods(String packId) implements UiAction {}
+
+    /** Search text of the add-mods sheet, dispatched once the player stops typing. */
+    record SearchMods(String query) implements UiAction {}
+
+    record ModsFound(String query, List<CatalogProject> results) implements UiAction {}
+
+    record ModSearchFailed(String query, SyncFailure failure) implements UiAction {}
+
+    /** The catalog projects the pack already lists. */
+    record PackModsLoaded(String packId, Set<String> projects) implements UiAction {}
+
+    record AddCatalogMod(String projectId) implements UiAction {}
+
+    /** A jar the player picked, copied into the pack as one of its own mods. */
+    record AddOwnJar(String packId, Path jar) implements UiAction {}
+
+    /** @param projectId the catalog project added, or {@code null} for an own jar */
+    record ModAdded(String projectId, Sheet.Added result, Set<String> projects) implements UiAction {}
+
+    /** @param projectId the catalog project that could not be added, or {@code null} for an own jar */
+    record ModAddFailed(String projectId, SyncFailure failure) implements UiAction {}
 
     /** Settings of the selected pack (or the add-pack wizard when there are no packs). */
     record OpenSettings() implements UiAction {}

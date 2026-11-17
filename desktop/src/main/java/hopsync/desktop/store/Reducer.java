@@ -56,6 +56,21 @@ public final class Reducer {
             case UiAction.AddPack a -> state.withSheet(Sheet.AddPack.start(state.packs().isEmpty()));
             case UiAction.AskRemovePack a -> state.packs().isEmpty() ? state
                 : openPackSettings(state, Sheet.PackSettings.Section.REMOVE);
+            case UiAction.OpenAddMods a -> openAddMods(state, a.packId());
+            case UiAction.SearchMods a -> updateAddMods(state, sheet -> sheet.query().equals(a.query()) ? sheet
+                : sheet.withQuery(a.query()));
+            // Only the answer for the words still typed counts
+            case UiAction.ModsFound a -> updateAddMods(state, sheet -> sheet.query().equals(a.query())
+                ? sheet.withResults(a.results(), null) : sheet);
+            case UiAction.ModSearchFailed a -> updateAddMods(state, sheet -> sheet.query().equals(a.query())
+                ? sheet.withResults(List.of(), a.failure()) : sheet);
+            case UiAction.PackModsLoaded a -> updateAddMods(state, sheet -> sheet.packId().equals(a.packId())
+                ? sheet.withInPack(a.projects()) : sheet);
+            case UiAction.AddCatalogMod a -> updateAddMods(state, sheet -> sheet.inPack() != null
+                && sheet.inPack().contains(a.projectId()) ? sheet : sheet.withAdding(a.projectId()));
+            case UiAction.AddOwnJar a -> state;
+            case UiAction.ModAdded a -> updateAddMods(state, sheet -> sheet.withAdded(a.projectId(), a.result(), a.projects()));
+            case UiAction.ModAddFailed a -> updateAddMods(state, sheet -> sheet.withFailure(a.projectId(), a.failure()));
             case UiAction.OpenAppSettings a -> state.withSheet(new Sheet.AppSettings(a.section(), state.preferences()));
             case UiAction.CloseSheet a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.firstRun() ? state
                 : state.withSheet(null);
@@ -274,6 +289,19 @@ public final class Reducer {
     /** A launcher instance stays one after the check, which only knows the path. */
     private static GameFolder sameKind(GameFolder chosen, GameFolder checked) {
         return new GameFolder(chosen.kind(), chosen.name(), checked.path(), checked.jarCount(), checked.usedBy());
+    }
+
+    /** Only for a created pack whose details are known, and not while it writes files. */
+    private static UiState openAddMods(UiState state, String packId) {
+        PackUiState pack = state.packs().get(packId);
+        if (pack == null || !pack.created() || pack.packInfo() == null || pack.phase().isWriting()) {
+            return state;
+        }
+        return state.withSheet(Sheet.AddMods.start(packId, pack.packInfo().minecraft(), pack.packInfo().loader()));
+    }
+
+    private static UiState updateAddMods(UiState state, UnaryOperator<Sheet.AddMods> change) {
+        return state.sheet() instanceof Sheet.AddMods sheet ? state.withSheet(change.apply(sheet)) : state;
     }
 
     private static UiState updateCreation(UiState state, UnaryOperator<Sheet.Creation> change) {
