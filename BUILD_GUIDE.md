@@ -46,7 +46,9 @@ Running `jpackage` again replaces the previous installer.
 3. The **Release** workflow (`.github/workflows/release.yml`) checks that the tag matches `app.version`, builds
    and tests on the three OSes, runs `jpackage` on each and `portableZip` on Linux, and drafts a GitHub Release
    with the `.msi`, `.dmg`, `.deb` and the portable ZIP. `a`, `b` and `rc` tags are marked as prereleases.
-4. Review the draft on GitHub (notes, files) and publish it.
+   Its notes start with the guide to each file from `.github/release-downloads.md` (`{version}` and `{numeric}`
+   are filled in), followed by the changelog GitHub generates.
+4. Review the draft on GitHub, add a short intro and what's new above the guide, and publish it.
 
 ## Before publishing
 
