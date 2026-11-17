@@ -62,8 +62,16 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
                     yield List.of(new ModRow.Message(pack.manifestError() != null
                         ? Messages.failure(pack.manifestError()) : Messages.get("mods.loading")));
                 }
-                yield packRows(pack, plan, hasChanges && state.filter() == Filter.CHANGES, matches,
+                List<ModRow> packRows = packRows(pack, plan, hasChanges && state.filter() == Filter.CHANGES, matches,
                     state.expandedRow());
+                // Right after applying, say what happened and that the player's own files were left alone
+                if (pack.phase() == PackPhase.DONE && pack.result() != null && pack.result().succeeded() > 0) {
+                    List<ModRow> withBanner = new ArrayList<>();
+                    withBanner.add(new ModRow.Banner(Messages.get("mods.appliedBanner", pack.result().succeeded())));
+                    withBanner.addAll(packRows);
+                    yield withBanner;
+                }
+                yield packRows;
             }
         };
         if (rows.isEmpty() && !state.query().isBlank()) {
@@ -81,14 +89,14 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
         }
         List<ModRow> rows = new ArrayList<>();
         if (changesOnly) {
-            group(rows, "mods.group.update", modsWith(pack.manifest(), changes, ModChange.UPDATE, matches), pack, changes,
-                expanded);
-            group(rows, "mods.group.new", modsWith(pack.manifest(), changes, ModChange.NEW, matches), pack, changes,
-                expanded);
+            // What arrives first, then what changes, then what goes
+            group(rows, "mods.group.new", "mods.group.newNote", modsWith(pack.manifest(), changes, ModChange.NEW, matches),
+                pack, changes, expanded);
+            group(rows, "mods.group.update", null, modsWith(pack.manifest(), changes, ModChange.UPDATE, matches), pack,
+                changes, expanded);
             List<String> removals = plan.removals().stream().filter(matches).toList();
             if (!removals.isEmpty()) {
-                rows.add(new ModRow.Group(Messages.get("mods.group.remove", removals.size()),
-                    Messages.get("mods.group.removeNote")));
+                rows.add(new ModRow.Group(Messages.get("mods.group.remove"), Messages.get("mods.group.removeNote")));
                 removals.forEach(file -> rows.add(removalRow(pack, file)));
             }
             long upToDate = changes.values().stream().filter(change -> change == ModChange.UP_TO_DATE).count();
@@ -115,10 +123,10 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
             .toList();
     }
 
-    private static void group(List<ModRow> rows, String titleKey, List<ModEntry> mods, PackUiState pack,
+    private static void group(List<ModRow> rows, String titleKey, String noteKey, List<ModEntry> mods, PackUiState pack,
                               Map<String, ModChange> changes, String expanded) {
         if (mods.isEmpty()) return;
-        rows.add(new ModRow.Group(Messages.get(titleKey, mods.size()), null));
+        rows.add(new ModRow.Group(Messages.get(titleKey), noteKey == null ? null : Messages.get(noteKey)));
         mods.forEach(mod -> addWithDetail(rows, modRow(pack, mod, changes.get(mod.file())), mod, pack.packInfo(),
             expanded));
     }

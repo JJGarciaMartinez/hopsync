@@ -87,12 +87,20 @@ class ModRowModelTest {
     }
 
     @Test
+    void afterApplyingABannerSaysWhatChangedAndThatOwnFilesStayed() {
+        ModRowModel model = model(reduce(reviewing(), new UiAction.ConfirmPlan(D), new SyncEvent.ApplyStarted(D),
+            new SyncEvent.UpdateCompleted(D, 3, 0)));
+
+        assertEquals(new ModRow.Banner(Messages.get("mods.appliedBanner", 3)), model.rows().getFirst());
+    }
+
+    @Test
     void reviewGroupsTheChangesAndOffersTheRest() {
         ModRowModel model = model(reviewing());
 
-        assertEquals(List.of("# " + Messages.get("mods.group.update", 1), "upd.jar",
-            "# " + Messages.get("mods.group.new", 1), "new.jar",
-            "# " + Messages.get("mods.group.remove", 1), "gone.jar", "more"), keys(model));
+        assertEquals(List.of("# " + Messages.get("mods.group.new"), "new.jar",
+            "# " + Messages.get("mods.group.update"), "upd.jar",
+            "# " + Messages.get("mods.group.remove"), "gone.jar", "more"), keys(model), "what arrives, changes, goes");
         assertTrue(model.showsFilter());
         assertEquals(new UiAction.SetFilter(Filter.ALL), ((ModRow.More) model.rows().getLast()).action());
     }
