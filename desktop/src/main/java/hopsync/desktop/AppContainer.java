@@ -10,8 +10,11 @@ import hopsync.core.session.PackSessions;
 import hopsync.core.usecase.DefinitionResolver;
 import hopsync.core.usecase.ModUpdateService;
 import hopsync.core.usecase.PackEditor;
+import hopsync.core.usecase.PackPublishing;
 import hopsync.desktop.config.AppConfig;
+import hopsync.platform.github.GitHubApi;
 import hopsync.platform.github.GitHubAuth;
+import hopsync.platform.github.GitHubPublisher;
 import hopsync.platform.http.DownloadService;
 import hopsync.platform.manifest.ManifestService;
 import hopsync.platform.modrinth.ModrinthClient;
@@ -41,6 +44,7 @@ public final class AppContainer {
     private final PackEditor packEditor;
     private final SecretStore secrets = SystemKeychain.forCurrentOs();
     private final GitHubAuth gitHubAuth;
+    private final PackPublishing publishing;
     private final PackSessions packSessions;
     private final ExecutorService backgroundExecutor =
         Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("hopsync-update-", 0).factory());
@@ -56,6 +60,8 @@ public final class AppContainer {
         definitionResolver = new DefinitionResolver(modCatalog, definitions);
         packEditor = new PackEditor(modCatalog, packRegistry, definitions);
         gitHubAuth = new GitHubAuth(config.githubClientId(), config.network());
+        publishing = new PackPublishing(packRegistry, definitions,
+            new GitHubPublisher(new GitHubApi(config.network()), secrets, GitHubAuth.TOKEN_KEY));
         ModUpdateService modUpdateService = new ModUpdateService(manifestService, definitionResolver, downloadService,
             packRegistry::parallelDownloads);
         ApplyQueue applyQueue = new ApplyQueue(backgroundExecutor, packRegistry::chainQueue);
@@ -107,6 +113,10 @@ public final class AppContainer {
 
     public GitHubAuth gitHubAuth() {
         return gitHubAuth;
+    }
+
+    public PackPublishing publishing() {
+        return publishing;
     }
 
     /** Virtual threads for background work: checks, applies, listing files, fetching manifests. */

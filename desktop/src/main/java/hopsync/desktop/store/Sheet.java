@@ -2,6 +2,7 @@ package hopsync.desktop.store;
 
 import hopsync.core.catalog.CatalogProject;
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.publish.PublishStep;
 
 import java.util.List;
 import java.util.Set;
@@ -208,6 +209,47 @@ public sealed interface Sheet {
     record Added(String title, List<String> alsoAdded) {
         public Added {
             alsoAdded = List.copyOf(alsoAdded);
+        }
+    }
+
+    /**
+     * Publishing a created pack on GitHub: review (repository name on a first publish, the player's own files to
+     * confirm), then the steps as they happen, then the link or what failed.
+     *
+     * @param update      the pack is already published; this publishes its changes
+     * @param ownFiles    configs and jars that do not come from the catalog, {@code null} while they are listed
+     * @param confirmed   the player confirmed they may share their own files
+     * @param step        the step running while publishing, or {@code null}
+     * @param link        the pack's link once published, or {@code null}
+     * @param error       why publishing failed, or {@code null}
+     */
+    record Publish(String packId, boolean update, String repoName, List<String> ownFiles, boolean confirmed,
+                   Stage stage, PublishStep step, String link, SyncFailure error) implements Sheet {
+
+        public enum Stage { REVIEW, PUBLISHING, DONE }
+
+        public Publish {
+            ownFiles = ownFiles == null ? null : List.copyOf(ownFiles);
+        }
+
+        public static Publish start(String packId, boolean update, String repoName) {
+            return new Publish(packId, update, repoName, null, false, Stage.REVIEW, null, null, null);
+        }
+
+        /** A name GitHub accepts, files listed, and their sharing confirmed when there are any. */
+        public boolean canPublish() {
+            return stage == Stage.REVIEW && ownFiles != null && (ownFiles.isEmpty() || confirmed)
+                && (update || validRepoName(repoName));
+        }
+
+        /** Letters, digits, "-", "_" and ".", up to 100, as GitHub allows; not "." or "..". */
+        public static boolean validRepoName(String name) {
+            return name != null && name.matches("[A-Za-z0-9._-]{1,100}") && !name.equals(".") && !name.equals("..");
+        }
+
+        Publish with(String newName, List<String> files, boolean ok, Stage newStage, PublishStep newStep,
+                     String newLink, SyncFailure failure) {
+            return new Publish(packId, update, newName, files, ok, newStage, newStep, newLink, failure);
         }
     }
 

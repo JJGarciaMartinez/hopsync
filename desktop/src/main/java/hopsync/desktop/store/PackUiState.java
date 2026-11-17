@@ -23,8 +23,10 @@ import java.util.Map;
  * @param error         why the last update stopped, in {@link PackPhase#ERROR}
  * @param lastChecked   when the last check finished, or {@code null}
  * @param created       a pack the player created, rather than one followed by its link
+ * @param unpublished   a created pack that is published and changed since, so it has changes to publish
  */
-public record PackUiState(String packId, String name, String manifestUrl, boolean created, Path gameDir, PackPhase phase,
+public record PackUiState(String packId, String name, String manifestUrl, boolean created, boolean unpublished,
+                          Path gameDir, PackPhase phase,
                           Manifest manifest, SyncFailure manifestError, SyncPlan plan, InstalledMods installed,
                           Progress progress, Map<String, RowStatus> rowStatus, Result result, SyncFailure error,
                           Instant lastChecked) {
@@ -70,53 +72,58 @@ public record PackUiState(String packId, String name, String manifestUrl, boolea
     }
 
     public static PackUiState of(Pack pack) {
-        return new PackUiState(pack.id(), pack.name(), pack.link().orElse(""), pack.isLocal(), pack.gameDir(), PackPhase.UNCHECKED,
+        return new PackUiState(pack.id(), pack.name(), pack.link().orElse(""), pack.isLocal(), false, pack.gameDir(), PackPhase.UNCHECKED,
             null, null, null, InstalledMods.NONE, Progress.NONE, Map.of(), Result.NONE, null, null);
     }
 
     /** Same pack with its link, folder and name taken from the registry. */
     PackUiState withPack(Pack pack) {
-        return new PackUiState(packId, pack.name(), pack.link().orElse(""), pack.isLocal(), pack.gameDir(), phase, manifest,
+        return new PackUiState(packId, pack.name(), pack.link().orElse(""), pack.isLocal(), unpublished, pack.gameDir(), phase, manifest,
             manifestError, plan, installed, progress, rowStatus, result, error, lastChecked);
     }
 
+    PackUiState withUnpublished(boolean changed) {
+        return new PackUiState(packId, name, manifestUrl, created, changed, gameDir, phase, manifest, manifestError,
+            plan, installed, progress, rowStatus, result, error, lastChecked);
+    }
+
     PackUiState withPhase(PackPhase newPhase) {
-        return new PackUiState(packId, name, manifestUrl, created, gameDir, newPhase, manifest, manifestError,
+        return new PackUiState(packId, name, manifestUrl, created, unpublished, gameDir, newPhase, manifest, manifestError,
             plan, installed, progress, rowStatus, result, error, lastChecked);
     }
 
     PackUiState withManifest(Manifest newManifest, SyncFailure newError) {
-        return new PackUiState(packId, name, manifestUrl, created, gameDir, phase, newManifest, newError, plan, installed,
+        return new PackUiState(packId, name, manifestUrl, created, unpublished, gameDir, phase, newManifest, newError, plan, installed,
             progress, rowStatus, result, error, lastChecked);
     }
 
     PackUiState withPlan(SyncPlan newPlan, Instant checkedAt) {
-        return new PackUiState(packId, name, manifestUrl, created, gameDir, phase, newPlan.manifest(), null, newPlan,
+        return new PackUiState(packId, name, manifestUrl, created, unpublished, gameDir, phase, newPlan.manifest(), null, newPlan,
             installed, progress, rowStatus, result, error, checkedAt);
     }
 
     PackUiState withInstalled(InstalledMods files) {
-        return new PackUiState(packId, name, manifestUrl, created, gameDir, phase, manifest, manifestError, plan,
+        return new PackUiState(packId, name, manifestUrl, created, unpublished, gameDir, phase, manifest, manifestError, plan,
             files, progress, rowStatus, result, error, lastChecked);
     }
 
     PackUiState withProgress(Progress newProgress) {
-        return new PackUiState(packId, name, manifestUrl, created, gameDir, phase, manifest, manifestError, plan,
+        return new PackUiState(packId, name, manifestUrl, created, unpublished, gameDir, phase, manifest, manifestError, plan,
             installed, newProgress, rowStatus, result, error, lastChecked);
     }
 
     PackUiState withRowStatus(Map<String, RowStatus> rows) {
-        return new PackUiState(packId, name, manifestUrl, created, gameDir, phase, manifest, manifestError, plan,
+        return new PackUiState(packId, name, manifestUrl, created, unpublished, gameDir, phase, manifest, manifestError, plan,
             installed, progress, rows, result, error, lastChecked);
     }
 
     PackUiState withResult(Result newResult) {
-        return new PackUiState(packId, name, manifestUrl, created, gameDir, phase, manifest, manifestError, plan,
+        return new PackUiState(packId, name, manifestUrl, created, unpublished, gameDir, phase, manifest, manifestError, plan,
             installed, progress, rowStatus, newResult, error, lastChecked);
     }
 
     PackUiState withError(SyncFailure failure) {
-        return new PackUiState(packId, name, manifestUrl, created, gameDir, phase, manifest, manifestError, plan,
+        return new PackUiState(packId, name, manifestUrl, created, unpublished, gameDir, phase, manifest, manifestError, plan,
             installed, progress, rowStatus, result, failure, lastChecked);
     }
 }

@@ -2,6 +2,7 @@ package hopsync.desktop.store;
 
 import hopsync.core.catalog.CatalogProject;
 import hopsync.core.event.SyncEvent;
+import hopsync.core.publish.PublishStep;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.pack.Pack;
 import org.junit.jupiter.api.Test;
@@ -748,5 +749,40 @@ class ReducerTest {
         assertEquals(denied, reduce(waiting, new UiAction.GitHubConnectFailed(denied)).account().error());
         UiState unavailable = reduce(loaded(), new UiAction.AccountLoaded(null, false, false), new UiAction.ConnectGitHub());
         assertFalse(unavailable.account().connecting(), "a build without a GitHub app cannot sign in");
+    }
+
+    @Test
+    void publishingAsksForANameGitHubAcceptsAndTheSharingOfOwnFiles() {
+        UiState withMods = reduce(created(), new SyncEvent.UpdateStarted(MINE.id()), new SyncEvent.UpToDate(MINE.id(), upToDatePlan()));
+        assertNull(reduce(created(), new UiAction.OpenPublish(MINE.id())).sheet(), "an empty pack has nothing to publish");
+        UiState open = reduce(withMods, new UiAction.OpenPublish(MINE.id()));
+        Sheet.Publish sheet = (Sheet.Publish) open.sheet();
+        assertEquals(Reducer.repoNameFor(withMods.packs().get(MINE.id()).displayName()), sheet.repoName());
+        assertFalse(sheet.update());
+        assertFalse(sheet.canPublish(), "the files are not listed yet");
+
+        UiState listed = reduce(open, new UiAction.PublishFilesLoaded(MINE.id(), List.of("local-mods/mine.jar")));
+        assertFalse(((Sheet.Publish) listed.sheet()).canPublish(), "own files need the player's word");
+        UiState confirmed = reduce(listed, new UiAction.ConfirmOwnFiles(true));
+        assertTrue(((Sheet.Publish) confirmed.sheet()).canPublish());
+        assertFalse(((Sheet.Publish) reduce(confirmed, new UiAction.SetRepoName("mi pack!")).sheet()).canPublish());
+
+        UiState running = reduce(confirmed, new UiAction.StartPublish(),
+            new UiAction.PublishProgressed(MINE.id(), PublishStep.UPLOADING));
+        assertEquals(Sheet.Publish.Stage.PUBLISHING, ((Sheet.Publish) running.sheet()).stage());
+        assertEquals(PublishStep.UPLOADING, ((Sheet.Publish) running.sheet()).step());
+        Sheet.Publish failed = (Sheet.Publish) reduce(running, new UiAction.PublishFailed(MINE.id(),
+            new SyncFailure.RepoNameTaken("aventura-con-amigos"))).sheet();
+        assertEquals(Sheet.Publish.Stage.REVIEW, failed.stage(), "back to the review to fix it");
+        Sheet.Publish done = (Sheet.Publish) reduce(running, new UiAction.Published(MINE.id(), "https://x/manifest.json")).sheet();
+        assertEquals(Sheet.Publish.Stage.DONE, done.stage());
+        assertEquals("https://x/manifest.json", done.link());
+    }
+
+    @Test
+    void repositoryNamesComeFromThePackName() {
+        assertEquals("aventura-con-amigos", Reducer.repoNameFor("Aventura con amigos"));
+        assertEquals("pack-de-ninos-2", Reducer.repoNameFor("  Pack de Niños #2! "));
+        assertEquals("mi-pack", Reducer.repoNameFor("¡¿!"));
     }
 }

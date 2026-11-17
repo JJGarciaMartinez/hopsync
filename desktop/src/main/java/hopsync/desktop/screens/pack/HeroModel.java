@@ -56,7 +56,8 @@ public record HeroModel(StatusMark.Kind mark, String title, String detail, List<
 
     /**
      * A created pack with no mods yet says so and offers "Añadir mods" as its main action; once it has mods,
-     * "Añadir mods" sits before the phase's actions whenever the pack is not checking, queued or writing.
+     * "Añadir mods" sits before the phase's actions whenever the pack is not checking, queued or writing, followed
+     * by "Publicar" until it is published and "Publicar cambios" when it changed since.
      */
     private static HeroModel forCreated(PackUiState pack, HeroModel model) {
         Action addMods = new Action(Messages.get("hero.addMods"), Glyph.PLUS, new UiAction.OpenAddMods(pack.packId()),
@@ -73,6 +74,11 @@ public record HeroModel(StatusMark.Kind mark, String title, String detail, List<
         }
         List<Action> actions = new ArrayList<>();
         actions.add(addMods);
+        boolean published = !pack.manifestUrl().isEmpty();
+        if (!published || pack.unpublished()) {
+            actions.add(new Action(Messages.get(published ? "hero.publishChanges" : "hero.publish"), Glyph.UP,
+                new UiAction.OpenPublish(pack.packId()), ButtonStyle.SECONDARY));
+        }
         actions.addAll(model.actions());
         return new HeroModel(model.mark(), model.title(), model.detail(), model.tags(), actions, model.applying());
     }

@@ -40,6 +40,8 @@ public final class SheetLayer extends JPanel {
     private final AppSettingsView appSettings;
     private final AddModsView addMods;
     private final JPanel addModsCard;
+    private final PublishView publish;
+    private final JPanel publishCard;
     private final JPanel wizardCard;
     private final JPanel packSettingsCard;
     private final JPanel appSettingsCard;
@@ -57,6 +59,8 @@ public final class SheetLayer extends JPanel {
         appSettingsCard = SheetParts.floatingCard(appSettings);
         addMods = new AddModsView(dispatch);
         addModsCard = SheetParts.floatingCard(addMods);
+        publish = new PublishView(dispatch);
+        publishCard = SheetParts.floatingCard(publish);
         setOpaque(false);
         setVisible(false);
         setFocusCycleRoot(true);
@@ -105,6 +109,12 @@ public final class SheetLayer extends JPanel {
                 appSettings.render(settings, state.account());
                 yield appSettingsCard;
             }
+            case Sheet.Publish publishing -> {
+                PackUiState pack = state.packs().get(publishing.packId());
+                if (pack == null) yield null;
+                publish.render(publishing, pack.displayName(), state.account());
+                yield publishCard;
+            }
             case Sheet.AddMods mods -> {
                 PackUiState pack = state.packs().get(mods.packId());
                 if (pack == null) yield null;
@@ -115,6 +125,7 @@ public final class SheetLayer extends JPanel {
         };
         if (card == shownCard) return;
         if (shownCard == addModsCard) addMods.reset();
+        if (shownCard == publishCard) publish.reset();
         shownCard = card;
         removeAll();
         if (card != null) {

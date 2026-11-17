@@ -3,6 +3,7 @@ package hopsync.desktop.screens;
 import com.formdev.flatlaf.util.UIScale;
 import hopsync.core.catalog.CatalogProject;
 import hopsync.core.event.SyncEvent;
+import hopsync.core.publish.PublishStep;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.pack.Pack;
 import hopsync.desktop.kit.HopSyncDark;
@@ -80,6 +81,10 @@ class ScreensTest {
             reduce(base, new SyncEvent.UpdateStarted(D), new SyncEvent.UpdateCancelled(D)),
             reduce(base, new SyncEvent.UpdateStarted(D),
                 new SyncEvent.UpdateFailed(D, new SyncFailure.Network("github.com", "timeout"))));
+    }
+
+    private static UiState withMods() {
+        return reduce(created(), new SyncEvent.UpdateStarted(MINE.id()), new SyncEvent.UpToDate(MINE.id(), upToDatePlan()));
     }
 
     private static List<UiState> everyPhaseAndCreated() {
@@ -270,6 +275,18 @@ class ScreensTest {
                 new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ACCOUNT)),
             reduce(loaded(), new UiAction.AccountLoaded(null, true, false),
                 new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ACCOUNT)),
+            reduce(withMods(), new UiAction.OpenPublish(MINE.id())),
+            reduce(withMods(), new UiAction.AccountLoaded("player", true, true), new UiAction.OpenPublish(MINE.id())),
+            reduce(withMods(), new UiAction.AccountLoaded("player", true, true), new UiAction.OpenPublish(MINE.id()),
+                new UiAction.PublishFilesLoaded(MINE.id(), List.of("local-mods/a.jar", "local-mods/b.jar", "configs/c.json",
+                    "configs/d.json", "configs/e.json")), new UiAction.SetRepoName("no vale!"),
+                new UiAction.PublishFailed(MINE.id(), new SyncFailure.PublishBuildFailed("https://github.com/p/r/actions/runs/1"))),
+            reduce(withMods(), new UiAction.AccountLoaded("player", true, true), new UiAction.OpenPublish(MINE.id()),
+                new UiAction.PublishFilesLoaded(MINE.id(), List.of()), new UiAction.StartPublish(),
+                new UiAction.PublishProgressed(MINE.id(), PublishStep.UPLOADING)),
+            reduce(withMods(), new UiAction.AccountLoaded("player", true, true), new UiAction.OpenPublish(MINE.id()),
+                new UiAction.PublishFilesLoaded(MINE.id(), List.of()), new UiAction.StartPublish(),
+                new UiAction.Published(MINE.id(), "https://github.com/player/aventura/releases/download/hopsync/manifest.json")),
             reduce(created(), new UiAction.OpenAddMods(MINE.id())),
             reduce(created(), new UiAction.OpenAddMods(MINE.id()), new UiAction.PackModsLoaded(MINE.id(), Set.of("a")),
                 new UiAction.ModsFound("", List.of(

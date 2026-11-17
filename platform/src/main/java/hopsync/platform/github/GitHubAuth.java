@@ -28,6 +28,8 @@ public class GitHubAuth {
     static final String TOKEN_URL = "https://github.com/login/oauth/access_token";
     static final String USER_URL = "https://api.github.com/user";
     static final String SCOPE = "public_repo";
+    /** The keychain entry that holds the player's token. */
+    public static final String TOKEN_KEY = "github.token";
     /** GitHub asks to wait this much longer between polls each time it answers "slow_down". */
     private static final Duration SLOW_DOWN = Duration.ofSeconds(5);
 
