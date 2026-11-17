@@ -41,7 +41,7 @@ import java.util.function.Consumer;
  * and the app settings. Selecting a pack (mouse, arrows) dispatches {@link UiAction.SelectPack}.
  */
 public final class PackLibrary extends JPanel {
-    private static final int WIDTH = 214;
+    private static final int WIDTH = 232;
 
     private final Consumer<UiAction> dispatch;
     private final DefaultListModel<PackUiState> model = new DefaultListModel<>();
@@ -66,27 +66,27 @@ public final class PackLibrary extends JPanel {
     private JPanel header() {
         JLabel logo = new JLabel("HopSync", new LogoIcon(26, LogoIcon.onDark()), JLabel.LEFT);
         logo.setFont(Fonts.display(logo.getFont(), 4));
-        logo.setIconTextGap(UIScale.scale(8));
+        logo.setIconTextGap(UIScale.scale(10));
         JPanel brand = new JPanel(new BorderLayout());
         brand.setOpaque(false);
-        brand.setPreferredSize(new Dimension(0, UIScale.scale(52)));
+        brand.setPreferredSize(new Dimension(0, UIScale.scale(58)));
         brand.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, Palette.line()),
-            BorderFactory.createEmptyBorder(0, 14, 0, 14)));
+            BorderFactory.createEmptyBorder(0, 16, 0, 16)));
         brand.add(logo, BorderLayout.CENTER);
 
         title.putClientProperty(FlatClientProperties.STYLE, "font: semibold -2");
         title.setForeground(Palette.textFaint());
-        JButton checkAll = new JButton(Icons.get(Icons.Glyph.REFRESH, 13, null));
-        checkAll.setToolTipText(Messages.get("library.checkAll"));
-        checkAll.getAccessibleContext().setAccessibleName(Messages.get("library.checkAll"));
-        ButtonStyle.apply(checkAll, ButtonStyle.SECONDARY, ButtonStyle.ICON, ButtonStyle.SMALL);
-        checkAll.addActionListener(e -> dispatch.accept(new UiAction.CheckAll()));
+        JButton add = new JButton(Icons.get(Icons.Glyph.PLUS, 13, null));
+        add.setToolTipText(Messages.get("library.add"));
+        add.getAccessibleContext().setAccessibleName(Messages.get("library.add"));
+        ButtonStyle.apply(add, ButtonStyle.SECONDARY, ButtonStyle.ICON, ButtonStyle.SMALL);
+        add.addActionListener(e -> dispatch.accept(new UiAction.AddPack()));
         JPanel label = new JPanel(new BorderLayout());
         label.setOpaque(false);
-        label.setBorder(BorderFactory.createEmptyBorder(10, 14, 4, 8));
+        label.setBorder(BorderFactory.createEmptyBorder(16, 16, 8, 10));
         label.add(title, BorderLayout.CENTER);
-        label.add(checkAll, BorderLayout.EAST);
+        label.add(add, BorderLayout.EAST);
 
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
@@ -100,8 +100,8 @@ public final class PackLibrary extends JPanel {
         list.setBackground(Palette.sidebar());
         list.setCellRenderer(cell);
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        list.setFixedCellHeight(UIScale.scale(52));
-        list.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
+        list.setFixedCellHeight(UIScale.scale(53));
+        list.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 10));
         list.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         list.addListSelectionListener(e -> {
             PackUiState selected = list.getSelectedValue();
@@ -227,7 +227,7 @@ public final class PackLibrary extends JPanel {
                 g2.setStroke(new BasicStroke(UIScale.scale(1.5f), BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 10,
                     new float[] {dash, dash * 0.7f}, 0));
                 g2.setColor(hover ? Palette.action() : Palette.edge());
-                int arc = UIScale.scale(10);
+                int arc = UIScale.scale(20);
                 g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, arc, arc);
             } finally {
                 g2.dispose();

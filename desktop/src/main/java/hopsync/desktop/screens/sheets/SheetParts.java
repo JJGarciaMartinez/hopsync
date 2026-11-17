@@ -43,10 +43,10 @@ final class SheetParts {
     static JPanel card(JComponent content) {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(Palette.surface());
-        card.putClientProperty(FlatClientProperties.STYLE, "arc: 14");
+        card.putClientProperty(FlatClientProperties.STYLE, "arc: 36");
         card.setBorder(BorderFactory.createCompoundBorder(
-            new FlatLineBorder(new Insets(0, 0, 0, 0), Palette.edge(), 1, 14),
-            BorderFactory.createEmptyBorder(22, 26, 20, 26)));
+            new FlatLineBorder(new Insets(0, 0, 0, 0), Palette.line(), 1, 36),
+            BorderFactory.createEmptyBorder(30, 32, 26, 32)));
         card.add(content, BorderLayout.CENTER);
         return card;
     }
@@ -72,8 +72,15 @@ final class SheetParts {
     }
 
     static JLabel title(String text) {
+        return title(text, 6);
+    }
+
+    /** A sheet title in Rubik, {@code delta} points over the UI font. */
+    static JLabel title(String text, int delta) {
         JLabel title = new JLabel(text);
-        title.setFont(Fonts.display(title.getFont(), 6));
+        title.setFont(Fonts.display(title.getFont(), delta));
+        // Rubik's last glyph ("?") inks a little past its advance; the margin keeps it from being clipped
+        title.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 4));
         return title;
     }
 

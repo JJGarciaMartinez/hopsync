@@ -40,9 +40,9 @@ import java.util.function.Function;
  * sit in the top right corner.
  */
 public final class PackHero extends JPanel {
-    private static final int MIN_HEIGHT = 134;
-    private static final int ACTIONS_MIN_WIDTH = 220;
-    private static final int PROGRESS_WIDTH = 280;
+    private static final int MIN_HEIGHT = 138;
+    private static final int ACTIONS_MIN_WIDTH = 250;
+    private static final int PROGRESS_WIDTH = 300;
 
     private final Consumer<UiAction> dispatch;
     private final ZoneId zone;
@@ -84,7 +84,7 @@ public final class PackHero extends JPanel {
         setBackground(Palette.surface());
         setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, Palette.line()),
-            BorderFactory.createEmptyBorder(16, 20, 16, 14)));
+            BorderFactory.createEmptyBorder(18, 22, 18, 14)));
 
         add(tile, BorderLayout.WEST);
         add(info(), BorderLayout.CENTER);
@@ -92,7 +92,7 @@ public final class PackHero extends JPanel {
     }
 
     private JPanel info() {
-        name.setFont(Fonts.display(name.getFont(), 9));
+        name.setFont(Fonts.display(name.getFont(), 10));
         version.setFont(new Font(Fonts.MONO_FAMILY, Font.PLAIN, Math.round(getFont().getSize2D() - 1)));
         version.setForeground(Palette.textSecondary());
         version.setBorder(new FlatLineBorder(new Insets(1, 6, 1, 6), Palette.line(), 1, 10));
@@ -152,7 +152,7 @@ public final class PackHero extends JPanel {
         tools.add(folder);
         tools.add(more);
 
-        bar.setPreferredSize(new Dimension(UIScale.scale(PROGRESS_WIDTH), UIScale.scale(10)));
+        bar.setPreferredSize(new Dimension(UIScale.scale(PROGRESS_WIDTH), UIScale.scale(8)));
         files.setForeground(Palette.textSecondary());
         files.putClientProperty(FlatClientProperties.STYLE, "font: -1");
         speed.setForeground(Palette.textSecondary());

@@ -40,8 +40,8 @@ public sealed interface ModRow {
     }
 
     /** @param url page opened by the link, or {@code null} for no link */
-    record Detail(String key, String description, String file, String version, String size, String linkLabel,
-                  String url) implements ModRow {
+    record Detail(String key, String description, String file, String author, String linkLabel, String url)
+        implements ModRow {
     }
 
     /** A clickable line such as "70 mods ya están al día · Ver todos". */

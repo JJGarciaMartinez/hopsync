@@ -47,7 +47,7 @@ public final class ModsPanel extends JPanel {
         search.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, Icons.get(Icons.Glyph.SEARCH, 14, Palette.textFaint()));
         search.putClientProperty(FlatClientProperties.TEXT_FIELD_SHOW_CLEAR_BUTTON, true);
         search.getAccessibleContext().setAccessibleName(Messages.get("mods.search"));
-        search.setPreferredSize(new Dimension(UIScale.scale(210), search.getPreferredSize().height));
+        search.setPreferredSize(new Dimension(UIScale.scale(220), search.getPreferredSize().height));
         search.setMaximumSize(search.getPreferredSize());
         search.getDocument().addDocumentListener(new DocumentListener() {
             @Override
@@ -75,7 +75,7 @@ public final class ModsPanel extends JPanel {
         bar.setOpaque(false);
         bar.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, Palette.line()),
-            BorderFactory.createEmptyBorder(9, 16, 9, 16)));
+            BorderFactory.createEmptyBorder(10, 18, 10, 18)));
         bar.add(tabs);
         bar.add(Box.createHorizontalGlue());
         bar.add(filter);

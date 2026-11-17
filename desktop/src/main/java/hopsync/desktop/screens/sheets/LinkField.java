@@ -1,12 +1,16 @@
 package hopsync.desktop.screens.sheets;
 
 import com.formdev.flatlaf.FlatClientProperties;
+import com.formdev.flatlaf.ui.FlatLineBorder;
+import com.formdev.flatlaf.util.ColorFunctions;
 import com.formdev.flatlaf.util.UIScale;
 import hopsync.core.manifest.PackInfo;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.ButtonStyle;
+import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.MarkTile;
 import hopsync.desktop.kit.Palette;
+import hopsync.desktop.kit.StatusTag;
 import hopsync.desktop.screens.pack.PlanSummary;
 import hopsync.desktop.store.LinkCheck;
 import hopsync.desktop.store.UiAction;
@@ -21,6 +25,8 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -133,7 +139,7 @@ final class LinkField extends JPanel {
     private static JComponent preview(LinkCheck.Valid valid) {
         PackInfo info = valid.info();
         JLabel name = new JLabel(info.name() + "  ");
-        name.putClientProperty(FlatClientProperties.STYLE, "font: semibold +2");
+        name.putClientProperty(FlatClientProperties.STYLE, "font: semibold +1");
         JLabel version = SheetParts.mono(info.version());
         JPanel nameRow = new JPanel(new BorderLayout());
         nameRow.setOpaque(false);
@@ -155,11 +161,20 @@ final class LinkField extends JPanel {
                 return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
             }
         };
-        card.setBackground(Palette.raised());
-        card.putClientProperty(FlatClientProperties.STYLE, "arc: 10");
-        card.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
+        // Turquoise: the link is good, this pack can become yours
+        card.setBackground(ColorFunctions.fade(Palette.mine(), 0.06f));
+        card.putClientProperty(FlatClientProperties.STYLE, "arc: 24");
+        card.setBorder(BorderFactory.createCompoundBorder(
+            new FlatLineBorder(new Insets(0, 0, 0, 0), ColorFunctions.fade(Palette.mine(), 0.25f), 1, 24),
+            BorderFactory.createEmptyBorder(10, 12, 10, 12)));
         card.add(new JLabel(MarkTile.link()), BorderLayout.WEST);
         card.add(text, BorderLayout.CENTER);
+        JPanel tag = new JPanel(new GridBagLayout());
+        tag.setOpaque(false);
+        StatusTag validTag = new StatusTag(Messages.get("sheet.link.valid"), StatusTag.Tone.MINE);
+        validTag.setIcon(Icons.get(Icons.Glyph.CHECK, 12, Palette.mine()));
+        tag.add(validTag);
+        card.add(tag, BorderLayout.EAST);
         return card;
     }
 }

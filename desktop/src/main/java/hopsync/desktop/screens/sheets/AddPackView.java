@@ -5,6 +5,7 @@ import com.formdev.flatlaf.util.UIScale;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.ButtonStyle;
 import hopsync.desktop.kit.Icons;
+import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.store.GameFolder;
 import hopsync.desktop.store.LinkCheck;
@@ -27,7 +28,9 @@ import java.util.function.Consumer;
 public final class AddPackView extends JPanel {
     private final Consumer<UiAction> dispatch;
     private final String demoUrl;
-    private final JLabel title = SheetParts.title("");
+    // The welcome title is the largest text in the app: 25 px over the 13 px UI font
+    private final JLabel title = SheetParts.title("", 12);
+    private final StepBar steps = new StepBar(2);
     private final JLabel subtitle = new JLabel();
     private final JLabel step = new JLabel();
     private final LinkField link;
@@ -46,8 +49,7 @@ public final class AddPackView extends JPanel {
         setOpaque(false);
         link = new LinkField(dispatch, new UiAction.WizardNext());
         subtitle.setForeground(Palette.textSecondary());
-        step.setForeground(Palette.textFaint());
-        step.putClientProperty(FlatClientProperties.STYLE, "font: -1");
+        step.putClientProperty(FlatClientProperties.STYLE, "font: semibold -1; foreground: $HopSync.textFaint");
         body.setOpaque(false);
         // Built once: rebuilding it while the player types would take the focus away from the field
         ButtonStyle.apply(demo, ButtonStyle.QUIET, ButtonStyle.SMALL);
@@ -58,7 +60,10 @@ public final class AddPackView extends JPanel {
         SheetParts.stack(linkStep, 8, SheetParts.label(Messages.get("sheet.link.label")), link, demo);
 
         JPanel header = SheetParts.column();
-        SheetParts.stack(header, 4, step, title, subtitle);
+        SheetParts.stack(header, 0, new JLabel(new LogoIcon(56, LogoIcon.onDark())));
+        SheetParts.stack(header, 22, steps);
+        SheetParts.stack(header, 6, step);
+        SheetParts.stack(header, 4, title, subtitle);
         add(header, BorderLayout.NORTH);
         add(body, BorderLayout.CENTER);
         add(bottom, BorderLayout.SOUTH);
@@ -69,6 +74,7 @@ public final class AddPackView extends JPanel {
         boolean stepChanged = shown == null || shown.step() != sheet.step();
         shown = sheet;
         step.setText(Messages.get("sheet.wizard.step", sheet.step()));
+        steps.setStep(sheet.step());
         title.setText(Messages.get(sheet.firstRun() ? "sheet.wizard.firstRunTitle" : "sheet.wizard.title"));
         subtitle.setText(Messages.get(sheet.step() == 1 ? "sheet.wizard.linkSubtitle" : "sheet.wizard.folderSubtitle"));
 

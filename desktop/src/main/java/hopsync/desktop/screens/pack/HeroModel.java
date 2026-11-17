@@ -84,7 +84,7 @@ public record HeroModel(StatusMark.Kind mark, String title, String detail, List<
             }
             case APPLYING -> new HeroModel(StatusMark.Kind.SPINNER, Messages.get("hero.state.applying"),
                 Messages.get("hero.detail.applying"), List.of(),
-                List.of(new Action(Messages.get("hero.cancel"), Glyph.X, new UiAction.CancelUpdate(id), ButtonStyle.DANGER)),
+                List.of(new Action(Messages.get("hero.cancel"), null, new UiAction.CancelUpdate(id), ButtonStyle.SECONDARY)),
                 applying(pack));
             case UP_TO_DATE -> new HeroModel(StatusMark.Kind.OK, Messages.get("hero.state.upToDate"),
                 pack.lastChecked() == null ? null

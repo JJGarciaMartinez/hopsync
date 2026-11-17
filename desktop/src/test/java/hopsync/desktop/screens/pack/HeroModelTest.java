@@ -104,7 +104,7 @@ class HeroModelTest {
         assertEquals(Messages.get("hero.progress.speed", "2.0 MB"), applying.speed());
         assertEquals(Messages.get("hero.downloadingVersion", "new.jar", "1.0"), applying.current(),
             "the mod's name and version, not its file");
-        assertEquals(ButtonStyle.DANGER, hero(state, D).actions().getFirst().style());
+        assertEquals(ButtonStyle.SECONDARY, hero(state, D).actions().getFirst().style(), "cancel is secondary, not danger");
     }
 
     @Test
