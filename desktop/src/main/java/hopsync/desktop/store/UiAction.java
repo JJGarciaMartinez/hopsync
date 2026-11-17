@@ -72,6 +72,26 @@ public sealed interface UiAction {
     /** Opens a mod's page (Modrinth or the pack's repository) in the browser. */
     record OpenModPage(String url) implements UiAction {}
 
+    /** "Cambiar versión" on a created pack's row: Effects loads the mod's versions for the menu. */
+    record LoadModVersions(String packId, String slug, String currentVersion) implements UiAction {}
+
+    record ModVersionsLoaded(String packId, String slug, List<ModVersions.Choice> choices) implements UiAction {}
+
+    record ModVersionsFailed(String packId, String slug, SyncFailure failure) implements UiAction {}
+
+    /** The version menu closed without a choice. */
+    record CloseModVersions() implements UiAction {}
+
+    /** Pins a mod of a created pack to another version; the pack is checked so it goes through review. */
+    record ChangeModVersion(String packId, String slug, String versionId) implements UiAction {}
+
+    /**
+     * Takes a mod out of a created pack; the pack is checked so the removal goes through review.
+     *
+     * @param slugOrFile the catalog mod's slug, or the file name of one of the player's jars
+     */
+    record RemoveModFromPack(String packId, String slugOrFile, String name, boolean ownJar) implements UiAction {}
+
     /** Forgets the pack after the player confirmed; its files stay where they are. */
     record RemovePack(String packId) implements UiAction {}
 

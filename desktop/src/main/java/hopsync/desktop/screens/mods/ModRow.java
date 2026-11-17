@@ -4,6 +4,8 @@ import hopsync.desktop.kit.Icons.Glyph;
 import hopsync.desktop.kit.StatusTag;
 import hopsync.desktop.store.UiAction;
 
+import java.util.List;
+
 /**
  * One line of the mod list. Mods are 34 px rows; the other kinds structure the list around them.
  */
@@ -39,9 +41,24 @@ public sealed interface ModRow {
                boolean expandable) implements ModRow {
     }
 
-    /** @param url page opened by the link, or {@code null} for no link */
-    record Detail(String key, String description, String file, String author, String linkLabel, String url)
-        implements ModRow {
+    /**
+     * @param url     page opened by the link, or {@code null} for no link
+     * @param actions buttons under the facts, for the mods of a pack the player created
+     */
+    record Detail(String key, String description, String file, String author, String linkLabel, String url,
+                  List<DetailAction> actions) implements ModRow {
+        public Detail {
+            actions = List.copyOf(actions);
+        }
+    }
+
+    /**
+     * A button of an expanded row.
+     *
+     * @param menu   opens the versions menu under the button instead of acting at once
+     * @param danger takes something away
+     */
+    record DetailAction(String label, UiAction action, boolean menu, boolean danger) {
     }
 
     /** A clickable line such as "70 mods ya están al día · Ver todos". */

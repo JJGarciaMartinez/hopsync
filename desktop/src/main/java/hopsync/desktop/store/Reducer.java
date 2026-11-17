@@ -51,6 +51,15 @@ public final class Reducer {
             case UiAction.CopyPackLink a -> state;
             case UiAction.OpenModPage a -> state;
             case UiAction.RemovePack a -> state.withSheet(null);
+            case UiAction.LoadModVersions a -> state.withModVersions(new ModVersions(a.packId(), a.slug(), null, null));
+            // Only the answer for the menu still open counts
+            case UiAction.ModVersionsLoaded a -> forVersionMenu(state, a.packId(), a.slug())
+                ? state.withModVersions(new ModVersions(a.packId(), a.slug(), a.choices(), null)) : state;
+            case UiAction.ModVersionsFailed a -> forVersionMenu(state, a.packId(), a.slug())
+                ? state.withModVersions(new ModVersions(a.packId(), a.slug(), List.of(), a.failure())) : state;
+            case UiAction.CloseModVersions a -> state.withModVersions(null);
+            case UiAction.ChangeModVersion a -> state.withModVersions(null);
+            case UiAction.RemoveModFromPack a -> state.withExpandedRow(null);
             case UiAction.OpenSettings a -> state.packs().isEmpty() ? state.withSheet(Sheet.AddPack.start(true))
                 : openPackSettings(state, Sheet.PackSettings.Section.LINK);
             case UiAction.AddPack a -> state.withSheet(Sheet.AddPack.start(state.packs().isEmpty()));
@@ -289,6 +298,11 @@ public final class Reducer {
     /** A launcher instance stays one after the check, which only knows the path. */
     private static GameFolder sameKind(GameFolder chosen, GameFolder checked) {
         return new GameFolder(chosen.kind(), chosen.name(), checked.path(), checked.jarCount(), checked.usedBy());
+    }
+
+    private static boolean forVersionMenu(UiState state, String packId, String slug) {
+        return state.modVersions() != null && state.modVersions().packId().equals(packId)
+            && state.modVersions().slug().equals(slug);
     }
 
     /** Only for a created pack whose details are known, and not while it writes files. */

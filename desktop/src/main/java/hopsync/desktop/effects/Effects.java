@@ -13,6 +13,7 @@ import hopsync.core.session.UpdateState;
 import hopsync.core.usecase.DefinitionResolver;
 import hopsync.core.usecase.PackEditor;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.store.ModVersions;
 import hopsync.desktop.store.Preferences;
 import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.Store;
@@ -29,6 +30,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
@@ -51,6 +53,7 @@ public final class Effects {
     private final Runnable exit;
     private final SheetEffects sheets;
     private final DefinitionResolver createdPacks;
+    private final PackEditor editor;
 
     /**
      * @param catalog      the mod catalog created packs pick from
@@ -62,6 +65,7 @@ public final class Effects {
                    InstanceFinder instances, Executor background, Path settingsFile, Clock clock, Runnable exit) {
         this.store = store;
         this.createdPacks = createdPacks;
+        this.editor = editor;
         this.registry = registry;
         this.sessions = sessions;
         this.manifests = manifests;
@@ -118,6 +122,11 @@ public final class Effects {
                     store.dispatch(new UiAction.ShowToast(Messages.get("toast.applied", done.successCount())));
                 }
             }
+            case UiAction.LoadModVersions a -> loadModVersions(a);
+            case UiAction.ChangeModVersion a -> editPack(a.packId(), () -> editor.changeVersion(a.packId(), a.slug(),
+                a.versionId()), null);
+            case UiAction.RemoveModFromPack a -> editPack(a.packId(), () -> editor.remove(a.packId(), a.slugOrFile(),
+                a.ownJar()), Messages.get("toast.modRemoved", a.name()));
             case UiAction.ResizeLibrary a -> background.execute(() -> registry.rememberLibraryWidth(a.width()));
             default -> sheets.run(action, state);
         }
@@ -248,6 +257,41 @@ public final class Effects {
                 store.dispatch(new UiAction.ManifestLoaded(packId, manifest));
             } catch (Exception e) {
                 store.dispatch(new UiAction.ManifestFailed(packId, SyncFailures.from(e, "")));
+            }
+        });
+    }
+
+    @FunctionalInterface
+    private interface Edit {
+        void run() throws IOException;
+    }
+
+    /** Changes a created pack, then checks it so the change shows up for review like any update. */
+    private void editPack(String packId, Edit edit, String notice) {
+        background.execute(() -> {
+            try {
+                edit.run();
+                if (notice != null) store.dispatch(new UiAction.ShowToast(notice));
+                sessions.get(packId).startUpdate();
+            } catch (IOException | RuntimeException e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not change pack " + packId, e);
+                store.dispatch(new UiAction.ShowToast(Messages.failure(SyncFailures.from(e, ""))));
+            }
+        });
+    }
+
+    private void loadModVersions(UiAction.LoadModVersions request) {
+        background.execute(() -> {
+            try {
+                List<ModVersions.Choice> choices = editor.versions(request.packId(), request.slug()).stream()
+                    .map(version -> new ModVersions.Choice(version.id(), version.versionNumber(),
+                        version.versionNumber().equals(request.currentVersion()), version.release()))
+                    .toList();
+                store.dispatch(new UiAction.ModVersionsLoaded(request.packId(), request.slug(), choices));
+            } catch (Exception e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not load the versions of " + request.slug(), e);
+                store.dispatch(new UiAction.ModVersionsFailed(request.packId(), request.slug(),
+                    SyncFailures.from(e, "")));
             }
         });
     }

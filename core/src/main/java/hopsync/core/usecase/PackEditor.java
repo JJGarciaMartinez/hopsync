@@ -124,6 +124,45 @@ public final class PackEditor {
         return file;
     }
 
+    /** A mod's versions for the pack's Minecraft version and loader, newest first. */
+    public List<CatalogVersion> versions(String packId, String slug) throws IOException {
+        PackInfo info = definition(packId).pack();
+        return catalog.versions(slug, info.minecraft(), info.loader());
+    }
+
+    /**
+     * Pins a catalog mod of the pack, named by its slug, to another of its versions.
+     *
+     * @throws SyncException with {@link SyncFailure.ModUnavailable} when that version is gone
+     */
+    public void changeVersion(String packId, String slug, String versionId) throws IOException {
+        PackDefinition definition = definition(packId);
+        CatalogVersion version = catalog.versionsById(List.of(versionId)).stream().findFirst()
+            .orElseThrow(() -> new SyncException(new SyncFailure.ModUnavailable(slug)));
+        List<PackDefinition.Mod> mods = new ArrayList<>();
+        for (PackDefinition.Mod mod : definition.mods()) {
+            mods.add(mod instanceof PackDefinition.ModrinthMod modrinth && modrinth.slug().equals(slug)
+                ? new PackDefinition.ModrinthMod(modrinth.projectId(), slug, version.id(), version.versionNumber())
+                : mod);
+        }
+        registry.saveDefinition(packId, definition.withMods(mods));
+    }
+
+    /**
+     * Takes a mod out of the pack: a catalog mod by its slug, or one of the player's jars by its file name, whose
+     * copy in the pack is deleted too. The next apply removes it from the game folder.
+     */
+    public void remove(String packId, String slugOrFile, boolean ownJar) throws IOException {
+        PackDefinition definition = definition(packId);
+        List<PackDefinition.Mod> mods = new ArrayList<>(definition.mods());
+        mods.removeIf(mod -> ownJar ? mod instanceof PackDefinition.OwnMod own && own.file().equals(slugOrFile)
+            : mod instanceof PackDefinition.ModrinthMod modrinth && modrinth.slug().equals(slugOrFile));
+        registry.saveDefinition(packId, definition.withMods(mods));
+        if (ownJar && SafePaths.isSafeFileName(slugOrFile)) {
+            Files.deleteIfExists(definitions.folder(packId).resolve(DefinitionResolver.OWN_MODS).resolve(slugOrFile));
+        }
+    }
+
     /** The catalog projects a created pack already lists, so the search can mark them as added. */
     public Set<String> catalogProjects(String packId) throws IOException {
         Set<String> projects = new LinkedHashSet<>();

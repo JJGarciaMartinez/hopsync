@@ -715,4 +715,18 @@ class ReducerTest {
         assertEquals(gone, failed.error());
         assertEquals(Set.of(), failed.adding());
     }
+
+    @Test
+    void theVersionMenuKeepsOnlyTheAnswerForTheModItWasOpenedFor() {
+        UiState open = reduce(created(), new UiAction.LoadModVersions(MINE.id(), "sodium", "0.6"));
+        assertEquals(new ModVersions(MINE.id(), "sodium", null, null), open.modVersions());
+
+        List<ModVersions.Choice> choices = List.of(new ModVersions.Choice("v2", "0.7", false, true),
+            new ModVersions.Choice("v1", "0.6", true, true));
+        assertEquals(open, reduce(open, new UiAction.ModVersionsLoaded(MINE.id(), "iris", choices)));
+        UiState loaded = reduce(open, new UiAction.ModVersionsLoaded(MINE.id(), "sodium", choices));
+        assertEquals(choices, loaded.modVersions().choices());
+        assertNull(reduce(loaded, new UiAction.ChangeModVersion(MINE.id(), "sodium", "v2")).modVersions());
+        assertNull(reduce(loaded, new UiAction.CloseModVersions()).modVersions());
+    }
 }

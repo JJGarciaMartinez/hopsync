@@ -26,14 +26,16 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.GridBagLayout;
 import java.awt.Font;
+import java.awt.GridBagLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.LayoutManager;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -116,6 +118,20 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
         mod.setSize(width, mod.getPreferredSize().height);
         layoutTree(mod);
         return SwingUtilities.convertRectangle(mod.retry.getParent(), mod.retry.getBounds(), mod);
+    }
+
+    /** Where each of the detail row's buttons is drawn, in cell coordinates, for hit-testing clicks. */
+    List<Rectangle> actionBounds(ModRow.Detail row, int width) {
+        detail.show(row, false);
+        detail.setSize(width, detail.getPreferredSize().height);
+        layoutTree(detail);
+        List<Rectangle> bounds = new ArrayList<>();
+        for (Component button : detail.actions.getComponents()) {
+            if (button instanceof JButton) {
+                bounds.add(SwingUtilities.convertRectangle(detail.actions, button.getBounds(), detail));
+            }
+        }
+        return bounds;
     }
 
     /** Where the detail row's link is drawn, in cell coordinates, for hit-testing clicks. */
@@ -308,11 +324,16 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
         }
     }
 
-    /** The expanded part of a mod row: description, file, full version, size and a link to its page. */
+    /**
+     * The expanded part of a mod row: description, file, full version, size and a link to its page; for a pack the
+     * player created, the buttons that change the mod.
+     */
     private static final class DetailLine extends JPanel {
         private final JLabel description = new JLabel();
         private final JLabel facts = new JLabel();
         final JLabel link = new JLabel();
+        // No gap of its own: FlowLayout would put it before the first button too
+        final JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
 
         DetailLine() {
             super(new BorderLayout(UIScale.scale(20), 0));
@@ -334,6 +355,12 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
             text.add(description);
             text.add(Box.createVerticalStrut(UIScale.scale(6)));
             text.add(facts);
+            actions.setOpaque(false);
+            actions.setAlignmentX(LEFT_ALIGNMENT);
+            facts.setAlignmentX(LEFT_ALIGNMENT);
+            description.setAlignmentX(LEFT_ALIGNMENT);
+            actions.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
+            text.add(actions);
             add(text, BorderLayout.CENTER);
             JPanel go = new JPanel(new GridBagLayout());
             go.setOpaque(false);
@@ -346,6 +373,16 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
             facts.setText("<html>" + fact("mods.detail.file", row.file())
                 + (row.author() == null || row.author().isBlank() ? ""
                     : "&nbsp;&nbsp;&nbsp;&nbsp;" + fact("mods.detail.author", row.author())) + "</html>");
+            actions.removeAll();
+            for (ModRow.DetailAction action : row.actions()) {
+                if (actions.getComponentCount() > 0) actions.add(Box.createHorizontalStrut(UIScale.scale(8)));
+                JButton button = new JButton(action.label(),
+                    action.menu() ? Icons.get(Icons.Glyph.CHEVRON_DOWN, 12, Palette.text()) : null);
+                button.setHorizontalTextPosition(JButton.LEFT);
+                ButtonStyle.apply(button, action.danger() ? ButtonStyle.DANGER : ButtonStyle.SECONDARY, ButtonStyle.SMALL);
+                actions.add(button);
+            }
+            actions.setVisible(!row.actions().isEmpty());
             link.setVisible(row.url() != null);
             link.setText(row.linkLabel() == null ? "" : "<html><u>" + escape(row.linkLabel()) + "</u></html>");
             return this;

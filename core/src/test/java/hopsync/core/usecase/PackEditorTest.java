@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -176,5 +177,24 @@ class PackEditorTest {
         SyncException notAJar = assertThrows(SyncException.class,
             () -> editor.addOwnJar(pack.id(), Files.writeString(dir.resolve("notes.txt"), "x")));
         assertInstanceOf(SyncFailure.UnsafePath.class, notAJar.failure());
+    }
+
+    @Test
+    void aModCanMoveToAnotherVersionOrLeaveThePack() throws IOException {
+        versions.put("sodium", List.of(version("s2", "sodium", "0.7", true), version("s1", "sodium", "0.6", true)));
+        versions.put("iris", List.of(version("i1", "iris", "1.8", true)));
+        editor.addFromCatalog(pack.id(), "sodium");
+        editor.addFromCatalog(pack.id(), "iris");
+        editor.addOwnJar(pack.id(), Files.writeString(dir.resolve("mine.jar"), "jar"));
+
+        assertEquals(List.of("s2", "s1"), editor.versions(pack.id(), "sodium").stream().map(CatalogVersion::id).toList());
+        editor.changeVersion(pack.id(), "sodium-slug", "s1");
+        editor.remove(pack.id(), "iris-slug", false);
+        editor.remove(pack.id(), "mine.jar", true);
+
+        assertEquals(List.of(new PackDefinition.ModrinthMod("sodium", "sodium-slug", "s1", "0.6")), mods());
+        assertFalse(Files.exists(dir.resolve("packs").resolve(pack.id()).resolve("local-mods/mine.jar")));
+        SyncException gone = assertThrows(SyncException.class, () -> editor.changeVersion(pack.id(), "sodium-slug", "nope"));
+        assertEquals(new SyncFailure.ModUnavailable("sodium-slug"), gone.failure());
     }
 }

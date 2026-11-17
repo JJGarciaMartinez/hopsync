@@ -4,7 +4,6 @@ import hopsync.core.manifest.ConfigEntry;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.manifest.ModSource;
-import hopsync.core.manifest.PackInfo;
 import hopsync.core.sync.OwnMods;
 import hopsync.core.sync.SyncPlan;
 import hopsync.core.sync.SyncPlan.ConfigAction;
@@ -107,7 +106,7 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
         }
         for (ModEntry mod : pack.manifest().mods()) {
             if (matches.test(mod.name())) {
-                addWithDetail(rows, modRow(pack, mod, changes.get(mod.file())), mod, pack.packInfo(), expanded);
+                addWithDetail(rows, modRow(pack, mod, changes.get(mod.file())), mod, pack, expanded);
             }
         }
         if (plan != null) {
@@ -127,11 +126,10 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
                               Map<String, ModChange> changes, String expanded) {
         if (mods.isEmpty()) return;
         rows.add(new ModRow.Group(Messages.get(titleKey), noteKey == null ? null : Messages.get(noteKey)));
-        mods.forEach(mod -> addWithDetail(rows, modRow(pack, mod, changes.get(mod.file())), mod, pack.packInfo(),
-            expanded));
+        mods.forEach(mod -> addWithDetail(rows, modRow(pack, mod, changes.get(mod.file())), mod, pack, expanded));
     }
 
-    private static void addWithDetail(List<ModRow> rows, ModRow.Mod row, ModEntry mod, PackInfo pack,
+    private static void addWithDetail(List<ModRow> rows, ModRow.Mod row, ModEntry mod, PackUiState pack,
                                       String expanded) {
         rows.add(row);
         if (!row.key().equals(expanded)) return;
@@ -142,7 +140,27 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
             mod.file(), mod.author(),
             url == null ? null : Messages.get(mod.source() == ModSource.MODRINTH
                 ? "mods.detail.modrinth" : "mods.detail.repository"),
-            url));
+            url, editActions(pack, mod)));
+    }
+
+    /**
+     * A created pack's mods change from their row: a catalog mod moves to another version or leaves the pack, a
+     * jar of the player's leaves it. Not while the pack checks, waits or writes files.
+     */
+    static List<ModRow.DetailAction> editActions(PackUiState pack, ModEntry mod) {
+        PackPhase phase = pack.phase();
+        if (!pack.created() || phase == PackPhase.CHECKING || phase == PackPhase.QUEUED || phase.isWriting()) {
+            return List.of();
+        }
+        String id = pack.packId();
+        ModRow.DetailAction remove = new ModRow.DetailAction(Messages.get("mods.detail.removeFromPack"),
+            new UiAction.RemoveModFromPack(id, mod.source() == ModSource.LOCAL ? mod.file() : mod.id(), mod.name(),
+                mod.source() == ModSource.LOCAL), false, true);
+        if (mod.source() == ModSource.LOCAL) {
+            return List.of(remove);
+        }
+        return List.of(new ModRow.DetailAction(Messages.get("mods.detail.changeVersion"),
+            new UiAction.LoadModVersions(id, mod.id(), mod.version()), true, false), remove);
     }
 
     /**

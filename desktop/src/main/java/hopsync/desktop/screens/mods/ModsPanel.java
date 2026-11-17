@@ -167,6 +167,7 @@ public final class ModsPanel extends JPanel {
                 search.setText(state.query());
             }
             table.setRows(model.rows(), state.expandedRow());
+            table.setVersions(state.modVersions());
             packId = pack.packId();
             boolean empty = pack.created() && pack.manifest() != null && pack.modCount() == 0
                 && state.tab() == Tab.PACK;
