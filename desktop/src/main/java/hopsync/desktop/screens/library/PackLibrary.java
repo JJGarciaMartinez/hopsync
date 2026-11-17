@@ -80,7 +80,7 @@ public final class PackLibrary extends JPanel {
         JButton checkAll = new JButton(Icons.get(Icons.Glyph.REFRESH, 13, null));
         checkAll.setToolTipText(Messages.get("library.checkAll"));
         checkAll.getAccessibleContext().setAccessibleName(Messages.get("library.checkAll"));
-        ButtonStyle.apply(checkAll, ButtonStyle.SECONDARY, ButtonStyle.SMALL);
+        ButtonStyle.apply(checkAll, ButtonStyle.SECONDARY, ButtonStyle.ICON, ButtonStyle.SMALL);
         checkAll.addActionListener(e -> dispatch.accept(new UiAction.CheckAll()));
         JPanel label = new JPanel(new BorderLayout());
         label.setOpaque(false);

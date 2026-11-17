@@ -7,16 +7,15 @@ import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
-import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.RoundRectangle2D;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,13 +76,14 @@ public final class SegmentedControl<T> extends JPanel {
         try {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             int arc = UIScale.scale(ARC);
-            g2.setColor(Palette.well());
+            // Sunken track: the segments are chosen from a slot pressed into the surface
+            g2.setColor(Palette.sunkenBorder());
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
-            // Inner shadow along the top edge: the track is pressed into the surface
-            g2.setPaint(new GradientPaint(0, 0, new Color(0, 0, 0, 140), 0, UIScale.scale(4), new Color(0, 0, 0, 0)));
-            g2.fillRoundRect(0, 0, getWidth(), UIScale.scale(6), arc, arc);
-            g2.setColor(new Color(0x23272A));
-            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, arc, arc);
+            int line = Math.max(1, UIScale.scale(1));
+            g2.setColor(Palette.well());
+            g2.fillRoundRect(line, line, getWidth() - line * 2, getHeight() - line * 2, arc - line, arc - line);
+            g2.clip(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), arc, arc));
+            Relief.paintSunkenTop(g2, 0, 0, getWidth(), arc);
         } finally {
             g2.dispose();
         }
@@ -127,14 +127,11 @@ public final class SegmentedControl<T> extends JPanel {
                 int h = getHeight();
                 if (isSelected()) {
                     int bevel = UIScale.scale(2);
-                    g2.setColor(new Color(0x08090A));
-                    g2.fillRoundRect(0, bevel, w, h - bevel, arc, arc);
-                    g2.setPaint(new GradientPaint(0, 0, new Color(0x33393E), 0, h, Palette.raised()));
-                    g2.fillRoundRect(0, 0, w, h - bevel, arc, arc);
-                    g2.setColor(Palette.edge());
-                    g2.drawRoundRect(0, 0, w - 1, h - bevel - 1, arc, arc);
+                    Relief.paintRaised(g2, new Relief.Raised(Palette.segmentTop(), Palette.segmentBottom(),
+                        Palette.raisedBorder(), Palette.raisedBorder(), Palette.raisedHighlight(), Palette.raisedBevel()),
+                        0, 0, w, h - bevel, arc, bevel);
                 } else if (hover) {
-                    g2.setColor(new Color(255, 255, 255, 10));
+                    g2.setColor(Palette.hoverTint());
                     g2.fillRoundRect(0, 0, w, h, arc, arc);
                 }
             } finally {

@@ -16,12 +16,14 @@ public enum ButtonStyle {
     /** The one main action of a screen. */
     PRIMARY("primary"),
     SECONDARY("secondary"),
-    /** Flat until hovered; for minor actions next to others. */
+    /** Raised but low-key: muted text that lights up on hover; for minor actions next to others. */
     QUIET("quiet"),
     /** Stops or removes something. */
     DANGER("danger"),
     /** Smaller text and padding; combines with the others. */
-    SMALL("small");
+    SMALL("small"),
+    /** Square button holding only an icon: 30 px, or 26 px with {@link #SMALL}. */
+    ICON("icon");
 
     private final String styleClass;
 
@@ -35,10 +37,9 @@ public enum ButtonStyle {
     public static void apply(AbstractButton button, ButtonStyle... styles) {
         button.putClientProperty(FlatClientProperties.STYLE_CLASS,
             Arrays.stream(styles).map(style -> style.styleClass).collect(Collectors.joining(" ")));
-        boolean quiet = QUIET.isAppliedTo(button);
-        button.putClientProperty(FlatClientProperties.BUTTON_TYPE,
-            quiet ? FlatClientProperties.BUTTON_TYPE_BORDERLESS : null);
-        button.setCursor(quiet ? null : Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        // Every role is raised, so the hand cursor tells it can be pressed; RaisedButtonUI drops it when disabled
+        button.putClientProperty(FlatClientProperties.BUTTON_TYPE, null);
+        button.setCursor(button.isEnabled() ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : null);
     }
 
     boolean isAppliedTo(JComponent c) {
