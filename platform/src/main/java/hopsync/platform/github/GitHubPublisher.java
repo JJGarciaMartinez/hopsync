@@ -216,7 +216,8 @@ public class GitHubPublisher implements PackPublisher {
     static String readme(String packName, String repo) throws IOException {
         try (InputStream in = GitHubPublisher.class.getResourceAsStream("pack-readme.md")) {
             if (in == null) throw new IOException("pack-readme.md is missing from the app");
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8)
+            // A checkout on Windows may turn the template's line ends into CRLF; the README keeps LF everywhere
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n")
                 .replace("{name}", packName)
                 .replace("{link}", manifestUrl(repo));
         }
