@@ -6,6 +6,7 @@ import hopsync.core.pack.Pack;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -606,5 +607,33 @@ class ReducerTest {
         assertSame(state, Reducer.reduce(state, new UiAction.CopyPackLink(D)));
         assertSame(state, Reducer.reduce(state, new UiAction.OpenModPage("https://modrinth.com/project/x")));
         assertSame(state, Reducer.reduce(state, new UiAction.RemovePack(D)));
+    }
+
+    @Test
+    void packSearchShowsFromSixPacksAndOnlyThenFilters() {
+        UiState five = reduce(UiState.INITIAL, new UiAction.PacksLoaded(packs(5), null), new UiAction.SetPackQuery("nether"));
+        assertFalse(five.packSearchShown());
+        assertEquals(5, five.shownPacks().size(), "a hidden search filters nothing");
+
+        UiState six = reduce(UiState.INITIAL, new UiAction.PacksLoaded(packs(6), null));
+        assertTrue(six.packSearchShown());
+        assertEquals(6, six.shownPacks().size());
+        assertEquals(List.of("Nether Nights"),
+            reduce(six, new UiAction.SetPackQuery("  NÉTHER ")).shownPacks().stream().map(PackUiState::displayName).toList(),
+            "case, accents and spaces around the text are ignored");
+        assertEquals(List.of("Survival 3"),
+            reduce(six, new UiAction.SetPackQuery("survival-3")).shownPacks().stream().map(PackUiState::displayName).toList(),
+            "the game folder matches too");
+        assertTrue(reduce(six, new UiAction.SetPackQuery("zzz")).shownPacks().isEmpty());
+    }
+
+    private static List<Pack> packs(int count) {
+        List<Pack> packs = new ArrayList<>();
+        packs.add(new Pack("nether", "https://example.org/nether.json", Path.of("/games/nether").toAbsolutePath(), "Nether Nights"));
+        for (int i = 1; i < count; i++) {
+            packs.add(new Pack("s" + i, "https://example.org/s" + i + ".json",
+                Path.of("/games/survival-" + i).toAbsolutePath(), "Survival " + i));
+        }
+        return packs;
     }
 }

@@ -143,6 +143,9 @@ public sealed interface UiAction {
 
     record SetQuery(String query) implements UiAction {}
 
+    /** Search text of the pack library. */
+    record SetPackQuery(String query) implements UiAction {}
+
     /** Expands the row of the file, or collapses it if it was expanded. */
     record ToggleRow(String file) implements UiAction {}
 }

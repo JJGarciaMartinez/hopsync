@@ -97,6 +97,7 @@ public final class Reducer {
             case UiAction.SelectTab a -> state.withTab(a.tab());
             case UiAction.SetFilter a -> state.withFilter(a.filter());
             case UiAction.SetQuery a -> state.withQuery(a.query());
+            case UiAction.SetPackQuery a -> state.withPackQuery(a.query());
             case UiAction.ToggleRow a -> state.withExpandedRow(Objects.equals(state.expandedRow(), a.file()) ? null : a.file());
         };
     }
