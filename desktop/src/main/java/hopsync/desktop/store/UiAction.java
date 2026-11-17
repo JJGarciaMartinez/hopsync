@@ -182,6 +182,33 @@ public sealed interface UiAction {
 
     record SaveAppSettings() implements UiAction {}
 
+    /**
+     * What the keychain holds for GitHub, at start and after disconnecting.
+     *
+     * @param login      the user signed in, or {@code null}
+     * @param persistent the system keychain keeps the token between runs
+     * @param available  this build can sign in to GitHub
+     */
+    record AccountLoaded(String login, boolean persistent, boolean available) implements UiAction {}
+
+    /** "Conectar GitHub": Effects asks GitHub for a code. */
+    record ConnectGitHub() implements UiAction {}
+
+    record GitHubCodeShown(String userCode, String verificationUri) implements UiAction {}
+
+    /** Copies the code and opens GitHub's page to type it. */
+    record OpenGitHubDevice() implements UiAction {}
+
+    record GitHubConnected(String login) implements UiAction {}
+
+    record GitHubConnectFailed(SyncFailure failure) implements UiAction {}
+
+    /** Stops waiting for the player to approve on GitHub. */
+    record CancelGitHubConnect() implements UiAction {}
+
+    /** Forgets the token on this computer. */
+    record DisconnectGitHub() implements UiAction {}
+
     /** Copies version, system and paths for a bug report. */
     record CopyDiagnostics() implements UiAction {}
 

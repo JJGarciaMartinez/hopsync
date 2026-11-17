@@ -46,6 +46,21 @@ public sealed interface SyncFailure {
         public String describe() { return "pack definition missing or unreadable: " + packId; }
     }
 
+    /** This build has no GitHub app to sign in with. */
+    record GitHubNotConfigured() implements SyncFailure {
+        public String describe() { return "no GitHub OAuth client id configured"; }
+    }
+
+    /** The player did not enter the GitHub code in time. */
+    record GitHubCodeExpired() implements SyncFailure {
+        public String describe() { return "the GitHub device code expired"; }
+    }
+
+    /** The player declined HopSync's access on GitHub. */
+    record GitHubDenied() implements SyncFailure {
+        public String describe() { return "GitHub access was denied"; }
+    }
+
     /** The manifest uses a format version this build does not understand. */
     record UnsupportedFormat(long found, int supported) implements SyncFailure {
         public String describe() { return "manifest format " + found + " is not supported (expected " + supported + ")"; }

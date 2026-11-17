@@ -729,4 +729,24 @@ class ReducerTest {
         assertNull(reduce(loaded, new UiAction.ChangeModVersion(MINE.id(), "sodium", "v2")).modVersions());
         assertNull(reduce(loaded, new UiAction.CloseModVersions()).modVersions());
     }
+
+    @Test
+    void signingInToGitHubShowsTheCodeAndDropsAnswersOfACancelledSignIn() {
+        UiState known = reduce(loaded(), new UiAction.AccountLoaded(null, true, true));
+        UiState asking = reduce(known, new UiAction.ConnectGitHub());
+        assertTrue(asking.account().connecting());
+        UiState waiting = reduce(asking, new UiAction.GitHubCodeShown("WDJB-MJHT", "https://github.com/login/device"));
+        assertEquals("WDJB-MJHT", waiting.account().userCode());
+        assertEquals("player", reduce(waiting, new UiAction.GitHubConnected("player")).account().login());
+
+        UiState cancelled = reduce(waiting, new UiAction.CancelGitHubConnect());
+        assertFalse(cancelled.account().connecting());
+        assertEquals(cancelled, reduce(cancelled, new UiAction.GitHubConnected("player"), new UiAction.GitHubCodeShown("X", "y"),
+            new UiAction.GitHubConnectFailed(new SyncFailure.GitHubDenied())));
+
+        SyncFailure denied = new SyncFailure.GitHubDenied();
+        assertEquals(denied, reduce(waiting, new UiAction.GitHubConnectFailed(denied)).account().error());
+        UiState unavailable = reduce(loaded(), new UiAction.AccountLoaded(null, false, false), new UiAction.ConnectGitHub());
+        assertFalse(unavailable.account().connecting(), "a build without a GitHub app cannot sign in");
+    }
 }

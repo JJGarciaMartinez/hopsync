@@ -17,8 +17,10 @@ class AppConfigTest {
         props.setProperty("network.read.timeout", "7000");
         props.setProperty("network.user.agent", "HopSync-Test");
         props.setProperty("manifest.url", "https://example.org/manifest.json");
+        props.setProperty("github.client.id", " Iv1.test ");
 
         AppConfig config = AppConfig.fromProperties(props);
+        assertEquals("Iv1.test", config.githubClientId());
 
         assertEquals(new NetworkConfig(5000, 7000, "HopSync-Test"), config.network());
         assertEquals("https://example.org/manifest.json", config.presetManifestUrl());
@@ -33,6 +35,7 @@ class AppConfigTest {
 
         assertEquals(NetworkConfig.DEFAULT, config.network());
         assertEquals(AppConfig.DEFAULT_MANIFEST_URL, config.presetManifestUrl());
+        assertEquals(AppConfig.DEFAULT_GITHUB_CLIENT_ID, config.githubClientId());
     }
 
     @Test

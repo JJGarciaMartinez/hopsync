@@ -7,7 +7,7 @@ version come from `version.properties` (see [VERSION_GUIDE.md](VERSION_GUIDE.md)
 
 | Task | Output | What it does |
 |------|--------|--------------|
-| `./gradlew build` | `desktop/build/libs/HopSync.jar` | Compiles, runs every test and builds the self-contained JAR (FlatLaf and fonts inside). |
+| `./gradlew build` | `desktop/build/libs/HopSync.jar` | Compiles, runs every test and builds the self-contained JAR (FlatLaf, JNA and fonts inside). |
 | `./gradlew run` | | Launches the app from the sources. |
 | `./gradlew jpackage` | `desktop/build/installer/` | Native installer of the OS it runs on: `.msi` on Windows, `.dmg` on macOS, `.deb` on Linux. Bundles a Java runtime. |
 | `./gradlew portableZip` | `desktop/build/distributions/HopSync-<version>-portable.zip` | The JAR plus `HopSync.bat`, `HopSync.sh`, `HopSync.command` and a README, for players who already have Java 21. |

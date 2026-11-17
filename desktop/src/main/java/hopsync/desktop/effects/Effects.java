@@ -8,6 +8,7 @@ import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackRegistry;
 import hopsync.core.pack.PackSource;
 import hopsync.core.port.ModCatalog;
+import hopsync.core.port.SecretStore;
 import hopsync.core.session.PackSessions;
 import hopsync.core.session.UpdateState;
 import hopsync.core.usecase.DefinitionResolver;
@@ -20,6 +21,7 @@ import hopsync.desktop.store.Store;
 import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
 import hopsync.platform.fs.InstanceFinder;
+import hopsync.platform.github.GitHubAuth;
 import hopsync.platform.manifest.ManifestService;
 
 import java.awt.Desktop;
@@ -54,18 +56,23 @@ public final class Effects {
     private final SheetEffects sheets;
     private final DefinitionResolver createdPacks;
     private final PackEditor editor;
+    private final AccountEffects accounts;
 
     /**
      * @param catalog      the mod catalog created packs pick from
      * @param createdPacks resolves a created pack's definition into the manifest the list shows
      * @param editor       changes the mods of a created pack
+     * @param secrets      the system keychain, holding the GitHub token
+     * @param gitHub       signs the player in to GitHub
      */
     public Effects(Store store, PackRegistry registry, PackSessions sessions, ManifestService manifests,
-                   ModCatalog catalog, DefinitionResolver createdPacks, PackEditor editor, ModLoadService modLoadService,
+                   ModCatalog catalog, DefinitionResolver createdPacks, PackEditor editor, SecretStore secrets,
+                   GitHubAuth gitHub, ModLoadService modLoadService,
                    InstanceFinder instances, Executor background, Path settingsFile, Clock clock, Runnable exit) {
         this.store = store;
         this.createdPacks = createdPacks;
         this.editor = editor;
+        this.accounts = new AccountEffects(store, secrets, gitHub, background);
         this.registry = registry;
         this.sessions = sessions;
         this.manifests = manifests;
@@ -84,6 +91,7 @@ public final class Effects {
         events.subscribe(event -> store.dispatch(new UiAction.SyncEventReceived(event, clock.instant())));
         store.addEffect(this::run);
         reloadPacks();
+        accounts.load();
         if (registry.settings().checkOnStart()) {
             store.dispatch(new UiAction.CheckAll());
         }
@@ -128,6 +136,10 @@ public final class Effects {
             case UiAction.RemoveModFromPack a -> editPack(a.packId(), () -> editor.remove(a.packId(), a.slugOrFile(),
                 a.ownJar()), Messages.get("toast.modRemoved", a.name()));
             case UiAction.ResizeLibrary a -> background.execute(() -> registry.rememberLibraryWidth(a.width()));
+            case UiAction.ConnectGitHub a -> accounts.run(action, state);
+            case UiAction.CancelGitHubConnect a -> accounts.run(action, state);
+            case UiAction.OpenGitHubDevice a -> accounts.run(action, state);
+            case UiAction.DisconnectGitHub a -> accounts.run(action, state);
             default -> sheets.run(action, state);
         }
     }

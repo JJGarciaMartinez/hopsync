@@ -4,15 +4,18 @@ import hopsync.core.event.EventBus;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.pack.PackRegistry;
 import hopsync.core.port.ModCatalog;
+import hopsync.core.port.SecretStore;
 import hopsync.core.session.ApplyQueue;
 import hopsync.core.session.PackSessions;
 import hopsync.core.usecase.DefinitionResolver;
 import hopsync.core.usecase.ModUpdateService;
 import hopsync.core.usecase.PackEditor;
 import hopsync.desktop.config.AppConfig;
+import hopsync.platform.github.GitHubAuth;
 import hopsync.platform.http.DownloadService;
 import hopsync.platform.manifest.ManifestService;
 import hopsync.platform.modrinth.ModrinthClient;
+import hopsync.platform.secrets.SystemKeychain;
 import hopsync.platform.settings.DefinitionStore;
 import hopsync.platform.settings.SettingsStore;
 
@@ -36,6 +39,8 @@ public final class AppContainer {
     private final ModCatalog modCatalog;
     private final DefinitionResolver definitionResolver;
     private final PackEditor packEditor;
+    private final SecretStore secrets = SystemKeychain.forCurrentOs();
+    private final GitHubAuth gitHubAuth;
     private final PackSessions packSessions;
     private final ExecutorService backgroundExecutor =
         Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("hopsync-update-", 0).factory());
@@ -50,6 +55,7 @@ public final class AppContainer {
         modCatalog = new ModrinthClient(downloadService::getUrlString);
         definitionResolver = new DefinitionResolver(modCatalog, definitions);
         packEditor = new PackEditor(modCatalog, packRegistry, definitions);
+        gitHubAuth = new GitHubAuth(config.githubClientId(), config.network());
         ModUpdateService modUpdateService = new ModUpdateService(manifestService, definitionResolver, downloadService,
             packRegistry::parallelDownloads);
         ApplyQueue applyQueue = new ApplyQueue(backgroundExecutor, packRegistry::chainQueue);
@@ -93,6 +99,14 @@ public final class AppContainer {
 
     public PackEditor packEditor() {
         return packEditor;
+    }
+
+    public SecretStore secrets() {
+        return secrets;
+    }
+
+    public GitHubAuth gitHubAuth() {
+        return gitHubAuth;
     }
 
     /** Virtual threads for background work: checks, applies, listing files, fetching manifests. */

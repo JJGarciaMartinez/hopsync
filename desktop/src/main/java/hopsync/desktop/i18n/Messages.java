@@ -48,6 +48,9 @@ public final class Messages {
             case SyncFailure.ManifestInvalid f -> get("failure.manifestInvalid", f.detail());
             case SyncFailure.ModUnavailable f -> get("failure.modUnavailable", f.mod());
             case SyncFailure.DefinitionMissing f -> get("failure.definitionMissing");
+            case SyncFailure.GitHubNotConfigured f -> get("failure.githubNotConfigured");
+            case SyncFailure.GitHubCodeExpired f -> get("failure.githubCodeExpired");
+            case SyncFailure.GitHubDenied f -> get("failure.githubDenied");
             case SyncFailure.UnsupportedFormat f -> get("failure.unsupportedFormat", String.valueOf(f.found()), String.valueOf(f.supported()));
             case SyncFailure.HashMismatch f -> get("failure.hashMismatch", f.file());
             case SyncFailure.SizeMismatch f -> get("failure.sizeMismatch", f.file());

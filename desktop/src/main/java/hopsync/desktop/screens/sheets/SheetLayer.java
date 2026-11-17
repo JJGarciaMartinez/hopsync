@@ -99,7 +99,7 @@ public final class SheetLayer extends JPanel {
                 yield pack == null ? null : packSettingsCard;
             }
             case Sheet.AppSettings settings -> {
-                appSettings.render(settings);
+                appSettings.render(settings, state.account());
                 yield appSettingsCard;
             }
             case Sheet.AddMods mods -> {
