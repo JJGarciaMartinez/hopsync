@@ -201,7 +201,21 @@ public class PackRegistry {
     public synchronized void updatePreferences(boolean checkOnStart, boolean chainQueue, int parallelDownloads,
                                                boolean reduceMotion) throws IOException {
         save(new PackSettings(settings.packs(), settings.activeId(), checkOnStart, chainQueue, parallelDownloads,
-            reduceMotion));
+            reduceMotion, settings.libraryWidth()));
+    }
+
+    /**
+     * Keeps the library width the player dragged to, kept within 200–360. A failure to save is only logged: the
+     * library starts at its default width next time.
+     */
+    public synchronized void rememberLibraryWidth(int width) {
+        if (settings.libraryWidth() == width) return;
+        try {
+            save(new PackSettings(settings.packs(), settings.activeId(), settings.checkOnStart(), settings.chainQueue(),
+                settings.parallelDownloads(), settings.reduceMotion(), width));
+        } catch (IOException e) {
+            LOG.log(System.Logger.Level.WARNING, "Could not save the library width", e);
+        }
     }
 
     private void checkFolderIsFree(Pack candidate) throws SyncException {

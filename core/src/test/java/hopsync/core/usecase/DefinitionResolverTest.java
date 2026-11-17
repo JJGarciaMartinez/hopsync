@@ -43,6 +43,11 @@ class DefinitionResolverTest {
     /** A catalog that knows only Sodium. */
     private static final ModCatalog CATALOG = new ModCatalog() {
         @Override
+        public List<String> gameVersions() {
+            return List.of("1.21.1");
+        }
+
+        @Override
         public List<CatalogProject> search(String query, String minecraft, String loader, int limit) {
             return List.of();
         }

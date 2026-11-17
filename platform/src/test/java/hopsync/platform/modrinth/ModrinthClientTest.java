@@ -103,6 +103,17 @@ class ModrinthClientTest {
     }
 
     @Test
+    void gameVersionsAreReleasesOnlyInModrinthsOrder() throws IOException {
+        ModrinthClient client = new ModrinthClient(url -> {
+            assertEquals(ModrinthClient.API + "/tag/game_version", url);
+            return "[{\"version\":\"1.21.2\",\"version_type\":\"release\"},"
+                + "{\"version\":\"24w46a\",\"version_type\":\"snapshot\"},"
+                + "{\"version\":\"1.21.1\",\"version_type\":\"release\"}]";
+        });
+        assertEquals(List.of("1.21.2", "1.21.1"), client.gameVersions());
+    }
+
+    @Test
     void anUnknownProjectHasNoVersions() throws IOException {
         ModrinthClient client = new ModrinthClient(url -> {
             throw new SyncException(new SyncFailure.HttpStatus(404, url));

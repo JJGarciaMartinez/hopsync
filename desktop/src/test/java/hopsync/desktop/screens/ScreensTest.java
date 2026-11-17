@@ -1,6 +1,7 @@
 package hopsync.desktop.screens;
 
 import com.formdev.flatlaf.util.UIScale;
+import hopsync.core.catalog.CatalogProject;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.pack.Pack;
@@ -17,6 +18,7 @@ import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
 import org.junit.jupiter.api.BeforeAll;
+import javax.swing.JScrollPane;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JComponent;
@@ -32,8 +34,11 @@ import java.nio.file.Path;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static hopsync.desktop.store.StoreFixtures.DEMO;
+import static hopsync.desktop.store.StoreFixtures.MINE;
+import static hopsync.desktop.store.StoreFixtures.created;
 import static hopsync.desktop.store.StoreFixtures.manifest;
 import static hopsync.desktop.store.StoreFixtures.OTHER;
 import static hopsync.desktop.store.StoreFixtures.loaded;
@@ -77,13 +82,19 @@ class ScreensTest {
                 new SyncEvent.UpdateFailed(D, new SyncFailure.Network("github.com", "timeout"))));
     }
 
+    private static List<UiState> everyPhaseAndCreated() {
+        List<UiState> states = new ArrayList<>(everyPhase());
+        states.add(created());
+        return states;
+    }
+
     @Test
     void heroAndLibraryRenderEveryPhase() {
         PackHero hero = new PackHero(dispatched::add, ZoneOffset.UTC);
         PackLibrary library = new PackLibrary(dispatched::add);
         StatusBar statusBar = new StatusBar(ZoneOffset.UTC);
         ModsPanel mods = new ModsPanel(dispatched::add);
-        for (UiState phase : everyPhase()) {
+        for (UiState phase : everyPhaseAndCreated()) {
             for (UiState state : List.of(phase, reduce(phase, new UiAction.SetFilter(UiState.Filter.ALL),
                     new UiAction.ToggleRow("kept.jar")), reduce(phase, new UiAction.SelectTab(UiState.Tab.OWN_MODS)),
                     reduce(phase, new UiAction.SelectTab(UiState.Tab.CONFIGS)))) {
@@ -167,6 +178,25 @@ class ScreensTest {
     }
 
     @Test
+    void longPackNamesNeverScrollTheLibrarySideways() throws Exception {
+        Pack longName = new Pack("long", "https://example.org/long.json", Path.of("/games/long").toAbsolutePath(),
+            "Un pack con un nombre larguísimo que no cabe en la biblioteca ni de lejos");
+        UiState state = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(longName), "long"),
+            new UiAction.ResizeLibrary(Preferences.MIN_LIBRARY_WIDTH));
+        PackLibrary library = new PackLibrary(dispatched::add);
+        SwingUtilities.invokeAndWait(() -> {
+            library.render(state);
+            library.setSize(library.getPreferredSize().width, UIScale.scale(560));
+            invalidateTree(library);
+            layoutTree(library);
+            layoutTree(library);
+        });
+        JScrollPane scroll = find(library, JScrollPane.class);
+        assertEquals(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER, scroll.getHorizontalScrollBarPolicy());
+        assertEquals(scroll.getViewport().getWidth(), scroll.getViewport().getView().getWidth());
+    }
+
+    @Test
     void librarySearchRendersMatchesAndNoMatch() {
         List<Pack> six = new ArrayList<>();
         for (int i = 0; i < UiState.PACK_SEARCH_FROM; i++) {
@@ -194,8 +224,16 @@ class ScreensTest {
             0, null);
         UiState folders = reduce(valid, new UiAction.WizardNext());
         UiState packSettings = reduce(loaded(), new UiAction.OpenSettings());
+        UiState scratch = reduce(empty, new UiAction.StartFromScratch());
+        UiState described = reduce(scratch, new UiAction.GameVersionsLoaded(List.of("1.21.2", "1.21.1")),
+            new UiAction.EditNewPack("Aventura con amigos", "1.21.1", "neoforge"));
         return List.of(
             empty,
+            scratch,
+            reduce(scratch, new UiAction.GameVersionsFailed(new SyncFailure.Network("api.modrinth.com", "timeout"))),
+            described,
+            reduce(described, new UiAction.WizardNext(), new UiAction.FoldersFound(List.of(free))),
+            reduce(add, new UiAction.StartFromScratch()),
             reduce(empty, new UiAction.SetLinkUrl("http://example.org"), new UiAction.CheckLink()),
             add,
             reduce(add, new UiAction.CheckLink()),
@@ -218,7 +256,17 @@ class ScreensTest {
             reduce(packSettings, new UiAction.SelectPackSection(Sheet.PackSettings.Section.REMOVE)),
             reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.GENERAL),
                 new UiAction.SetPreferences(new Preferences(false, true, 6, true))),
-            reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ABOUT)));
+            reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ABOUT)),
+            reduce(created(), new UiAction.OpenAddMods(MINE.id())),
+            reduce(created(), new UiAction.OpenAddMods(MINE.id()), new UiAction.PackModsLoaded(MINE.id(), Set.of("a")),
+                new UiAction.ModsFound("", List.of(
+                    new CatalogProject("a", "a", "Sodium", "Fast", "jelly", null, 1),
+                    new CatalogProject("b", "b", "Un mod con un nombre larguísimo que no cabe en la hoja", "", "", null, 1))),
+                new UiAction.AddCatalogMod("b"), new UiAction.ModAdded("b", new Sheet.Added("B", List.of("C", "D")), Set.of("a", "b"))),
+            reduce(created(), new UiAction.OpenAddMods(MINE.id()), new UiAction.SearchMods("zzz"),
+                new UiAction.ModsFound("zzz", List.of()), new UiAction.ModAddFailed(null, new SyncFailure.UnsafePath("x.txt"))),
+            reduce(created(), new UiAction.OpenAddMods(MINE.id()),
+                new UiAction.ModSearchFailed("", new SyncFailure.Network("api.modrinth.com", "timeout"))));
     }
 
     @Test

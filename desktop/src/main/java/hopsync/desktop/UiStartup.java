@@ -29,6 +29,7 @@ public final class UiStartup {
         store.subscribe(window::render);
         window.setVisible(true);
         new Effects(store, container.packRegistry(), container.packSessions(), container.manifestService(),
+            container.modCatalog(), container.definitionResolver(), container.packEditor(),
             new ModLoadService(), InstanceFinder.forCurrentUser(), container.backgroundExecutor(),
             container.settingsFile(), Clock.systemUTC(), () -> System.exit(0))
             .start(container.eventBus());

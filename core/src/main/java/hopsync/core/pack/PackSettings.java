@@ -12,13 +12,23 @@ import java.util.Optional;
  * @param chainQueue        keep applying queued packs after the running one is cancelled
  * @param parallelDownloads files downloaded at the same time, 1–8
  * @param reduceMotion      keep the animated mark still, for players sensitive to motion
+ * @param libraryWidth      width of the pack library the player dragged to, in unscaled pixels, 200–360
  */
 public record PackSettings(List<Pack> packs, String activeId, boolean checkOnStart, boolean chainQueue,
-                           int parallelDownloads, boolean reduceMotion) {
+                           int parallelDownloads, boolean reduceMotion, int libraryWidth) {
 
     public static final int MIN_PARALLEL_DOWNLOADS = 1;
     public static final int MAX_PARALLEL_DOWNLOADS = 8;
+    public static final int MIN_LIBRARY_WIDTH = 200;
+    public static final int MAX_LIBRARY_WIDTH = 360;
+    public static final int DEFAULT_LIBRARY_WIDTH = 232;
     public static final PackSettings EMPTY = new PackSettings(List.of(), null, true, true, 4, false);
+
+    /** Settings with the library at its default width. */
+    public PackSettings(List<Pack> packs, String activeId, boolean checkOnStart, boolean chainQueue,
+                        int parallelDownloads, boolean reduceMotion) {
+        this(packs, activeId, checkOnStart, chainQueue, parallelDownloads, reduceMotion, DEFAULT_LIBRARY_WIDTH);
+    }
 
     public PackSettings {
         packs = List.copyOf(packs);
@@ -27,6 +37,7 @@ public record PackSettings(List<Pack> packs, String activeId, boolean checkOnSta
             activeId = packs.isEmpty() ? null : packs.getFirst().id();
         }
         parallelDownloads = Math.clamp(parallelDownloads, MIN_PARALLEL_DOWNLOADS, MAX_PARALLEL_DOWNLOADS);
+        libraryWidth = Math.clamp(libraryWidth, MIN_LIBRARY_WIDTH, MAX_LIBRARY_WIDTH);
     }
 
     public Optional<Pack> active() {
@@ -38,6 +49,7 @@ public record PackSettings(List<Pack> packs, String activeId, boolean checkOnSta
     }
 
     public PackSettings withPacks(List<Pack> newPacks, String newActiveId) {
-        return new PackSettings(newPacks, newActiveId, checkOnStart, chainQueue, parallelDownloads, reduceMotion);
+        return new PackSettings(newPacks, newActiveId, checkOnStart, chainQueue, parallelDownloads, reduceMotion,
+            libraryWidth);
     }
 }

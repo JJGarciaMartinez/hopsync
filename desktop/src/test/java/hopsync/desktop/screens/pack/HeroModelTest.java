@@ -3,6 +3,7 @@ package hopsync.desktop.screens.pack;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.ButtonStyle;
 import hopsync.desktop.kit.StatusMark;
 import hopsync.desktop.store.UiAction;
@@ -14,6 +15,8 @@ import java.util.List;
 import java.util.Set;
 
 import static hopsync.desktop.store.StoreFixtures.NOW;
+import static hopsync.desktop.store.StoreFixtures.MINE;
+import static hopsync.desktop.store.StoreFixtures.created;
 import static hopsync.desktop.store.StoreFixtures.DEMO;
 import static hopsync.desktop.store.StoreFixtures.OTHER;
 import static hopsync.desktop.store.StoreFixtures.loaded;
@@ -181,6 +184,27 @@ class HeroModelTest {
         state = reduce(state, new UiAction.ManifestLoaded(D, manifest()));
         String meta = HeroModel.meta(state.packs().get(D));
         assertNotNull(meta);
-        assertTrue(meta.contains("1.21.1") && meta.contains("neoforge") && meta.contains("3 mods"));
+        assertTrue(meta.contains("1.21.1") && meta.contains("NeoForge") && meta.contains("3 mods"));
+    }
+
+    @Test
+    void anEmptyCreatedPackAsksForItsFirstMod() {
+        UiState state = created();
+        HeroModel model = HeroModel.of(state.packs().get(MINE.id()), state, ZoneOffset.UTC, NOW);
+
+        assertEquals(Messages.get("hero.state.empty"), model.title());
+        assertEquals(List.of(new HeroModel.Action(Messages.get("hero.addMods"), Icons.Glyph.PLUS,
+            new UiAction.OpenAddMods(MINE.id()), ButtonStyle.PRIMARY)), model.actions());
+    }
+
+    @Test
+    void aCreatedPackWithModsOffersToAddMoreBeforeItsUsualActions() {
+        UiState state = reduce(created(), new SyncEvent.UpdateStarted(MINE.id()), new SyncEvent.UpToDate(MINE.id(), upToDatePlan()));
+        List<String> labels = labels(HeroModel.of(state.packs().get(MINE.id()), state, ZoneOffset.UTC, NOW));
+        assertEquals(List.of(Messages.get("hero.addMods"), Messages.get("hero.checkAgain")), labels);
+
+        UiState checking = reduce(state, new SyncEvent.UpdateStarted(MINE.id()));
+        assertTrue(labels(HeroModel.of(checking.packs().get(MINE.id()), checking, ZoneOffset.UTC, NOW))
+            .stream().noneMatch(Messages.get("hero.addMods")::equals), "nothing to add while it checks");
     }
 }

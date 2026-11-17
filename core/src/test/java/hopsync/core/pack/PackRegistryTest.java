@@ -100,6 +100,16 @@ class PackRegistryTest {
     }
 
     @Test
+    void libraryWidthIsKeptWithinItsLimitsAndSurvivesPreferenceChanges() throws IOException {
+        registry.rememberLibraryWidth(500);
+        assertEquals(PackSettings.MAX_LIBRARY_WIDTH, repository.saved.libraryWidth());
+        registry.updatePreferences(true, true, 4, false);
+        assertEquals(PackSettings.MAX_LIBRARY_WIDTH, repository.saved.libraryWidth());
+        registry.rememberLibraryWidth(10);
+        assertEquals(PackSettings.MIN_LIBRARY_WIDTH, registry.settings().libraryWidth());
+    }
+
+    @Test
     void updatingAPackMayKeepItsOwnFolder() throws IOException {
         Pack pack = registry.add(URL, dir.resolve("a"));
         registry.update(pack.withSource(new PackSource.Link("https://example.org/other.json")));

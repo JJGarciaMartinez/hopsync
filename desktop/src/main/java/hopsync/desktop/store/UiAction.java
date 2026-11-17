@@ -1,5 +1,6 @@
 package hopsync.desktop.store;
 
+import hopsync.core.catalog.CatalogProject;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.Manifest;
@@ -71,10 +72,54 @@ public sealed interface UiAction {
     /** Opens a mod's page (Modrinth or the pack's repository) in the browser. */
     record OpenModPage(String url) implements UiAction {}
 
+    /** "Cambiar versión" on a created pack's row: Effects loads the mod's versions for the menu. */
+    record LoadModVersions(String packId, String slug, String currentVersion) implements UiAction {}
+
+    record ModVersionsLoaded(String packId, String slug, List<ModVersions.Choice> choices) implements UiAction {}
+
+    record ModVersionsFailed(String packId, String slug, SyncFailure failure) implements UiAction {}
+
+    /** The version menu closed without a choice. */
+    record CloseModVersions() implements UiAction {}
+
+    /** Pins a mod of a created pack to another version; the pack is checked so it goes through review. */
+    record ChangeModVersion(String packId, String slug, String versionId) implements UiAction {}
+
+    /**
+     * Takes a mod out of a created pack; the pack is checked so the removal goes through review.
+     *
+     * @param slugOrFile the catalog mod's slug, or the file name of one of the player's jars
+     */
+    record RemoveModFromPack(String packId, String slugOrFile, String name, boolean ownJar) implements UiAction {}
+
     /** Forgets the pack after the player confirmed; its files stay where they are. */
     record RemovePack(String packId) implements UiAction {}
 
     // Sheets
+
+    /** "Añadir mods" of a pack the player created; Effects loads what it has and the most downloaded mods. */
+    record OpenAddMods(String packId) implements UiAction {}
+
+    /** Search text of the add-mods sheet, dispatched once the player stops typing. */
+    record SearchMods(String query) implements UiAction {}
+
+    record ModsFound(String query, List<CatalogProject> results) implements UiAction {}
+
+    record ModSearchFailed(String query, SyncFailure failure) implements UiAction {}
+
+    /** The catalog projects the pack already lists. */
+    record PackModsLoaded(String packId, Set<String> projects) implements UiAction {}
+
+    record AddCatalogMod(String projectId) implements UiAction {}
+
+    /** A jar the player picked, copied into the pack as one of its own mods. */
+    record AddOwnJar(String packId, Path jar) implements UiAction {}
+
+    /** @param projectId the catalog project added, or {@code null} for an own jar */
+    record ModAdded(String projectId, Sheet.Added result, Set<String> projects) implements UiAction {}
+
+    /** @param projectId the catalog project that could not be added, or {@code null} for an own jar */
+    record ModAddFailed(String projectId, SyncFailure failure) implements UiAction {}
 
     /** Settings of the selected pack (or the add-pack wizard when there are no packs). */
     record OpenSettings() implements UiAction {}
@@ -104,6 +149,19 @@ public sealed interface UiAction {
     record LinkFailed(String url, SyncFailure failure) implements UiAction {}
 
     record WizardNext() implements UiAction {}
+
+    /** "Empieza desde cero": the wizard describes a new pack instead of checking a link; Effects loads the versions. */
+    record StartFromScratch() implements UiAction {}
+
+    /** Back from a new pack to adding one by its link. */
+    record UseLink() implements UiAction {}
+
+    /** Name, Minecraft version and loader of the new pack, as typed and picked. */
+    record EditNewPack(String name, String minecraft, String loader) implements UiAction {}
+
+    record GameVersionsLoaded(List<String> versions) implements UiAction {}
+
+    record GameVersionsFailed(SyncFailure failure) implements UiAction {}
 
     record WizardBack() implements UiAction {}
 
@@ -145,6 +203,9 @@ public sealed interface UiAction {
 
     /** Search text of the pack library. */
     record SetPackQuery(String query) implements UiAction {}
+
+    /** The library dragged to a new width, in unscaled pixels; saved for the next start. */
+    record ResizeLibrary(int width) implements UiAction {}
 
     /** Expands the row of the file, or collapses it if it was expanded. */
     record ToggleRow(String file) implements UiAction {}

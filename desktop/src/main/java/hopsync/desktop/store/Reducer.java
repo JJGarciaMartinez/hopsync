@@ -51,11 +51,35 @@ public final class Reducer {
             case UiAction.CopyPackLink a -> state;
             case UiAction.OpenModPage a -> state;
             case UiAction.RemovePack a -> state.withSheet(null);
+            case UiAction.LoadModVersions a -> state.withModVersions(new ModVersions(a.packId(), a.slug(), null, null));
+            // Only the answer for the menu still open counts
+            case UiAction.ModVersionsLoaded a -> forVersionMenu(state, a.packId(), a.slug())
+                ? state.withModVersions(new ModVersions(a.packId(), a.slug(), a.choices(), null)) : state;
+            case UiAction.ModVersionsFailed a -> forVersionMenu(state, a.packId(), a.slug())
+                ? state.withModVersions(new ModVersions(a.packId(), a.slug(), List.of(), a.failure())) : state;
+            case UiAction.CloseModVersions a -> state.withModVersions(null);
+            case UiAction.ChangeModVersion a -> state.withModVersions(null);
+            case UiAction.RemoveModFromPack a -> state.withExpandedRow(null);
             case UiAction.OpenSettings a -> state.packs().isEmpty() ? state.withSheet(Sheet.AddPack.start(true))
                 : openPackSettings(state, Sheet.PackSettings.Section.LINK);
             case UiAction.AddPack a -> state.withSheet(Sheet.AddPack.start(state.packs().isEmpty()));
             case UiAction.AskRemovePack a -> state.packs().isEmpty() ? state
                 : openPackSettings(state, Sheet.PackSettings.Section.REMOVE);
+            case UiAction.OpenAddMods a -> openAddMods(state, a.packId());
+            case UiAction.SearchMods a -> updateAddMods(state, sheet -> sheet.query().equals(a.query()) ? sheet
+                : sheet.withQuery(a.query()));
+            // Only the answer for the words still typed counts
+            case UiAction.ModsFound a -> updateAddMods(state, sheet -> sheet.query().equals(a.query())
+                ? sheet.withResults(a.results(), null) : sheet);
+            case UiAction.ModSearchFailed a -> updateAddMods(state, sheet -> sheet.query().equals(a.query())
+                ? sheet.withResults(List.of(), a.failure()) : sheet);
+            case UiAction.PackModsLoaded a -> updateAddMods(state, sheet -> sheet.packId().equals(a.packId())
+                ? sheet.withInPack(a.projects()) : sheet);
+            case UiAction.AddCatalogMod a -> updateAddMods(state, sheet -> sheet.inPack() != null
+                && sheet.inPack().contains(a.projectId()) ? sheet : sheet.withAdding(a.projectId()));
+            case UiAction.AddOwnJar a -> state;
+            case UiAction.ModAdded a -> updateAddMods(state, sheet -> sheet.withAdded(a.projectId(), a.result(), a.projects()));
+            case UiAction.ModAddFailed a -> updateAddMods(state, sheet -> sheet.withFailure(a.projectId(), a.failure()));
             case UiAction.OpenAppSettings a -> state.withSheet(new Sheet.AppSettings(a.section(), state.preferences()));
             case UiAction.CloseSheet a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.firstRun() ? state
                 : state.withSheet(null);
@@ -75,7 +99,17 @@ public final class Reducer {
             case UiAction.LinkFailed a -> withLinkResult(state, a.url(),
                 new LinkCheck.Invalid(LinkCheck.Problem.UNREADABLE, a.failure()));
             case UiAction.WizardNext a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.step() == 1
-                && wizard.link() instanceof LinkCheck.Valid ? state.withSheet(wizard.withStep(2)) : state;
+                && wizard.canContinue() ? state.withSheet(wizard.withStep(2)) : state;
+            case UiAction.StartFromScratch a -> state.sheet() instanceof Sheet.AddPack wizard
+                ? state.withSheet(wizard.withCreation(wizard.creation() == null ? Sheet.Creation.start()
+                    : wizard.creation().withVersionsError(null)))
+                : state;
+            case UiAction.UseLink a -> state.sheet() instanceof Sheet.AddPack wizard
+                ? state.withSheet(wizard.withCreation(null)) : state;
+            case UiAction.EditNewPack a -> updateCreation(state,
+                creation -> creation.withDetails(a.name(), a.minecraft(), a.loader()));
+            case UiAction.GameVersionsLoaded a -> updateCreation(state, creation -> creation.withVersions(a.versions()));
+            case UiAction.GameVersionsFailed a -> updateCreation(state, creation -> creation.withVersionsError(a.failure()));
             case UiAction.WizardBack a -> state.sheet() instanceof Sheet.AddPack wizard
                 ? state.withSheet(wizard.withStep(1)) : state;
             case UiAction.FoldersFound a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.step() == 2
@@ -98,6 +132,7 @@ public final class Reducer {
             case UiAction.SetFilter a -> state.withFilter(a.filter());
             case UiAction.SetQuery a -> state.withQuery(a.query());
             case UiAction.SetPackQuery a -> state.withPackQuery(a.query());
+            case UiAction.ResizeLibrary a -> state.withPreferences(state.preferences().withLibraryWidth(a.width()));
             case UiAction.ToggleRow a -> state.withExpandedRow(Objects.equals(state.expandedRow(), a.file()) ? null : a.file());
         };
     }
@@ -263,6 +298,31 @@ public final class Reducer {
     /** A launcher instance stays one after the check, which only knows the path. */
     private static GameFolder sameKind(GameFolder chosen, GameFolder checked) {
         return new GameFolder(chosen.kind(), chosen.name(), checked.path(), checked.jarCount(), checked.usedBy());
+    }
+
+    private static boolean forVersionMenu(UiState state, String packId, String slug) {
+        return state.modVersions() != null && state.modVersions().packId().equals(packId)
+            && state.modVersions().slug().equals(slug);
+    }
+
+    /** Only for a created pack whose details are known, and not while it writes files. */
+    private static UiState openAddMods(UiState state, String packId) {
+        PackUiState pack = state.packs().get(packId);
+        if (pack == null || !pack.created() || pack.packInfo() == null || pack.phase().isWriting()) {
+            return state;
+        }
+        return state.withSheet(Sheet.AddMods.start(packId, pack.packInfo().minecraft(), pack.packInfo().loader()));
+    }
+
+    private static UiState updateAddMods(UiState state, UnaryOperator<Sheet.AddMods> change) {
+        return state.sheet() instanceof Sheet.AddMods sheet ? state.withSheet(change.apply(sheet)) : state;
+    }
+
+    private static UiState updateCreation(UiState state, UnaryOperator<Sheet.Creation> change) {
+        return state.sheet() instanceof Sheet.AddPack wizard && wizard.creation() != null
+            ? state.withSheet(new Sheet.AddPack(wizard.firstRun(), wizard.step(), wizard.url(), wizard.link(),
+                wizard.folders(), wizard.chosen(), wizard.error(), change.apply(wizard.creation())))
+            : state;
     }
 
     private static UiState updatePack(UiState state, String packId, UnaryOperator<PackUiState> change) {

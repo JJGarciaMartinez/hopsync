@@ -2,6 +2,7 @@ package hopsync.desktop.screens.mods;
 
 import com.formdev.flatlaf.util.UIScale;
 import hopsync.desktop.kit.Palette;
+import hopsync.desktop.store.ModVersions;
 import hopsync.desktop.store.UiAction;
 
 import javax.swing.DefaultListModel;
@@ -19,7 +20,8 @@ import java.util.function.Consumer;
 /**
  * The mod list as one {@link JList}: rows are painted by a renderer instead of being live components, so
  * a pack of hundreds of mods scrolls smoothly. Clicks are hit-tested here: a mod row expands or collapses,
- * "Ver todos" lines run their action and the link of an expanded row opens the mod's page.
+ * "Ver todos" lines run their action, the link of an expanded row opens the mod's page and its buttons change a
+ * created pack's mod; "Cambiar versión" opens the versions menu under itself, filled as the versions arrive.
  */
 final class ModTable extends JScrollPane {
     private final DefaultListModel<ModRow> model = new DefaultListModel<>();
@@ -31,8 +33,10 @@ final class ModTable extends JScrollPane {
         }
     };
     private final ModRowRenderer renderer = new ModRowRenderer();
+    private final VersionMenu versions;
 
     ModTable(Consumer<UiAction> dispatch) {
+        versions = new VersionMenu(dispatch);
         setViewportView(list);
         setBorder(null);
         setHorizontalScrollBarPolicy(HORIZONTAL_SCROLLBAR_NEVER);
@@ -68,6 +72,14 @@ final class ModTable extends JScrollPane {
                         dispatch.accept(row.statusAction());
                     case ModRow.Mod row when row.expandable() -> dispatch.accept(new UiAction.ToggleRow(row.key()));
                     case ModRow.More row -> dispatch.accept(row.action());
+                    case ModRow.Detail row when actionAt(index, row, e.getPoint()) >= 0 -> {
+                        ModRow.DetailAction action = row.actions().get(actionAt(index, row, e.getPoint()));
+                        dispatch.accept(action.action());
+                        if (action.menu() && action.action() instanceof UiAction.LoadModVersions load) {
+                            Rectangle button = actionBounds(index, row).get(row.actions().indexOf(action));
+                            versions.open(list, button.x, button.y + button.height, load.packId(), load.slug());
+                        }
+                    }
                     case ModRow.Detail row when row.url() != null && onLink(index, row, e.getPoint()) ->
                         dispatch.accept(new UiAction.OpenModPage(row.url()));
                     default -> { }
@@ -76,6 +88,11 @@ final class ModTable extends JScrollPane {
         };
         list.addMouseListener(mouse);
         list.addMouseMotionListener(mouse);
+    }
+
+    /** Fills the versions menu while it is open; showing a state never dispatches. */
+    void setVersions(ModVersions shown) {
+        versions.render(shown);
     }
 
     void setRows(List<ModRow> rows, String expandedKey) {
@@ -99,6 +116,23 @@ final class ModTable extends JScrollPane {
         return renderer.statusBounds(row, cell.width).contains(point.x - cell.x, point.y - cell.y);
     }
 
+    /** The detail button under the point, or -1. */
+    private int actionAt(int index, ModRow.Detail row, Point point) {
+        List<Rectangle> bounds = actionBounds(index, row);
+        for (int i = 0; i < bounds.size(); i++) {
+            if (bounds.get(i).contains(point)) return i;
+        }
+        return -1;
+    }
+
+    /** The detail row's buttons, in list coordinates. */
+    private List<Rectangle> actionBounds(int index, ModRow.Detail row) {
+        Rectangle cell = list.getCellBounds(index, index);
+        return renderer.actionBounds(row, cell.width).stream()
+            .map(bounds -> new Rectangle(bounds.x + cell.x, bounds.y + cell.y, bounds.width, bounds.height))
+            .toList();
+    }
+
     private boolean onLink(int index, ModRow.Detail row, Point point) {
         Rectangle cell = list.getCellBounds(index, index);
         Rectangle link = renderer.linkBounds(row, cell.width);
@@ -107,7 +141,7 @@ final class ModTable extends JScrollPane {
 
     private static boolean clickable(ModRow row) {
         return row instanceof ModRow.Mod mod && mod.expandable() || row instanceof ModRow.More
-            || row instanceof ModRow.Detail detail && detail.url() != null;
+            || row instanceof ModRow.Detail detail && (detail.url() != null || !detail.actions().isEmpty());
     }
 
     private boolean sameRows(List<ModRow> rows) {

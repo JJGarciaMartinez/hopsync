@@ -108,6 +108,7 @@ public class SettingsStore implements PackSettingsRepository {
         root.put("chain_queue", settings.chainQueue());
         root.put("parallel_downloads", settings.parallelDownloads());
         root.put("reduce_motion", settings.reduceMotion());
+        root.put("library_width", settings.libraryWidth());
 
         AtomicFiles.writeString(file, Json.write(root));
     }
@@ -131,7 +132,8 @@ public class SettingsStore implements PackSettingsRepository {
             root.get("check_on_start") instanceof Boolean check ? check : defaults.checkOnStart(),
             root.get("chain_queue") instanceof Boolean chain ? chain : defaults.chainQueue(),
             root.get("parallel_downloads") instanceof Long parallel ? parallel.intValue() : defaults.parallelDownloads(),
-            root.get("reduce_motion") instanceof Boolean reduce ? reduce : defaults.reduceMotion());
+            root.get("reduce_motion") instanceof Boolean reduce ? reduce : defaults.reduceMotion(),
+            root.get("library_width") instanceof Long width ? width.intValue() : defaults.libraryWidth());
     }
 
     private static Map<String, Object> writeSource(PackSource source) {

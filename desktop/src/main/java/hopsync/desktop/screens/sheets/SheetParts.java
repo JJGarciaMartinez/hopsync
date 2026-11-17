@@ -21,6 +21,7 @@ import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -142,6 +143,28 @@ final class SheetParts {
     }
 
     /** Buttons on the right, the main one last. */
+    /**
+     * Muted words followed by a link in the action color, as in "¿No tienes enlace? Empieza desde cero". The link
+     * is a real button: Tab reaches it and Enter or Space follows it.
+     */
+    static JPanel textLink(String lead, String link, Runnable onClick) {
+        JLabel words = new JLabel(lead);
+        words.setForeground(Palette.textSecondary());
+        JButton button = new JButton(link);
+        button.putClientProperty(FlatClientProperties.STYLE, "font: semibold; margin: 0,0,0,0; borderWidth: 0;"
+            + " focusWidth: 0; innerFocusWidth: 1; arc: 6");
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setForeground(Palette.action());
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        button.addActionListener(e -> onClick.run());
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, UIScale.scale(4), 0));
+        row.setOpaque(false);
+        row.add(words);
+        row.add(button);
+        return row;
+    }
+
     static JPanel footer(AbstractButton... buttons) {
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, UIScale.scale(8), 0));
         footer.setOpaque(false);

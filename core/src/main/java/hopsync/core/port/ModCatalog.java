@@ -11,6 +11,9 @@ import java.util.Map;
 /** The mod catalog created packs pick their mods from (Modrinth). */
 public interface ModCatalog {
 
+    /** Minecraft release versions, newest first: what a new pack can be made for. */
+    List<String> gameVersions() throws IOException;
+
     /** Mods matching the words that work with the Minecraft version and loader, best match first; no words lists the most downloaded. */
     List<CatalogProject> search(String query, String minecraft, String loader, int limit) throws IOException;
 

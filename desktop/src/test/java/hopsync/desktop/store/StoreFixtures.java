@@ -6,6 +6,7 @@ import hopsync.core.manifest.ModEntry;
 import hopsync.core.manifest.ModSource;
 import hopsync.core.manifest.PackInfo;
 import hopsync.core.pack.Pack;
+import hopsync.core.pack.PackSource;
 import hopsync.core.sync.SyncPlan;
 import hopsync.core.sync.SyncPlan.ModAction;
 import hopsync.core.sync.SyncPlan.ModChange;
@@ -24,7 +25,17 @@ public final class StoreFixtures {
     public static final Pack DEMO = new Pack("demo", "https://example.org/demo.json", Path.of("/games/demo").toAbsolutePath(), "Demo");
     public static final Pack OTHER = new Pack("other", "https://example.org/other.json", Path.of("/games/other").toAbsolutePath(), "Other");
 
+    public static final Pack MINE = new Pack("mine", new PackSource.Local(null), Path.of("/games/mine").toAbsolutePath(),
+        "Aventura con amigos");
+    public static final PackInfo MINE_INFO = new PackInfo("Aventura con amigos", "1.0.0", "", null, "1.21.1", "fabric");
+
     private StoreFixtures() {
+    }
+
+    /** A pack the player created, with no mods yet, selected. */
+    public static UiState created() {
+        return Reducer.reduce(Reducer.reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(DEMO, MINE), MINE.id())),
+            new UiAction.ManifestLoaded(MINE.id(), new Manifest(2, MINE_INFO, "c".repeat(64), List.of(), List.of())));
     }
 
     public static ModEntry mod(String file) {

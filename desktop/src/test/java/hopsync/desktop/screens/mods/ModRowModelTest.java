@@ -14,6 +14,7 @@ import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
 import hopsync.desktop.store.UiState.Filter;
 import hopsync.desktop.store.UiState.Tab;
+import hopsync.desktop.store.PackUiState;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -21,6 +22,9 @@ import java.util.Map;
 import java.util.Set;
 
 import static hopsync.desktop.store.StoreFixtures.DEMO;
+import static hopsync.desktop.store.StoreFixtures.MINE;
+import static hopsync.desktop.store.StoreFixtures.MINE_INFO;
+import static hopsync.desktop.store.StoreFixtures.created;
 import static hopsync.desktop.store.StoreFixtures.INFO;
 import static hopsync.desktop.store.StoreFixtures.loaded;
 import static hopsync.desktop.store.StoreFixtures.manifest;
@@ -221,5 +225,29 @@ class ModRowModelTest {
 
         assertEquals("https://modrinth.com/project/Gi02250Z", ModLinks.pageOf(modrinth));
         assertEquals("https://github.com/o/pack/releases/tag/hopsync", ModLinks.pageOf(github));
+    }
+
+    @Test
+    void aCreatedPacksModsChangeFromTheirRowOnlyWhenThePackIsIdle() {
+        ModEntry fromCatalog = new ModEntry("sodium", "Sodium", "0.6.13", "", "", "sodium.jar",
+            "https://cdn.modrinth.com/data/AANobbMI/versions/v1/sodium.jar", "a".repeat(128), 1, ModSource.MODRINTH);
+        ModEntry jar = new ModEntry("mine", "mine", "", "", "", "mine.jar", "file:///packs/mine.jar", "a".repeat(128), 1,
+            ModSource.LOCAL);
+        String id = MINE.id();
+        UiState state = reduce(created(), new UiAction.ManifestLoaded(id,
+            new Manifest(2, MINE_INFO, "c".repeat(64), List.of(fromCatalog, jar), List.of())));
+        PackUiState pack = state.packs().get(id);
+
+        assertEquals(List.of(
+            new ModRow.DetailAction(Messages.get("mods.detail.changeVersion"), new UiAction.LoadModVersions(id, "sodium", "0.6.13"), true, false),
+            new ModRow.DetailAction(Messages.get("mods.detail.removeFromPack"), new UiAction.RemoveModFromPack(id, "sodium", "Sodium", false), false, true)),
+            ModRowModel.editActions(pack, fromCatalog));
+        assertEquals(List.of(new ModRow.DetailAction(Messages.get("mods.detail.removeFromPack"),
+            new UiAction.RemoveModFromPack(id, "mine.jar", "mine", true), false, true)), ModRowModel.editActions(pack, jar));
+
+        UiState checking = reduce(state, new SyncEvent.UpdateStarted(id));
+        assertEquals(List.of(), ModRowModel.editActions(checking.packs().get(id), fromCatalog));
+        UiState linked = reduce(loaded(), new UiAction.ManifestLoaded(DEMO.id(), manifest()));
+        assertEquals(List.of(), ModRowModel.editActions(linked.packs().get(DEMO.id()), fromCatalog));
     }
 }

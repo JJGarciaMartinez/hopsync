@@ -1,5 +1,6 @@
 package hopsync.desktop.store;
 
+import hopsync.core.catalog.CatalogProject;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.pack.Pack;
@@ -11,6 +12,8 @@ import java.util.List;
 import java.util.Set;
 
 import static hopsync.desktop.store.StoreFixtures.DEMO;
+import static hopsync.desktop.store.StoreFixtures.MINE;
+import static hopsync.desktop.store.StoreFixtures.created;
 import static hopsync.desktop.store.StoreFixtures.INFO;
 import static hopsync.desktop.store.StoreFixtures.NOW;
 import static hopsync.desktop.store.StoreFixtures.OTHER;
@@ -635,5 +638,95 @@ class ReducerTest {
                 Path.of("/games/survival-" + i).toAbsolutePath(), "Survival " + i));
         }
         return packs;
+    }
+
+    @Test
+    void theLibraryKeepsTheWidthItWasDraggedToWithinItsLimits() {
+        assertEquals(300, reduce(loaded(), new UiAction.ResizeLibrary(300)).preferences().libraryWidth());
+        assertEquals(Preferences.MAX_LIBRARY_WIDTH, reduce(loaded(), new UiAction.ResizeLibrary(900)).preferences().libraryWidth());
+        assertEquals(Preferences.MIN_LIBRARY_WIDTH, reduce(loaded(), new UiAction.ResizeLibrary(20)).preferences().libraryWidth());
+    }
+
+    @Test
+    void startingFromScratchDescribesANewPackUntilItCanContinue() {
+        UiState wizard = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(), null), new UiAction.StartFromScratch());
+        Sheet.AddPack sheet = (Sheet.AddPack) wizard.sheet();
+        assertEquals(Sheet.Creation.start(), sheet.creation());
+        assertFalse(sheet.canContinue(), "no name and no versions yet");
+        assertEquals(1, ((Sheet.AddPack) reduce(wizard, new UiAction.WizardNext()).sheet()).step());
+
+        UiState loaded = reduce(wizard, new UiAction.GameVersionsLoaded(List.of("1.21.2", "1.21.1")),
+            new UiAction.EditNewPack("Aventura", "1.21.2", "neoforge"));
+        Sheet.Creation creation = ((Sheet.AddPack) loaded.sheet()).creation();
+        assertEquals(new Sheet.Creation("Aventura", "1.21.2", "neoforge", List.of("1.21.2", "1.21.1"), null), creation);
+        assertEquals(2, ((Sheet.AddPack) reduce(loaded, new UiAction.WizardNext()).sheet()).step());
+
+        Sheet.AddPack back = (Sheet.AddPack) reduce(loaded, new UiAction.UseLink()).sheet();
+        assertNull(back.creation());
+        assertFalse(back.canContinue(), "the link was never checked");
+    }
+
+    @Test
+    void theNewestMinecraftVersionIsPickedAndAFailureCanBeRetried() {
+        UiState wizard = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(), null), new UiAction.StartFromScratch());
+        assertEquals("1.21.2", ((Sheet.AddPack) reduce(wizard, new UiAction.GameVersionsLoaded(List.of("1.21.2", "1.20.1")))
+            .sheet()).creation().minecraft());
+
+        SyncFailure offline = new SyncFailure.Network("api.modrinth.com", "timeout");
+        UiState failed = reduce(wizard, new UiAction.GameVersionsFailed(offline));
+        assertEquals(offline, ((Sheet.AddPack) failed.sheet()).creation().versionsError());
+        assertNull(((Sheet.AddPack) reduce(failed, new UiAction.StartFromScratch()).sheet()).creation().versionsError());
+        assertEquals("", ((Sheet.AddPack) reduce(failed, new UiAction.EditNewPack("  ", null, "fabric")).sheet())
+            .creation().name().strip());
+    }
+
+    @Test
+    void addModsOpensOnlyForACreatedPackAndFollowsTheSearchStillTyped() {
+        assertNull(reduce(loaded(), new UiAction.OpenAddMods(DEMO.id())).sheet(), "a linked pack has nothing to add");
+        UiState open = reduce(created(), new UiAction.OpenAddMods(MINE.id()));
+        assertEquals(Sheet.AddMods.start(MINE.id(), "1.21.1", "fabric"), open.sheet());
+
+        CatalogProject sodium = new CatalogProject("AANobbMI", "sodium", "Sodium", "", "jelly", null, 9);
+        UiState searched = reduce(open, new UiAction.SearchMods("sod"), new UiAction.ModsFound("", List.of()),
+            new UiAction.ModsFound("sod", List.of(sodium)));
+        Sheet.AddMods sheet = (Sheet.AddMods) searched.sheet();
+        assertEquals("sod", sheet.query());
+        assertEquals(List.of(sodium), sheet.results(), "the answer for an old search is dropped");
+    }
+
+    @Test
+    void addingAModCountsItsDependenciesAndAFailureIsShown() {
+        UiState open = reduce(created(), new UiAction.OpenAddMods(MINE.id()),
+            new UiAction.PackModsLoaded(MINE.id(), Set.of()), new UiAction.AddCatalogMod("extra"));
+        assertEquals(Set.of("extra"), ((Sheet.AddMods) open.sheet()).adding());
+
+        UiState added = reduce(open, new UiAction.ModAdded("extra", new Sheet.Added("Sodium Extra", List.of("Sodium")),
+            Set.of("extra", "sodium")));
+        Sheet.AddMods sheet = (Sheet.AddMods) added.sheet();
+        assertEquals(Set.of(), sheet.adding());
+        assertEquals(2, sheet.added());
+        assertEquals(Set.of("extra", "sodium"), sheet.inPack());
+        assertEquals(sheet, ((Sheet.AddMods) reduce(added, new UiAction.AddCatalogMod("sodium")).sheet()),
+            "a mod already in the pack is not added again");
+
+        SyncFailure gone = new SyncFailure.ModUnavailable("Iris");
+        Sheet.AddMods failed = (Sheet.AddMods) reduce(added, new UiAction.AddCatalogMod("iris"),
+            new UiAction.ModAddFailed("iris", gone)).sheet();
+        assertEquals(gone, failed.error());
+        assertEquals(Set.of(), failed.adding());
+    }
+
+    @Test
+    void theVersionMenuKeepsOnlyTheAnswerForTheModItWasOpenedFor() {
+        UiState open = reduce(created(), new UiAction.LoadModVersions(MINE.id(), "sodium", "0.6"));
+        assertEquals(new ModVersions(MINE.id(), "sodium", null, null), open.modVersions());
+
+        List<ModVersions.Choice> choices = List.of(new ModVersions.Choice("v2", "0.7", false, true),
+            new ModVersions.Choice("v1", "0.6", true, true));
+        assertEquals(open, reduce(open, new UiAction.ModVersionsLoaded(MINE.id(), "iris", choices)));
+        UiState loaded = reduce(open, new UiAction.ModVersionsLoaded(MINE.id(), "sodium", choices));
+        assertEquals(choices, loaded.modVersions().choices());
+        assertNull(reduce(loaded, new UiAction.ChangeModVersion(MINE.id(), "sodium", "v2")).modVersions());
+        assertNull(reduce(loaded, new UiAction.CloseModVersions()).modVersions());
     }
 }
