@@ -2,6 +2,7 @@ package hopsync.desktop.screens.library;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.util.UIScale;
+import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.MarkTile;
 import hopsync.desktop.kit.Palette;
@@ -10,6 +11,7 @@ import hopsync.desktop.kit.StatusMark;
 import hopsync.desktop.store.PackUiState;
 
 import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
@@ -18,6 +20,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
@@ -26,12 +29,20 @@ import java.util.Map;
 
 /**
  * One pack in the library: mark tile, name and status line. The selected pack is raised like a pressed
- * key; the pack under the mouse gets a faint background.
+ * key; the pack under the mouse gets a faint background. A pack the player created says so before its status
+ * ("Creado por ti · Todo listo"), unless the library is too narrow for both: then only the status shows.
  */
 final class PackCell extends JPanel implements ListCellRenderer<PackUiState> {
     private final JLabel tile = new JLabel();
     private final JLabel name = new JLabel();
-    private final JLabel status = new JLabel();
+    // Narrows with "…" but keeps the height of its text
+    private final JLabel status = new JLabel() {
+        @Override
+        public Dimension getMinimumSize() {
+            return new Dimension(0, getPreferredSize().height);
+        }
+    };
+    private final JLabel created = new JLabel(Messages.get("pack.created") + " · ");
     private boolean selected;
     private boolean hovered;
     private int hoverIndex = -1;
@@ -47,11 +58,17 @@ final class PackCell extends JPanel implements ListCellRenderer<PackUiState> {
         status.setIconTextGap(UIScale.scale(6));
         // Gives way to the library's width: the labels then end in "…"
         name.setMinimumSize(new Dimension(0, 0));
-        status.setMinimumSize(new Dimension(0, 0));
+        created.putClientProperty(FlatClientProperties.STYLE, "font: -2");
+        created.setForeground(Palette.mine());
+        JPanel statusLine = new JPanel();
+        statusLine.setLayout(new BoxLayout(statusLine, BoxLayout.X_AXIS));
+        statusLine.setOpaque(false);
+        statusLine.add(created);
+        statusLine.add(status);
         JPanel text = new JPanel(new GridLayout(2, 1));
         text.setOpaque(false);
         text.add(name);
-        text.add(status);
+        text.add(statusLine);
         add(tile, BorderLayout.WEST);
         add(text, BorderLayout.CENTER);
     }
@@ -82,10 +99,19 @@ final class PackCell extends JPanel implements ListCellRenderer<PackUiState> {
         name.setForeground(Palette.text());
         status.setText(line.text());
         status.setForeground(tone);
+        created.setVisible(pack.created() && fitsWithStatus(list, line.text()));
         selected = isSelected;
         hovered = index == hoverIndex;
         getAccessibleContext().setAccessibleName(shownName + ", " + line.text());
         return this;
+    }
+
+    /** Whether "Creado por ti · " and the status fit side by side at the library's current width. */
+    private boolean fitsWithStatus(JList<?> list, String statusText) {
+        int available = list.getWidth() - list.getInsets().left - list.getInsets().right - getInsets().left
+            - getInsets().right - tile.getPreferredSize().width - ((BorderLayout) getLayout()).getHgap();
+        FontMetrics metrics = status.getFontMetrics(status.getFont());
+        return metrics.stringWidth(created.getText()) + metrics.stringWidth(statusText) + status.getIconTextGap() <= available;
     }
 
     @Override

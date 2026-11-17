@@ -39,6 +39,18 @@ public class ModrinthClient implements ModCatalog {
     }
 
     @Override
+    public List<String> gameVersions() throws IOException {
+        List<String> versions = new ArrayList<>();
+        for (Object item : (List<?>) parse(API + "/tag/game_version")) {
+            Map<?, ?> version = (Map<?, ?>) item;
+            if ("release".equals(version.get("version_type"))) {
+                versions.add(text(version, "version"));
+            }
+        }
+        return versions;
+    }
+
+    @Override
     public List<CatalogProject> search(String query, String minecraft, String loader, int limit) throws IOException {
         List<List<String>> facets = List.of(List.of("project_type:mod"), List.of("categories:" + loader),
             List.of("versions:" + minecraft));

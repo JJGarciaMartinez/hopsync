@@ -105,6 +105,19 @@ public sealed interface UiAction {
 
     record WizardNext() implements UiAction {}
 
+    /** "Empieza desde cero": the wizard describes a new pack instead of checking a link; Effects loads the versions. */
+    record StartFromScratch() implements UiAction {}
+
+    /** Back from a new pack to adding one by its link. */
+    record UseLink() implements UiAction {}
+
+    /** Name, Minecraft version and loader of the new pack, as typed and picked. */
+    record EditNewPack(String name, String minecraft, String loader) implements UiAction {}
+
+    record GameVersionsLoaded(List<String> versions) implements UiAction {}
+
+    record GameVersionsFailed(SyncFailure failure) implements UiAction {}
+
     record WizardBack() implements UiAction {}
 
     record FoldersFound(List<GameFolder> folders) implements UiAction {}

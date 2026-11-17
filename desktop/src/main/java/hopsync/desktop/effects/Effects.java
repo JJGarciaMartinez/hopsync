@@ -7,8 +7,10 @@ import hopsync.core.manifest.Manifest;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackRegistry;
 import hopsync.core.pack.PackSource;
+import hopsync.core.port.ModCatalog;
 import hopsync.core.session.PackSessions;
 import hopsync.core.session.UpdateState;
+import hopsync.core.usecase.DefinitionResolver;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.store.Preferences;
 import hopsync.desktop.store.PackUiState;
@@ -47,11 +49,17 @@ public final class Effects {
     private final Clock clock;
     private final Runnable exit;
     private final SheetEffects sheets;
+    private final DefinitionResolver createdPacks;
 
+    /**
+     * @param catalog      the mod catalog created packs pick from
+     * @param createdPacks resolves a created pack's definition into the manifest the list shows
+     */
     public Effects(Store store, PackRegistry registry, PackSessions sessions, ManifestService manifests,
-                   ModLoadService modLoadService, InstanceFinder instances, Executor background, Path settingsFile,
-                   Clock clock, Runnable exit) {
+                   ModCatalog catalog, DefinitionResolver createdPacks, ModLoadService modLoadService,
+                   InstanceFinder instances, Executor background, Path settingsFile, Clock clock, Runnable exit) {
         this.store = store;
+        this.createdPacks = createdPacks;
         this.registry = registry;
         this.sessions = sessions;
         this.manifests = manifests;
@@ -59,7 +67,7 @@ public final class Effects {
         this.background = background;
         this.clock = clock;
         this.exit = exit;
-        this.sheets = new SheetEffects(store, registry, manifests, instances, background, settingsFile,
+        this.sheets = new SheetEffects(store, registry, manifests, catalog, instances, background, settingsFile,
             this::reloadPacks, packId -> sessions.get(packId).startUpdate(),
             packId -> sessions.get(packId).cancelUpdate(),
             packId -> sessions.get(packId).getPhase() == UpdateState.Phase.APPLYING);
@@ -217,8 +225,18 @@ public final class Effects {
     /** The cached manifest first, so the list shows right away, then the current one from the network. */
     private void loadManifest(String packId) {
         Optional<Pack> found = registry.find(packId);
-        // A created pack's manifest comes from its definition, not from a link
-        if (found.isEmpty() || !(found.get().source() instanceof PackSource.Link(String url))) return;
+        if (found.isEmpty()) return;
+        if (!(found.get().source() instanceof PackSource.Link(String url))) {
+            // A created pack's manifest comes from its definition, even once published
+            background.execute(() -> {
+                try {
+                    store.dispatch(new UiAction.ManifestLoaded(packId, createdPacks.resolve(found.get())));
+                } catch (Exception e) {
+                    store.dispatch(new UiAction.ManifestFailed(packId, SyncFailures.from(e, "")));
+                }
+            });
+            return;
+        }
         background.execute(() -> {
             manifests.cached(url)
                 .ifPresent(cached -> store.dispatch(new UiAction.ManifestLoaded(packId, cached)));

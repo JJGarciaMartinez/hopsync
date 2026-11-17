@@ -17,6 +17,12 @@ public final class Messages {
     private Messages() {
     }
 
+    /** A mod loader as players write it ("NeoForge"); one HopSync does not know is shown as the pack names it. */
+    public static String loader(String id) {
+        String key = "loader." + (id == null ? "" : id.toLowerCase(Locale.ROOT));
+        return BUNDLE.containsKey(key) ? get(key) : String.valueOf(id);
+    }
+
     public static String get(String key, Object... args) {
         String pattern = BUNDLE.getString(key);
         return args.length == 0 ? pattern : new MessageFormat(pattern, LOCALE).format(args);

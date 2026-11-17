@@ -117,7 +117,8 @@ public record HeroModel(StatusMark.Kind mark, String title, String detail, List<
     /** "Minecraft 1.21.1 · neoforge · 77 mods", or {@code null} before the manifest is known. */
     public static String meta(PackUiState pack) {
         PackInfo info = pack.packInfo();
-        return info == null ? null : Messages.get("hero.meta", info.minecraft(), info.loader(), pack.modCount());
+        return info == null ? null : Messages.get("hero.meta", info.minecraft(), Messages.loader(info.loader()),
+            pack.modCount());
     }
 
     private static String version(PackUiState pack) {

@@ -214,8 +214,16 @@ class ScreensTest {
             0, null);
         UiState folders = reduce(valid, new UiAction.WizardNext());
         UiState packSettings = reduce(loaded(), new UiAction.OpenSettings());
+        UiState scratch = reduce(empty, new UiAction.StartFromScratch());
+        UiState described = reduce(scratch, new UiAction.GameVersionsLoaded(List.of("1.21.2", "1.21.1")),
+            new UiAction.EditNewPack("Aventura con amigos", "1.21.1", "neoforge"));
         return List.of(
             empty,
+            scratch,
+            reduce(scratch, new UiAction.GameVersionsFailed(new SyncFailure.Network("api.modrinth.com", "timeout"))),
+            described,
+            reduce(described, new UiAction.WizardNext(), new UiAction.FoldersFound(List.of(free))),
+            reduce(add, new UiAction.StartFromScratch()),
             reduce(empty, new UiAction.SetLinkUrl("http://example.org"), new UiAction.CheckLink()),
             add,
             reduce(add, new UiAction.CheckLink()),

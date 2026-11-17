@@ -643,4 +643,37 @@ class ReducerTest {
         assertEquals(Preferences.MAX_LIBRARY_WIDTH, reduce(loaded(), new UiAction.ResizeLibrary(900)).preferences().libraryWidth());
         assertEquals(Preferences.MIN_LIBRARY_WIDTH, reduce(loaded(), new UiAction.ResizeLibrary(20)).preferences().libraryWidth());
     }
+
+    @Test
+    void startingFromScratchDescribesANewPackUntilItCanContinue() {
+        UiState wizard = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(), null), new UiAction.StartFromScratch());
+        Sheet.AddPack sheet = (Sheet.AddPack) wizard.sheet();
+        assertEquals(Sheet.Creation.start(), sheet.creation());
+        assertFalse(sheet.canContinue(), "no name and no versions yet");
+        assertEquals(1, ((Sheet.AddPack) reduce(wizard, new UiAction.WizardNext()).sheet()).step());
+
+        UiState loaded = reduce(wizard, new UiAction.GameVersionsLoaded(List.of("1.21.2", "1.21.1")),
+            new UiAction.EditNewPack("Aventura", "1.21.2", "neoforge"));
+        Sheet.Creation creation = ((Sheet.AddPack) loaded.sheet()).creation();
+        assertEquals(new Sheet.Creation("Aventura", "1.21.2", "neoforge", List.of("1.21.2", "1.21.1"), null), creation);
+        assertEquals(2, ((Sheet.AddPack) reduce(loaded, new UiAction.WizardNext()).sheet()).step());
+
+        Sheet.AddPack back = (Sheet.AddPack) reduce(loaded, new UiAction.UseLink()).sheet();
+        assertNull(back.creation());
+        assertFalse(back.canContinue(), "the link was never checked");
+    }
+
+    @Test
+    void theNewestMinecraftVersionIsPickedAndAFailureCanBeRetried() {
+        UiState wizard = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(), null), new UiAction.StartFromScratch());
+        assertEquals("1.21.2", ((Sheet.AddPack) reduce(wizard, new UiAction.GameVersionsLoaded(List.of("1.21.2", "1.20.1")))
+            .sheet()).creation().minecraft());
+
+        SyncFailure offline = new SyncFailure.Network("api.modrinth.com", "timeout");
+        UiState failed = reduce(wizard, new UiAction.GameVersionsFailed(offline));
+        assertEquals(offline, ((Sheet.AddPack) failed.sheet()).creation().versionsError());
+        assertNull(((Sheet.AddPack) reduce(failed, new UiAction.StartFromScratch()).sheet()).creation().versionsError());
+        assertEquals("", ((Sheet.AddPack) reduce(failed, new UiAction.EditNewPack("  ", null, "fabric")).sheet())
+            .creation().name().strip());
+    }
 }

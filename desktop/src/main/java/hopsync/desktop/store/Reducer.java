@@ -75,7 +75,17 @@ public final class Reducer {
             case UiAction.LinkFailed a -> withLinkResult(state, a.url(),
                 new LinkCheck.Invalid(LinkCheck.Problem.UNREADABLE, a.failure()));
             case UiAction.WizardNext a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.step() == 1
-                && wizard.link() instanceof LinkCheck.Valid ? state.withSheet(wizard.withStep(2)) : state;
+                && wizard.canContinue() ? state.withSheet(wizard.withStep(2)) : state;
+            case UiAction.StartFromScratch a -> state.sheet() instanceof Sheet.AddPack wizard
+                ? state.withSheet(wizard.withCreation(wizard.creation() == null ? Sheet.Creation.start()
+                    : wizard.creation().withVersionsError(null)))
+                : state;
+            case UiAction.UseLink a -> state.sheet() instanceof Sheet.AddPack wizard
+                ? state.withSheet(wizard.withCreation(null)) : state;
+            case UiAction.EditNewPack a -> updateCreation(state,
+                creation -> creation.withDetails(a.name(), a.minecraft(), a.loader()));
+            case UiAction.GameVersionsLoaded a -> updateCreation(state, creation -> creation.withVersions(a.versions()));
+            case UiAction.GameVersionsFailed a -> updateCreation(state, creation -> creation.withVersionsError(a.failure()));
             case UiAction.WizardBack a -> state.sheet() instanceof Sheet.AddPack wizard
                 ? state.withSheet(wizard.withStep(1)) : state;
             case UiAction.FoldersFound a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.step() == 2
@@ -264,6 +274,13 @@ public final class Reducer {
     /** A launcher instance stays one after the check, which only knows the path. */
     private static GameFolder sameKind(GameFolder chosen, GameFolder checked) {
         return new GameFolder(chosen.kind(), chosen.name(), checked.path(), checked.jarCount(), checked.usedBy());
+    }
+
+    private static UiState updateCreation(UiState state, UnaryOperator<Sheet.Creation> change) {
+        return state.sheet() instanceof Sheet.AddPack wizard && wizard.creation() != null
+            ? state.withSheet(new Sheet.AddPack(wizard.firstRun(), wizard.step(), wizard.url(), wizard.link(),
+                wizard.folders(), wizard.chosen(), wizard.error(), change.apply(wizard.creation())))
+            : state;
     }
 
     private static UiState updatePack(UiState state, String packId, UnaryOperator<PackUiState> change) {

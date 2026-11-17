@@ -57,6 +57,8 @@ public final class PackHero extends JPanel {
     private final JLabel name = narrowing();
     private final JLabel version = new JLabel();
     private final JLabel meta = narrowing();
+    private final StatusTag created = new StatusTag(Messages.get("pack.created"), StatusTag.Tone.MINE);
+    private final Component createdGap = Box.createHorizontalStrut(UIScale.scale(8));
     private final JButton serverIp = new JButton(Icons.get(Icons.Glyph.COPY, 12, null));
     private final JLabel stateMark = new JLabel();
     private final LoaderIcon loader = new LoaderIcon(18, LogoIcon.onDark());
@@ -138,6 +140,8 @@ public final class PackHero extends JPanel {
         // Both give way when narrow, the address down to a short stub that still shows it is there
         serverIp.setMinimumSize(new Dimension(UIScale.scale(90), serverIp.getPreferredSize().height));
         JPanel metaRow = line();
+        metaRow.add(created);
+        metaRow.add(createdGap);
         metaRow.add(meta);
         metaRow.add(Box.createHorizontalStrut(UIScale.scale(8)));
         metaRow.add(serverIp);
@@ -251,6 +255,8 @@ public final class PackHero extends JPanel {
         String metaText = HeroModel.meta(pack);
         meta.setText(metaText == null ? " " : metaText);
         meta.setToolTipText(metaText);
+        created.setVisible(pack.created());
+        createdGap.setVisible(pack.created());
         boolean hasIp = info != null && info.serverIp() != null && !info.serverIp().isBlank();
         serverIp.setVisible(hasIp);
         serverIp.setText(hasIp ? info.serverIp() : "");

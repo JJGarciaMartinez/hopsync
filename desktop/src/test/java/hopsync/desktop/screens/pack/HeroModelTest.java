@@ -181,6 +181,6 @@ class HeroModelTest {
         state = reduce(state, new UiAction.ManifestLoaded(D, manifest()));
         String meta = HeroModel.meta(state.packs().get(D));
         assertNotNull(meta);
-        assertTrue(meta.contains("1.21.1") && meta.contains("neoforge") && meta.contains("3 mods"));
+        assertTrue(meta.contains("1.21.1") && meta.contains("NeoForge") && meta.contains("3 mods"));
     }
 }

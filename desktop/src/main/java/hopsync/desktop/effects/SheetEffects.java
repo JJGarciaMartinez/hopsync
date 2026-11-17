@@ -3,9 +3,12 @@ package hopsync.desktop.effects;
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.failure.SyncFailures;
+import hopsync.core.manifest.PackInfo;
 import hopsync.core.pack.Pack;
+import hopsync.core.pack.PackDefinition;
 import hopsync.core.pack.PackRegistry;
 import hopsync.core.pack.PackSource;
+import hopsync.core.port.ModCatalog;
 import hopsync.desktop.config.AppVersion;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.store.GameFolder;
@@ -34,10 +37,12 @@ import java.util.function.Predicate;
  */
 final class SheetEffects {
     private static final System.Logger LOG = System.getLogger(SheetEffects.class.getName());
+    static final String NEW_PACK_VERSION = "1.0.0";
 
     private final Store store;
     private final PackRegistry registry;
     private final ManifestService manifests;
+    private final ModCatalog catalog;
     private final InstanceFinder instances;
     private final java.util.concurrent.Executor background;
     private final Path settingsFile;
@@ -52,12 +57,13 @@ final class SheetEffects {
      * @param dropUpdate  drops a pack's check, plan or place in the queue, made for its old link or folder
      * @param writing     whether a pack is writing files right now, when its settings cannot change
      */
-    SheetEffects(Store store, PackRegistry registry, ManifestService manifests, InstanceFinder instances,
+    SheetEffects(Store store, PackRegistry registry, ManifestService manifests, ModCatalog catalog, InstanceFinder instances,
                  java.util.concurrent.Executor background, Path settingsFile, Runnable reloadPacks,
                  Consumer<String> checkPack, Consumer<String> dropUpdate, Predicate<String> writing) {
         this.store = store;
         this.registry = registry;
         this.manifests = manifests;
+        this.catalog = catalog;
         this.instances = instances;
         this.background = background;
         this.settingsFile = settingsFile;
@@ -70,6 +76,8 @@ final class SheetEffects {
     void run(UiAction action, UiState state) {
         switch (action) {
             case UiAction.CheckLink a -> fetchLink(state.sheet());
+            case UiAction.StartFromScratch a when state.sheet() instanceof Sheet.AddPack wizard
+                && wizard.creation() != null && wizard.creation().versions() == null -> loadGameVersions();
             case UiAction.WizardNext a when state.sheet() instanceof Sheet.AddPack wizard && wizard.step() == 2 ->
                 findFolders();
             case UiAction.ChooseFolder a -> checkFolder(a.path(), state.sheet());
@@ -121,8 +129,44 @@ final class SheetEffects {
             .orElse(null);
     }
 
+    private void loadGameVersions() {
+        background.execute(() -> {
+            try {
+                store.dispatch(new UiAction.GameVersionsLoaded(catalog.gameVersions()));
+            } catch (Exception e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not load the Minecraft versions", e);
+                store.dispatch(new UiAction.GameVersionsFailed(SyncFailures.from(e, "")));
+            }
+        });
+    }
+
+    /** A new pack starts empty at version 1.0.0; it has nothing to check until it gets mods. */
+    private void createPack(Sheet.Creation creation, Path folder) {
+        background.execute(() -> {
+            try {
+                checkWritable(folder);
+                PackInfo info = new PackInfo(creation.name().strip(), NEW_PACK_VERSION, "", null, creation.minecraft(),
+                    creation.loader());
+                Pack added = registry.addLocal(PackDefinition.empty(info), folder);
+                registry.select(added.id());
+                store.dispatch(new UiAction.SheetSaved());
+                reloadPacks.run();
+            } catch (IOException | RuntimeException e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not create the pack " + creation.name(), e);
+                store.dispatch(new UiAction.SheetFailed(SyncFailures.from(e, folder.toString())));
+            }
+        });
+    }
+
     private void addPack(Sheet.AddPack wizard) {
-        if (!(wizard.link() instanceof LinkCheck.Valid valid) || wizard.chosen() == null || !wizard.chosen().isFree()) {
+        if (wizard.chosen() == null || !wizard.chosen().isFree()) {
+            return;
+        }
+        if (wizard.creation() != null) {
+            if (wizard.creation().ready()) createPack(wizard.creation(), wizard.chosen().path());
+            return;
+        }
+        if (!(wizard.link() instanceof LinkCheck.Valid valid)) {
             return;
         }
         Path folder = wizard.chosen().path();

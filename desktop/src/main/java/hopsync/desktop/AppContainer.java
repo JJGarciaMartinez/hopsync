@@ -33,6 +33,7 @@ public final class AppContainer {
     private final PackRegistry packRegistry;
     private final ManifestService manifestService;
     private final ModCatalog modCatalog;
+    private final DefinitionResolver definitionResolver;
     private final PackSessions packSessions;
     private final ExecutorService backgroundExecutor =
         Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("hopsync-update-", 0).factory());
@@ -45,8 +46,9 @@ public final class AppContainer {
         DownloadService downloadService = new DownloadService(config.network());
         manifestService = new ManifestService(downloadService, settingsStore.getFile().resolveSibling("manifests"));
         modCatalog = new ModrinthClient(downloadService::getUrlString);
-        ModUpdateService modUpdateService = new ModUpdateService(manifestService,
-            new DefinitionResolver(modCatalog, definitions), downloadService, packRegistry::parallelDownloads);
+        definitionResolver = new DefinitionResolver(modCatalog, definitions);
+        ModUpdateService modUpdateService = new ModUpdateService(manifestService, definitionResolver, downloadService,
+            packRegistry::parallelDownloads);
         ApplyQueue applyQueue = new ApplyQueue(backgroundExecutor, packRegistry::chainQueue);
         packSessions = new PackSessions(packRegistry, modUpdateService, applyQueue, eventBus::publish,
             backgroundExecutor);
@@ -80,6 +82,10 @@ public final class AppContainer {
 
     public ModCatalog modCatalog() {
         return modCatalog;
+    }
+
+    public DefinitionResolver definitionResolver() {
+        return definitionResolver;
     }
 
     /** Virtual threads for background work: checks, applies, listing files, fetching manifests. */
