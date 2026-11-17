@@ -1,231 +1,200 @@
-# TCraft Client - Minecraft Mod Updater
+# HopSync
 
-A desktop application for managing and updating Minecraft mods for the TCraft modded server. Built with Java Swing, this tool provides a user-friendly interface to keep your mods synchronized with the server’s mod list.
+HopSync is a desktop app for Windows, macOS and Linux that keeps Minecraft modpacks in sync. A pack is a list of
+mods and configs. Playing it with friends means everyone needs the same files, in the right versions, in the
+right game folder. HopSync does that for you, and lets you build and share your own pack without touching a
+server or a command line.
 
-> **Note:** This project started as a personal tool, but it is designed to grow into a collaborative, community-driven project over time.
+The interface is in Spanish.
 
-## Features
+## What it is for
 
-- **Automatic Mod Detection**: Detects your Minecraft installation and mods folder across Windows, macOS, and Linux
-- **Mod Synchronization**: Downloads and updates mods from a remote manifest
-- **Config File Management**: Automatically downloads and manages mod configuration files ✨ **NEW**
-- **Visual Interface**: Clean, Minecraft-themed UI with real-time status updates
-- **Progress Tracking**: Visual feedback for download and update operations
-- **System Information**: Displays OS, Java version, and mod installation details
-- **Non-destructive Updates**: Preserves existing configuration files while adding new ones
+Playing a modded server usually goes like this: the admin sends a zip or a list of mods, every player copies
+files by hand, and each update starts again. Someone always ends up with a wrong version, a missing mod or an old
+config.
 
-## Project Structure
+HopSync replaces that with a **link**:
 
-The application follows a modular architecture organized into logical packages:
+- **The person who makes the pack** publishes it once and gets a link.
+- **Everyone else** pastes the link in HopSync and picks their game folder.
+- **When the pack changes**, HopSync shows each player what changed. They apply it with one click.
+
+HopSync only touches the files it installed. Mods you added yourself and configs you edited stay as they are.
+
+## How it works
+
+### Following a pack
+
+1. **Add the pack.** Choose "Añadir pack", paste the link and pick the game folder. HopSync finds the
+   official launcher's `.minecraft` and the instances of Prism Launcher, CurseForge and Modrinth App, or you
+   can choose any other folder.
+2. **Review.** HopSync compares the pack with what is in the folder. The pack header lists what will be added,
+   updated or removed, and the download size. Nothing is written yet.
+3. **Apply.** HopSync downloads the files in parallel and checks the size and SHA-512 hash of each one. It then
+   moves each file into place in one step. You can cancel at any time.
+4. **Stay up to date.** HopSync checks again when you ask, or every time it opens if "Buscar cambios al abrir"
+   is on. If the pack changed, you
+   review and apply again. Only what is missing or changed is downloaded.
+
+You can follow several packs, each in its own folder. The same pack can also live in several instances.
+
+### Creating and sharing your own pack
+
+1. **Start from scratch.** In the wizard, choose "Empieza desde cero". Give the pack a name, a Minecraft
+   version and a loader (Fabric, NeoForge, Forge or Quilt).
+2. **Add mods.** Search the [Modrinth](https://modrinth.com/) catalog from the app. HopSync picks the newest
+   version that fits your Minecraft version and loader, and adds the mods it requires too. You can also add
+   jars of your own, change a mod's version, or remove it. Every change goes through the same review and apply
+   as any other pack, so your own game folder always matches what you edit.
+3. **Publish.** Connect your GitHub account in "Ajustes de HopSync › Cuenta" and choose "Publicar". The first
+   time, HopSync creates a public repository in your account from a template. Each publish uploads the pack
+   in one commit and waits for the repository's build to make the manifest. You then get the link to share.
+4. **Publish changes.** After you edit the pack, HopSync shows "Publicar cambios". Your friends see the update
+   the next time they check.
+
+Each published repository has a README with the pack's link and a content notice. The mods belong to their
+authors. HopSync is only the tool that installs the pack, and the person who publishes it is responsible for
+having permission to share the files they add.
+
+### Why updates are safe
+
+- **Nothing changes before you review it.** Planning only reads. Writing starts when you apply.
+- **HopSync remembers what it installed.** It keeps a record in `.hopsync/state.json` inside the game folder,
+  with the hash, size and date of every file it put there. It only ever removes files from that record.
+- **Your edits are kept.** A config you changed stays unless the pack marks it to always be replaced.
+- **Every file is checked.** Downloads go to a temporary file first. They are checked against the size and
+  hash in the pack before they replace anything.
+- **Stopping is safe.** After a cancel, a failure or a closed window, the record still matches the disk.
+  Retrying only fetches what is missing.
+- **One pack per folder.** Two packs cannot share a folder, and one pack applies at a time.
+
+### Where your data lives
+
+| What | Where |
+|------|-------|
+| Settings, packs you follow, packs you created, logs | `%APPDATA%\HopSync`, `~/Library/Application Support/HopSync` or `~/.config/hopsync` |
+| The record of installed files | `<game folder>/.hopsync/` |
+| Your GitHub sign-in | The system keychain: Keychain on macOS, Credential Manager on Windows, Secret Service on Linux |
+
+The GitHub token never goes into the settings file or the logs. HopSync asks only for the `public_repo`
+permission, which lets it create and update public repositories. Removing a pack from HopSync never deletes
+its game folder.
+
+## The pack format
+
+A published pack is a `manifest.json` (format 2) served over https, usually as a GitHub release asset. It lists
+each mod and config with its download URL, size and SHA-512 hash.
+
+A pack created in HopSync is stored as a `hopsync.toml` in its repository: the pack's details, its Modrinth
+mods pinned to an exact version, and the folders `local-mods/` and `configs/`. The repository's build turns that
+file into the `manifest.json`. See [hopsync-demo](https://github.com/JJGarciaMartinez/hopsync-demo) for the
+schema and an example pack. Its link is the demo the wizard offers.
+
+## Architecture
+
+HopSync is a Java 21 Swing app, built with Gradle. It has three modules. Each module only depends on the ones
+below it, and ArchUnit tests enforce this.
+
+```mermaid
+flowchart TD
+    desktop["<b>desktop</b><br/>Windows, screens and theme<br/>UI state: store, reducer, effects"]
+    platform["<b>platform</b><br/>Talks to the outside world<br/>HTTP, Modrinth, GitHub, files, keychain"]
+    core["<b>core</b><br/>The rules of HopSync<br/>packs, manifests, sync planning"]
+    desktop --> platform --> core
+```
+
+- **`core`** holds the domain: what a pack and a manifest are, how a sync is planned and run, and each pack's
+  update lifecycle. It does not know about Swing, HTTP or files on a specific system. When it needs something
+  from outside, it declares an interface (a *port*), such as `ModCatalog`, `SecretStore` or `PackPublisher`.
+- **`platform`** implements those ports: downloads with retries and hash checks, the Modrinth API, publishing on
+  GitHub, the native keychains through JNA, settings files, and finding game folders and launcher instances.
+- **`desktop`** is the app the player sees, styled with FlatLaf and its own theme. `AppContainer` builds every
+  service once and passes it where it is needed.
+
+### How the screen updates
+
+The UI follows a one-way data flow:
+
+```mermaid
+flowchart LR
+    view["Views<br/>(screens)"] -- "UiAction" --> store["Store"]
+    store -- "state + action" --> reducer["Reducer<br/>(pure function)"]
+    reducer -- "new UiState" --> store
+    store -- "render" --> view
+    store -- "action" --> effects["Effects"]
+    effects -- "calls" --> core["core / platform"]
+    core -- "SyncEvent" --> effects
+    effects -- "UiAction" --> store
+```
+
+1. A click or a key press becomes a `UiAction`, such as "check this pack" or "apply".
+2. The `Reducer` takes the current `UiState` and the action and returns the next state. It does nothing else,
+   so it is easy to test.
+3. The views draw the new state.
+4. `Effects` does the slow work in the background: network, disk, keychain. It is the only part of the UI that
+   calls the core. Results come back as new actions.
+
+The core reports progress as `SyncEvent`s, for example "plan ready", "progress" or "update failed". Errors are
+typed (`SyncFailure`), and only the desktop module turns them into Spanish text with a suggested action.
+
+### Life of an update
+
+```mermaid
+stateDiagram-v2
+    [*] --> Planning: check
+    Planning --> UpToDate: nothing to do
+    Planning --> Review: plan ready
+    Review --> Queued: apply
+    Queued --> Applying: its turn
+    Applying --> UpToDate: done
+    Applying --> Failed: error
+    Review --> [*]: cancel
+    Queued --> [*]: cancel
+    Applying --> [*]: cancel
+```
+
+Each pack has its own session. All packs share one queue, so only one pack writes files at a time.
+
+## Project structure
 
 ```
-src/
-├── Main.java                    # Application entry point
-├── config/                      # Configuration and constants
-│   ├── AppConfig.java          # App version and manifest URL
-│   └── AssetPaths.java         # Asset resource paths
-├── model/                       # Data models
-│   └── ModInfo.java            # Mod metadata record
-├── service/                     # Business logic layer
-│   ├── DownloadService.java    # HTTP download functionality
-│   ├── FileSystemService.java  # File system operations
-│   ├── ModUpdater.java         # Mod update orchestration
-│   └── SystemInfoService.java  # System information gathering
-├── ui/                          # User interface components
-│   ├── LauncherUI.java         # Main window frame
-│   ├── UIController.java       # UI event handling and coordination
-│   ├── HeaderPanel.java        # Top section with system info
-│   ├── ModListPanel.java       # Center panel with mod cards
-│   ├── ControlPanel.java       # Bottom panel with action buttons
-│   ├── ModCard.java            # Individual mod display component
-│   └── [supporting UI classes]
-└── util/                        # Utility classes
-    ├── FontLoader.java         # Custom font loading
-    ├── JsonParser.java         # JSON parsing
-    └── LogMessageParser.java   # Log message formatting
+core/        Domain: packs, manifests, the sync planner and executor, sessions, ports
+platform/    Adapters: HTTP, Modrinth, GitHub, settings, keychains, game folders and instances
+desktop/     The Swing app: screens, UI state, effects, theme kit, Main and packaging tasks
+packaging/   Installer icons and the launchers of the portable ZIP
+brand/       Brand sheet, design tokens, and the mark and logotype as SVG and PNG
+scripts/     Helper scripts (for example, inspecting a built macOS .dmg)
 ```
 
-## How It Works
+## Development
 
-1. **Initialization**: The application detects the Minecraft installation directory based on the operating system
-2. **Manifest Retrieval**: Downloads the mod list (JSON format) from a remote GitHub repository
-3. **Comparison**: Compares local mods with the remote manifest to identify outdated or missing mods
-4. **Cleanup**: Removes mods that are no longer in the server's mod list
-5. **Download**: Fetches new or updated mods from the URLs specified in the manifest
-6. **Status Updates**: Provides real-time visual feedback through the UI during all operations
+You need Java 21. The Gradle wrapper downloads everything else (use `gradlew.bat` on Windows).
 
-The application uses a **Model-Service-UI** architecture:
-- **Model**: Data structures (ModInfo)
-- **Service**: Business logic (file operations, downloads, updates)
-- **UI**: Swing-based graphical interface with event-driven updates
-
-## Technical Details
-
-- **Language**: Java (modern syntax with records and enhanced features)
-- **UI Framework**: Java Swing with custom theming
-- **Architecture**: MVC-inspired separation of concerns
-- **Concurrency**: Background threading for download operations
-- **Cross-platform**: Supports Windows, macOS, and Linux
-
-## Development Setup
-
-### Running from IntelliJ IDEA
-
-After compiling in IntelliJ, you need to copy assets to the output directory:
-
-**Mac/Linux:**
 ```bash
-./scripts/bash/copy-assets.sh
+./gradlew build      # compile, run every test and build desktop/build/libs/HopSync.jar
+./gradlew test       # tests only
+./gradlew run        # launch the app from the sources
+./gradlew jpackage   # native installer for the current system, in desktop/build/installer/
 ```
 
-**Windows (PowerShell):**
-```powershell
-.\scripts\powershell\copy-assets.ps1
-```
+The compiler treats every warning as an error. CI builds and tests on Ubuntu, Windows and macOS for each pull
+request. Pushing a version tag builds the three installers and drafts a GitHub Release.
 
-Then run the `Main` class normally from IntelliJ.
+More detail:
 
-**Why?** IntelliJ doesn't maintain the `assets/` folder structure when copying resources. The script ensures assets are in the correct location.
+- [BUILD_GUIDE.md](BUILD_GUIDE.md): installers, the portable ZIP and releases.
+- [VERSION_GUIDE.md](VERSION_GUIDE.md): the version scheme.
+- [BRANCHING.md](BRANCHING.md): branches and pull requests.
 
-For automatic execution, add the appropriate script as a "Before launch" task in Run Configuration.
+## Brand
 
-### Building JAR
+The visual identity is documented in [brand/BRAND.md](brand/BRAND.md): the mark "Tu caja", the palette "Tinta,
+turquesa y coral", the type and the voice. Its tokens and assets are generated from the app's own theme and
+drawing code (`./gradlew brandAssets`), so the app and the brand sheet never drift apart.
 
-**Mac/Linux:**
-```bash
-./scripts/bash/build-jar.sh
-```
+## Requirements
 
-**Windows (PowerShell):**
-```powershell
-.\scripts\powershell\build-jar.ps1
-```
-
-This creates `dist/TCraftClient.jar` with all dependencies and resources correctly packaged.
-
-### Creating Installer
-
-**Mac/Linux:**
-```bash
-./scripts/bash/build-installer.sh
-```
-
-**Windows (PowerShell):**
-```powershell
-.\scripts\powershell\build-installer.ps1
-```
-
-Creates platform-specific installers:
-- **macOS**: `.dmg` installer
-- **Windows**: `.msi` installer (WiX Toolset - installed automatically if not present)
-- **Linux**: `.deb` package
-
-> **Note for Windows**: The script automatically installs WiX Toolset if it's not already available on your system. This is required to create MSI installers.
-
-### All Available Scripts
-
-| Task | Mac/Linux | Windows PowerShell |
-|------|-----------|-------------------|
-| Copy assets | `./scripts/bash/copy-assets.sh` | `.\scripts\powershell\copy-assets.ps1` |
-| Compile sources | `./scripts/bash/compile-sources.sh` | `.\scripts\powershell\compile-sources.ps1` |
-| Build JAR | `./scripts/bash/build-jar.sh` | `.\scripts\powershell\build-jar.ps1` |
-| Build installer | `./scripts/bash/build-installer.sh` | `.\scripts\powershell\build-installer.ps1` |
-| Verify JAR | `./scripts/bash/verify-jar.sh` | `.\scripts\powershell\verify-jar.ps1` |
-| Update version | `./scripts/bash/update-version.sh` | `.\scripts\powershell\update-version.ps1` |
-| Diagnose app | `./scripts/bash/diagnose-app.sh` | _(Not needed on Windows)_ |
-
-### Documentation
-
-- **[BUILD_GUIDE.md](BUILD_GUIDE.md)**: Complete build and distribution guide
-- **[VERSION_GUIDE.md](VERSION_GUIDE.md)**: Versioning system explained
-
-## System Requirements
-
-### For End Users (Non-Technical)
-
-- **Java 16 or higher** (Download from [adoptium.net](https://adoptium.net/))
-- **Supported Operating Systems:**
-  - Windows 7, 8, 10, 11
-  - macOS 10.13 (High Sierra) or later
-  - Linux (any modern distribution)
-- **Internet connection** (for downloading mods)
-- **Minecraft installed** (the app auto-detects your installation)
-- **~100 MB free disk space**
-
-**Check if you have Java:**
-```bash
-java -version
-```
-If you see version 16 or higher, you're good to go!
-
-### For Developers
-
-- Java Development Kit (JDK) 16+
-- IntelliJ IDEA or any Java IDE
-- **Platform-specific requirements:**
-  - **macOS**: Xcode Command Line Tools (for building installers)
-  - **Windows**: WiX Toolset (installed automatically by build-installer.ps1)
-  - **Linux**: Standard build tools
-
-## Configuration
-
-The mod manifest URL is configured in `AppConfig.java`:
-```java
-public static final String URL_MANIFEST = 
-    "https://raw.githubusercontent.com/JJGarciaMartinez/tcraft-mods-list/main/modList/mod-list.json";
-```
-
-## Mod Repository Structure
-
-The mod files and manifest are hosted in a separate GitHub repository: [`tcraft-mods-list`](https://github.com/JJGarciaMartinez/tcraft-mods-list)
-
-**Repository Layout:**
-```
-tcraft-mods-list/
-└── modList/
-    ├── mod-list.json       # Manifest file with mod metadata
-    └── mods/               # Directory containing all mod .jar files
-        ├── fabric-api-0.128.2+1.21.6.jar
-        ├── cloth-config-19.0.147-fabric.jar
-        ├── jade-1.21.8-Fabric-19.3.2.jar
-        └── [other mod files...]
-```
-
-**Manifest Format (mod-list.json):**
-```json
-{
-  "mod_pack_name": "Example Mod Pack",
-  "mod_pack_version": "1.0.0",
-  "mods": [
-    {
-      "name": "fabric-api.jar",
-      "version": "0.128.2+1.21.6",
-      "description": "Fabric API is a core library for Minecraft Fabric mods.",
-      "author": "Fabric Team",
-      "url": "https://raw.github.com/.../fabric-api-0.128.2+1.21.6.jar",
-      "configUrl": "https://example.com/configs/fabric-api.toml",
-      "configName": "fabric-api.toml"
-    }
-  ]
-}
-```
-
-Each mod entry in the manifest contains:
-- **name**: Display name of the mod file
-- **version**: Mod version number
-- **description**: Brief description of the mod's functionality
-- **author**: Mod creator or team
-- **url**: Direct download link to the mod .jar file
-- **configUrl** (optional): URL to the mod's configuration file ✨ **NEW**
-- **configName** (optional): Name of the configuration file ✨ **NEW**
-
-> **Note**: The `configUrl` and `configName` fields are optional. If present, the config file will be downloaded to the `.minecraft/config` folder without removing existing files.
-
-## Future Plans
-
-This project aims to become a community-driven tool for Minecraft modded server management, with potential features including:
-- Multi-server support
-- Mod profile management
-- Custom mod source configuration
-- Community contributions and plugin system
-
+- **Installers** (`.msi`, `.dmg`, `.deb`): they bundle their own Java, so there is nothing else to install.
+- **Portable ZIP**: Java 21 or newer, for example from [adoptium.net](https://adoptium.net/).
+- An internet connection, and Minecraft installed with the pack's mod loader.
+- To publish packs: a GitHub account.

@@ -1,0 +1,70 @@
+package hopsync.desktop.screens.mods;
+
+import hopsync.desktop.kit.Icons.Glyph;
+import hopsync.desktop.kit.StatusTag;
+import hopsync.desktop.store.UiAction;
+
+import java.util.List;
+
+/**
+ * One line of the mod list. Mods are 34 px rows; the other kinds structure the list around them.
+ */
+public sealed interface ModRow {
+
+    /** Color of a row's leading icon. */
+    enum IconTone { FAINT, MINE, ADDED, UPDATE, ERROR }
+
+    /** Background treatment of a mod row. */
+    enum Look { NORMAL, CURRENT, ERROR }
+
+    /** @param tone color of the tag */
+    record Tag(String text, StatusTag.Tone tone) {
+    }
+
+    /** Explanation above a tab's rows, e.g. that HopSync never touches the player's own mods. */
+    record Banner(String html) implements ModRow {
+    }
+
+    record Group(String title, String note) implements ModRow {
+    }
+
+    /**
+     * @param key        file name (or config path), unique within the list
+     * @param oldVersion installed version shown before an arrow, or {@code null}
+     * @param tag          status tag, or {@code null}
+     * @param progress     download percent shown as a small bar instead of the tag, or {@code null}
+     * @param statusAction a small button in the status column ("Reintentar"), or {@code null}
+     * @param expandable   clicking it shows a {@link Detail} below
+     */
+    record Mod(String key, Glyph icon, IconTone iconTone, String name, String version, String oldVersion,
+               String author, String size, Tag tag, Integer progress, UiAction statusAction, Look look,
+               boolean expandable) implements ModRow {
+    }
+
+    /**
+     * @param url     page opened by the link, or {@code null} for no link
+     * @param actions buttons under the facts, for the mods of a pack the player created
+     */
+    record Detail(String key, String description, String file, String author, String linkLabel, String url,
+                  List<DetailAction> actions) implements ModRow {
+        public Detail {
+            actions = List.copyOf(actions);
+        }
+    }
+
+    /**
+     * A button of an expanded row.
+     *
+     * @param menu   opens the versions menu under the button instead of acting at once
+     * @param danger takes something away
+     */
+    record DetailAction(String label, UiAction action, boolean menu, boolean danger) {
+    }
+
+    /** A clickable line such as "70 mods ya están al día · Ver todos". */
+    record More(String text, UiAction action) implements ModRow {
+    }
+
+    record Message(String text) implements ModRow {
+    }
+}

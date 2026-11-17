@@ -1,0 +1,252 @@
+package hopsync.desktop.screens.sheets;
+
+import com.formdev.flatlaf.FlatClientProperties;
+import com.formdev.flatlaf.ui.FlatLineBorder;
+import com.formdev.flatlaf.util.UIScale;
+import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.kit.ButtonStyle;
+import hopsync.desktop.kit.Fonts;
+import hopsync.desktop.kit.Palette;
+import hopsync.desktop.store.UiAction;
+
+import javax.swing.AbstractButton;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JFileChooser;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.Scrollable;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Insets;
+import java.awt.Rectangle;
+import java.nio.file.Path;
+import java.util.Optional;
+import java.util.function.Consumer;
+
+/**
+ * Building blocks shared by the sheets: titles, wrapped paragraphs, notices and the footer row.
+ */
+final class SheetParts {
+    /** Width of the text inside a sheet; paragraphs wrap at it. */
+    static final int CONTENT_WIDTH = 500;
+
+    private SheetParts() {
+    }
+
+    /** The raised card a sheet is drawn on, in the overlay or in the whole window on first run. */
+    static JPanel card(JComponent content) {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setBackground(Palette.surface());
+        card.putClientProperty(FlatClientProperties.STYLE, "arc: 36");
+        card.setBorder(BorderFactory.createCompoundBorder(
+            new FlatLineBorder(new Insets(0, 0, 0, 0), Palette.line(), 1, 36),
+            BorderFactory.createEmptyBorder(30, 32, 26, 32)));
+        card.add(content, BorderLayout.CENTER);
+        return card;
+    }
+
+    /**
+     * A card for a sheet over the window: it takes the size the layer gives it, keeps the sheet's footer at its
+     * bottom, and scrolls the sheet vertically when it is taller than the card.
+     */
+    static JPanel floatingCard(JComponent content) {
+        JScrollPane scroll = new JScrollPane(new Fitting(content), JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setBorder(null);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getVerticalScrollBar().setUnitIncrement(UIScale.scale(16));
+        return card(scroll);
+    }
+
+    /** Fills the card's width, and its height too whenever the sheet is shorter than the card. */
+    private static final class Fitting extends JPanel implements Scrollable {
+        Fitting(JComponent content) {
+            super(new BorderLayout());
+            setOpaque(false);
+            add(content, BorderLayout.CENTER);
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
+            return UIScale.scale(16);
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
+            return visible.height;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return getParent() != null && getParent().getHeight() >= getPreferredSize().height;
+        }
+    }
+
+    static JPanel column() {
+        JPanel column = new JPanel();
+        column.setOpaque(false);
+        column.setLayout(new BoxLayout(column, BoxLayout.Y_AXIS));
+        return column;
+    }
+
+    /** Adds the parts one under the other, left aligned, with a gap between them. */
+    static void stack(JPanel column, int gap, Component... parts) {
+        for (Component part : parts) {
+            if (column.getComponentCount() > 0) {
+                column.add(Box.createVerticalStrut(UIScale.scale(gap)));
+            }
+            if (part instanceof JComponent c) {
+                c.setAlignmentX(Component.LEFT_ALIGNMENT);
+            }
+            column.add(part);
+        }
+    }
+
+    static JLabel title(String text) {
+        return title(text, 6);
+    }
+
+    /** A sheet title in Rubik, {@code delta} points over the UI font. */
+    static JLabel title(String text, int delta) {
+        JLabel title = new JLabel(text);
+        title.setFont(Fonts.display(title.getFont(), delta));
+        // Rubik's last glyph ("?") inks a little past its advance; the margin keeps it from being clipped
+        title.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 4));
+        return title;
+    }
+
+    static JLabel label(String text) {
+        JLabel label = new JLabel(text);
+        label.putClientProperty(FlatClientProperties.STYLE, "font: semibold");
+        return label;
+    }
+
+    /** Text that wraps at the sheet width. */
+    static JLabel paragraph(String text, Color color) {
+        return paragraph(text, color, CONTENT_WIDTH);
+    }
+
+    static JLabel paragraph(String text, Color color, int width) {
+        JLabel paragraph = new JLabel(wrap(text, width));
+        paragraph.setForeground(color);
+        return paragraph;
+    }
+
+    static JLabel hint(String text) {
+        JLabel hint = paragraph(text, Palette.textSecondary());
+        hint.putClientProperty(FlatClientProperties.STYLE, "font: -1");
+        return hint;
+    }
+
+    /** A boxed message with a colored edge: a warning, an error, or neutral information. */
+    static JComponent notice(String text, Color tone) {
+        JLabel body = paragraph(text, Palette.text(), CONTENT_WIDTH - 24);
+        body.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 3, 0, 0, tone),
+            BorderFactory.createEmptyBorder(6, 10, 6, 6)));
+        JPanel box = new JPanel(new BorderLayout()) {
+            @Override
+            public Dimension getMaximumSize() {
+                return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+            }
+        };
+        box.setBackground(Palette.well());
+        box.add(body, BorderLayout.CENTER);
+        return box;
+    }
+
+    static JLabel mono(String text) {
+        return toMono(new JLabel(text));
+    }
+
+    static JLabel toMono(JLabel label) {
+        label.setFont(new Font(Fonts.MONO_FAMILY, Font.PLAIN, Math.round(label.getFont().getSize2D() - 1)));
+        label.setForeground(Palette.textSecondary());
+        return label;
+    }
+
+    static JButton button(String key, ButtonStyle style, Consumer<UiAction> dispatch, UiAction action) {
+        JButton button = new JButton(Messages.get(key));
+        ButtonStyle.apply(button, style);
+        button.addActionListener(e -> dispatch.accept(action));
+        return button;
+    }
+
+    /** Buttons on the right, the main one last. */
+    /**
+     * Muted words followed by a link in the action color, as in "¿No tienes enlace? Empieza desde cero". The link
+     * is a real button: Tab reaches it and Enter or Space follows it.
+     */
+    static JPanel textLink(String lead, String link, Runnable onClick) {
+        JLabel words = new JLabel(lead);
+        words.setForeground(Palette.textSecondary());
+        JButton button = new JButton(link);
+        button.putClientProperty(FlatClientProperties.STYLE, "font: semibold; margin: 0,0,0,0; borderWidth: 0;"
+            + " focusWidth: 0; innerFocusWidth: 1; arc: 6");
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setForeground(Palette.action());
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        button.addActionListener(e -> onClick.run());
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, UIScale.scale(4), 0));
+        row.setOpaque(false);
+        row.add(words);
+        row.add(button);
+        return row;
+    }
+
+    static JPanel footer(AbstractButton... buttons) {
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, UIScale.scale(8), 0));
+        footer.setOpaque(false);
+        for (AbstractButton button : buttons) {
+            footer.add(button);
+        }
+        return footer;
+    }
+
+    /**
+     * Asks for a game folder with the system chooser. Called from a button handler, so its modal loop never
+     * runs while the store dispatches.
+     */
+    static Optional<Path> chooseFolder(Component parent, Path start) {
+        JFileChooser chooser = new JFileChooser(start == null ? null : start.toFile());
+        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        chooser.setDialogTitle(Messages.get("sheet.folder.chooserTitle"));
+        return chooser.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION && chooser.getSelectedFile() != null
+            ? Optional.of(chooser.getSelectedFile().toPath()) : Optional.empty();
+    }
+
+    /**
+     * HTML that wraps at the given width; the text is escaped, line breaks are kept. Swing reads CSS pixels as
+     * points (96 / 72 screen pixels each), so the width is converted back.
+     */
+    static String wrap(String text, int width) {
+        return "<html><div style='width:" + Math.round(UIScale.scale(width) * 72f / 96f) + "px'>"
+            + escape(text).replace("\n", "<br>") + "</div></html>";
+    }
+
+    static String escape(String text) {
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+}
