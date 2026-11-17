@@ -26,6 +26,8 @@ import java.util.stream.IntStream;
 public final class LogoIcon extends FlatAbstractIcon {
     /** Largest size, in pixels, that uses the small version. */
     public static final int SMALL_MAX = 24;
+    /** Largest app icon size, in pixels, where the mark fills more of its tile. */
+    static final int TIGHT_MAX = 16;
     private static final float GRID = 32;
     private static final int[] WINDOW_SIZES = {16, 20, 24, 32, 40, 48, 64, 128, 256};
 
@@ -80,9 +82,12 @@ public final class LogoIcon extends FlatAbstractIcon {
             g.setColor(new Color(255, 255, 255, 26));
             g.setStroke(new BasicStroke(unit));
             g.draw(new RoundRectangle2D.Float(0.5f * unit, 0.5f * unit, 31 * unit, 31 * unit, 14 * unit, 14 * unit));
-            // The mark sits at 0.625 of the tile, 6 units from each edge
-            g.translate(6 * unit, 6 * unit);
-            paint(g, size * 0.625f, onDark(), size <= SMALL_MAX);
+            // The mark sits at 0.625 of the tile, 6 units from each edge; at 16 px that leaves gaps under one
+            // pixel, so there it fills 0.8 of the tile
+            float scale = size <= TIGHT_MAX ? 0.8f : 0.625f;
+            float inset = GRID * (1 - scale) / 2;
+            g.translate(inset * unit, inset * unit);
+            paint(g, size * scale, onDark(), size <= SMALL_MAX);
         } finally {
             g.dispose();
         }

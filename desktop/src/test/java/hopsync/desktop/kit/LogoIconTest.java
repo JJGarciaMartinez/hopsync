@@ -53,6 +53,15 @@ class LogoIconTest {
     }
 
     @Test
+    void sixteenPixelAppIconGivesTheMarkMoreRoom() {
+        // The box spans 10 of 16 columns, a larger share of its tile than at 20 px (0.625)
+        int sixteen = lightColumns(LogoIcon.appImage(16));
+        int twenty = lightColumns(LogoIcon.appImage(20));
+        assertTrue(sixteen >= 10);
+        assertTrue(sixteen / 16f > twenty / 20f, "only 16 px fills more of the tile");
+    }
+
+    @Test
     void icoHoldsEverySize() {
         ByteBuffer ico = ByteBuffer.wrap(IconExport.ico()).order(ByteOrder.LITTLE_ENDIAN);
         assertEquals(1, ico.getShort(2));
@@ -79,6 +88,20 @@ class LogoIconTest {
 
     private static int[] pixels(BufferedImage image) {
         return image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth());
+    }
+
+    /** Columns holding a light pixel of the box. */
+    private static int lightColumns(BufferedImage image) {
+        int columns = 0;
+        for (int x = 0; x < image.getWidth(); x++) {
+            for (int y = 0; y < image.getHeight(); y++) {
+                if (new Color(image.getRGB(x, y)).getRed() > 150 && new Color(image.getRGB(x, y)).getBlue() > 150) {
+                    columns++;
+                    break;
+                }
+            }
+        }
+        return columns;
     }
 
     private static int alpha(BufferedImage image, int x, int y) {
