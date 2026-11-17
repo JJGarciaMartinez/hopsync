@@ -22,6 +22,8 @@ so a release builds on Windows, macOS and Linux (the release workflow does it fo
   `-Dfile.encoding=UTF-8`, icons from `packaging/`. Those icons (`icon.png` 512 px, `icon.ico` with 16 to 256 px,
   `icon.icns` with the 1x and 2x sizes) are written by `./gradlew brandIcons` from `kit/LogoIcon`, each size drawn
   at its exact pixels; run it after changing the mark and commit the result, never edit them by hand.
+  `./gradlew brandAssets` does the same for the brand sheet's assets in `brand/` (`tokens.json`, `svg/`, `png/`,
+  `pattern.svg`); its output is deterministic, so a run without changes leaves `git status` clean.
 - **Windows (`.msi`)**: `app.win.upgrade.uuid` (never change it: it lets a new installer replace the old one,
   including the TCraftClient installers), Start menu entry, desktop shortcut and folder chooser.
   Needs the [WiX Toolset](https://wixtoolset.org/) on the PATH when building locally.

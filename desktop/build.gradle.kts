@@ -106,6 +106,16 @@ tasks.register<JavaExec>("brandIcons") {
     args(packagingDir.asFile.path)
 }
 
+// The brand sheet's assets (brand/): tokens, mark, app icon, logotype and pattern, drawn by the app's own code
+tasks.register<JavaExec>("brandAssets") {
+    group = "distribution"
+    description = "Writes brand/tokens.json, brand/svg, brand/png and brand/pattern.svg from the HopSync theme and mark."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("hopsync.desktop.kit.BrandExport")
+    jvmArgs("-Djava.awt.headless=true")
+    args(rootProject.layout.projectDirectory.dir("brand").asFile.path)
+}
+
 tasks.register<Zip>("portableZip") {
     group = "distribution"
     description = "Packs the JAR with double-click launchers into desktop/build/distributions, for Java 21 users."

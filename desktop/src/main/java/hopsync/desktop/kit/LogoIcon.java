@@ -59,6 +59,20 @@ public final class LogoIcon extends FlatAbstractIcon {
     private static final Shape SMALL_SQUARE = rounded(new float[][] {{11, 13}, {21, 13}, {21, 22}, {11, 22}}, 2);
     private static final Shape SMALL_TRIANGLE = rounded(new float[][] {{16, 1}, {21.5f, 8}, {10.5f, 8}}, 1.4f);
 
+    /** One shape of the mark and the part it plays, for exporting the mark as vectors. */
+    enum Role { BOX, MINE, INCOMING }
+
+    record Piece(Shape shape, Role role) {
+    }
+
+    /** The shapes of the mark on its 32-unit grid, back to front. */
+    static List<Piece> pieces(boolean small) {
+        return small
+            ? List.of(new Piece(BOX, Role.BOX), new Piece(SMALL_SQUARE, Role.MINE), new Piece(SMALL_TRIANGLE, Role.INCOMING))
+            : List.of(new Piece(BOX, Role.BOX), new Piece(CIRCLE, Role.MINE), new Piece(SQUARE, Role.MINE),
+                new Piece(TRIANGLE, Role.INCOMING));
+    }
+
     private final Colors colors;
 
     public LogoIcon(int size, Colors colors) {
