@@ -2,6 +2,7 @@ package hopsync.platform.settings;
 
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackSettings;
+import hopsync.core.pack.PackSource;
 import hopsync.core.port.PackSettingsRepository;
 import hopsync.core.util.AtomicFiles;
 import hopsync.core.util.Json;
@@ -12,22 +13,19 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Persists the player's packs and preferences as JSON in the operating system's per-user configuration
- * folder. Format 1 (a single pack) is migrated to format 2 on load, keeping a backup of the old file.
+ * folder. A file in any other format loads as no settings.
  */
 public class SettingsStore implements PackSettingsRepository {
     private static final System.Logger LOG = System.getLogger(SettingsStore.class.getName());
-    private static final long FORMAT = 2;
-    private static final long FORMAT_SINGLE_PACK = 1;
+    private static final long FORMAT = 3;
 
     private final Path file;
 
@@ -73,11 +71,6 @@ public class SettingsStore implements PackSettingsRepository {
         return file;
     }
 
-    /** Copy of the format 1 file, written before the first save in format 2. */
-    Path backupFile() {
-        return file.resolveSibling(file.getFileName() + ".v1.bak");
-    }
-
     @Override
     public PackSettings load() {
         try {
@@ -85,9 +78,6 @@ public class SettingsStore implements PackSettingsRepository {
             Object format = root.get("format");
             if (Long.valueOf(FORMAT).equals(format)) {
                 return readPacks(root);
-            }
-            if (Long.valueOf(FORMAT_SINGLE_PACK).equals(format)) {
-                return migrateSinglePack(root);
             }
             LOG.log(System.Logger.Level.WARNING, "Ignoring settings in unknown format " + format + ": " + file);
             return PackSettings.EMPTY;
@@ -101,12 +91,11 @@ public class SettingsStore implements PackSettingsRepository {
 
     @Override
     public void save(PackSettings settings) throws IOException {
-        backUpSinglePackFormat();
         List<Object> packs = new ArrayList<>();
         for (Pack pack : settings.packs()) {
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("id", pack.id());
-            entry.put("manifest_url", pack.manifestUrl());
+            entry.put("source", writeSource(pack.source()));
             entry.put("game_dir", pack.gameDir().toString());
             entry.put("name", pack.name());
             packs.add(entry);
@@ -127,10 +116,10 @@ public class SettingsStore implements PackSettingsRepository {
         List<Pack> packs = new ArrayList<>();
         if (root.get("packs") instanceof List<?> entries) {
             for (Object entry : entries) {
-                if (entry instanceof Map<?, ?> map && map.get("id") instanceof String id && !id.isBlank()
-                        && map.get("manifest_url") instanceof String url && !url.isBlank()
-                        && map.get("game_dir") instanceof String dir && !dir.isBlank()) {
-                    packs.add(new Pack(id, url, Path.of(dir), map.get("name") instanceof String name ? name : ""));
+                PackSource source = entry instanceof Map<?, ?> map ? readSource(map) : null;
+                if (source != null && entry instanceof Map<?, ?> map && map.get("id") instanceof String id
+                        && !id.isBlank() && map.get("game_dir") instanceof String dir && !dir.isBlank()) {
+                    packs.add(new Pack(id, source, Path.of(dir), map.get("name") instanceof String name ? name : ""));
                 } else {
                     LOG.log(System.Logger.Level.WARNING, "Skipping incomplete pack in " + file + ": " + entry);
                 }
@@ -145,39 +134,36 @@ public class SettingsStore implements PackSettingsRepository {
             root.get("reduce_motion") instanceof Boolean reduce ? reduce : defaults.reduceMotion());
     }
 
-    /**
-     * Turns the single pack of format 1 into the first pack of format 2 and saves it right away, so the
-     * pack keeps the same id from now on.
-     */
-    private PackSettings migrateSinglePack(Map<?, ?> root) {
-        String url = (String) root.get("manifest_url");
-        String gameDir = (String) root.get("game_dir");
-        if (url == null || url.isBlank() || gameDir == null || gameDir.isBlank()) {
-            return PackSettings.EMPTY;
+    private static Map<String, Object> writeSource(PackSource source) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        switch (source) {
+            case PackSource.Link link -> {
+                out.put("kind", "link");
+                out.put("url", link.url());
+            }
+            case PackSource.Local local -> {
+                out.put("kind", "local");
+                if (local.publication() != null) {
+                    out.put("repo", local.publication().repo());
+                    out.put("url", local.publication().url());
+                }
+            }
         }
-        Pack pack = new Pack(UUID.randomUUID().toString(), url, Path.of(gameDir), "");
-        PackSettings migrated = PackSettings.EMPTY.withPacks(List.of(pack), pack.id());
-        try {
-            save(migrated);
-            LOG.log(System.Logger.Level.INFO, "Migrated settings to format 2; the old file is in " + backupFile());
-        } catch (IOException e) {
-            LOG.log(System.Logger.Level.WARNING, "Could not save the migrated settings " + file, e);
-        }
-        return migrated;
+        return out;
     }
 
-    private void backUpSinglePackFormat() throws IOException {
-        if (Files.exists(backupFile()) || !Files.exists(file)) {
-            return;
+    /** The source of a pack entry, or {@code null} if unusable. */
+    private static PackSource readSource(Map<?, ?> entry) {
+        if (!(entry.get("source") instanceof Map<?, ?> source)) {
+            return null;
         }
-        try {
-            Map<?, ?> root = (Map<?, ?>) Json.parse(Files.readString(file, StandardCharsets.UTF_8));
-            if (!Long.valueOf(FORMAT_SINGLE_PACK).equals(root.get("format"))) {
-                return;
-            }
-        } catch (IOException | ClassCastException e) {
-            return;
-        }
-        Files.copy(file, backupFile(), StandardCopyOption.COPY_ATTRIBUTES);
+        return switch (source.get("kind") instanceof String kind ? kind : "") {
+            case "link" -> source.get("url") instanceof String url && !url.isBlank() ? new PackSource.Link(url) : null;
+            case "local" -> new PackSource.Local(
+                source.get("repo") instanceof String repo && !repo.isBlank()
+                    && source.get("url") instanceof String url && !url.isBlank()
+                    ? new PackSource.Publication(repo, url) : null);
+            default -> null;
+        };
     }
 }

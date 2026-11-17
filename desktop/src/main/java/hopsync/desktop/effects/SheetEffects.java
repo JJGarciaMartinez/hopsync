@@ -5,6 +5,7 @@ import hopsync.core.failure.SyncFailure;
 import hopsync.core.failure.SyncFailures;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackRegistry;
+import hopsync.core.pack.PackSource;
 import hopsync.desktop.config.AppVersion;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.store.GameFolder;
@@ -116,7 +117,7 @@ final class SheetEffects {
 
     private String usedBy(Path folder, String exceptPackId) {
         return registry.packUsing(folder, exceptPackId)
-            .map(pack -> pack.name().isEmpty() ? pack.manifestUrl() : pack.name())
+            .map(Pack::label)
             .orElse(null);
     }
 
@@ -145,7 +146,7 @@ final class SheetEffects {
         Pack pack = registry.find(settings.packId()).orElse(null);
         if (pack == null) return;
         String url = settings.url().trim();
-        boolean newLink = !url.equals(pack.manifestUrl());
+        boolean newLink = !pack.link().map(url::equals).orElse(false);
         // A different link must have been checked: it may be another pack altogether
         if (newLink && !(settings.link() instanceof LinkCheck.Valid valid && valid.url().equals(url))) return;
         Path folder = settings.folder().path();
@@ -161,7 +162,7 @@ final class SheetEffects {
                 if (moved) {
                     dropUpdate.accept(pack.id());
                 }
-                Pack changed = newLink ? pack.withManifestUrl(url).withName("") : pack;
+                Pack changed = newLink ? pack.withSource(new PackSource.Link(url)).withName("") : pack;
                 registry.update(changed.withGameDir(folder));
                 store.dispatch(new UiAction.SheetSaved());
                 reloadPacks.run();
@@ -215,7 +216,7 @@ final class SheetEffects {
         text.append("Settings: ").append(settingsFile).append('\n');
         text.append("Packs: ").append(registry.packs().size()).append('\n');
         for (Pack pack : registry.packs()) {
-            text.append("- ").append(pack.name().isEmpty() ? "?" : pack.name()).append(" | ").append(pack.manifestUrl())
+            text.append("- ").append(pack.name().isEmpty() ? "?" : pack.name()).append(" | ").append(pack.link().orElse("created here"))
                 .append(" | ").append(pack.gameDir()).append('\n');
         }
         return text.toString();

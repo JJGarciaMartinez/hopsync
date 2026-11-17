@@ -339,7 +339,7 @@ class ReducerTest {
 
         assertEquals(D, settings.packId());
         assertEquals(Sheet.PackSettings.Section.LINK, settings.section());
-        assertEquals(DEMO.manifestUrl(), settings.url());
+        assertEquals(DEMO.link().orElseThrow(), settings.url());
         assertEquals(DEMO.gameDir(), settings.folder().path());
         assertNull(reduce(applying(), new UiAction.OpenSettings()).sheet());
     }
@@ -435,7 +435,7 @@ class ReducerTest {
 
     @Test
     void aPackAlreadyAddedCanBeAddedAgainForAnotherFolder() {
-        UiState state = linkChecked(DEMO.manifestUrl());
+        UiState state = linkChecked(DEMO.link().orElseThrow());
 
         LinkCheck.Valid valid = assertInstanceOf(LinkCheck.Valid.class, wizard(state).link());
         assertEquals(List.of(DEMO.gameDir()), valid.copies());
@@ -447,7 +447,7 @@ class ReducerTest {
     @Test
     void aPackDoesNotCountAsACopyOfItself() {
         UiState state = reduce(loaded(), new UiAction.OpenSettings(), new UiAction.CheckLink(),
-            new UiAction.LinkChecked(DEMO.manifestUrl(), manifest()));
+            new UiAction.LinkChecked(DEMO.link().orElseThrow(), manifest()));
 
         Sheet.PackSettings settings = assertInstanceOf(Sheet.PackSettings.class, state.sheet());
         assertEquals(List.of(), assertInstanceOf(LinkCheck.Valid.class, settings.link()).copies());
@@ -542,7 +542,7 @@ class ReducerTest {
         UiState state = reduce(loaded(), new UiAction.OpenSettings(), new UiAction.CheckLink());
 
         Sheet.PackSettings settings = assertInstanceOf(Sheet.PackSettings.class, state.sheet());
-        assertEquals(new LinkCheck.Checking(DEMO.manifestUrl()), settings.link());
+        assertEquals(new LinkCheck.Checking(DEMO.link().orElseThrow()), settings.link());
     }
 
     @Test

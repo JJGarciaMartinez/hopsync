@@ -152,7 +152,7 @@ public final class Reducer {
         Map<String, PackUiState> packs = new LinkedHashMap<>();
         for (Pack pack : loaded.packs()) {
             PackUiState known = state.packs().get(pack.id());
-            boolean samePack = known != null && known.manifestUrl().equals(pack.manifestUrl())
+            boolean samePack = known != null && known.manifestUrl().equals(pack.link().orElse(""))
                 && known.gameDir().equals(pack.gameDir());
             // A new link or folder makes what was checked before meaningless
             packs.put(pack.id(), samePack ? known.withPack(pack) : PackUiState.of(pack));

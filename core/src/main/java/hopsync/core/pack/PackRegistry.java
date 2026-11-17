@@ -2,6 +2,7 @@ package hopsync.core.pack;
 
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.port.PackDefinitionRepository;
 import hopsync.core.port.PackSettingsRepository;
 
 import java.io.IOException;
@@ -14,16 +15,19 @@ import java.util.UUID;
 
 /**
  * The packs the player keeps in sync. Changes are saved right away; removing a pack only forgets it
- * and never touches its files. Each pack needs its own game folder.
+ * and never touches its game folder. Each pack needs its own game folder. Packs the player created also
+ * keep their definition, which is removed only when asked.
  */
 public class PackRegistry {
     private static final System.Logger LOG = System.getLogger(PackRegistry.class.getName());
 
     private final PackSettingsRepository repository;
+    private final PackDefinitionRepository definitions;
     private PackSettings settings;
 
-    public PackRegistry(PackSettingsRepository repository) {
+    public PackRegistry(PackSettingsRepository repository, PackDefinitionRepository definitions) {
         this.repository = repository;
+        this.definitions = definitions;
         this.settings = repository.load();
     }
 
@@ -70,6 +74,50 @@ public class PackRegistry {
     }
 
     /**
+     * Adds a pack the player creates, not yet published, and keeps its definition.
+     *
+     * @throws SyncException with {@link SyncFailure.FolderUsedByPack} when another pack uses the folder
+     */
+    public synchronized Pack addLocal(PackDefinition definition, Path gameDir) throws IOException {
+        Pack pack = new Pack(UUID.randomUUID().toString(), new PackSource.Local(null), gameDir,
+            definition.pack().name());
+        checkFolderIsFree(pack);
+        definitions.save(pack.id(), definition);
+        List<Pack> packs = new ArrayList<>(settings.packs());
+        packs.add(pack);
+        try {
+            save(settings.withPacks(packs, settings.activeId()));
+        } catch (IOException e) {
+            // Without the pack in the settings nothing refers to the definition any more
+            definitions.delete(pack.id());
+            throw e;
+        }
+        return pack;
+    }
+
+    /** The definition of a pack the player created; empty for other packs or when it cannot be read. */
+    public synchronized Optional<PackDefinition> definition(String id) {
+        return settings.find(id).filter(Pack::isLocal).flatMap(pack -> definitions.load(id));
+    }
+
+    /** Saves a created pack's edited definition, and its name for the library. */
+    public synchronized void saveDefinition(String id, PackDefinition definition) throws IOException {
+        Pack pack = settings.find(id).filter(Pack::isLocal)
+            .orElseThrow(() -> new IllegalArgumentException("Not a created pack " + id));
+        definitions.save(id, definition);
+        if (!pack.name().equals(definition.pack().name())) {
+            update(pack.withName(definition.pack().name()));
+        }
+    }
+
+    /** Records where a created pack is published. */
+    public synchronized void published(String id, PackSource.Publication publication) throws IOException {
+        Pack pack = settings.find(id).filter(Pack::isLocal)
+            .orElseThrow(() -> new IllegalArgumentException("Not a created pack " + id));
+        update(pack.withSource(new PackSource.Local(publication)));
+    }
+
+    /**
      * Replaces the pack with the same id.
      *
      * @throws SyncException with {@link SyncFailure.FolderUsedByPack} when another pack uses the new folder
@@ -85,10 +133,23 @@ public class PackRegistry {
         save(settings.withPacks(packs, settings.activeId()));
     }
 
-    /** Forgets the pack; its game folder is left as it is. */
+    /** Forgets the pack; its game folder and, for a created pack, its definition are left as they are. */
     public synchronized void remove(String id) throws IOException {
+        remove(id, false);
+    }
+
+    /**
+     * Forgets the pack; its game folder is left as it is.
+     *
+     * @param deleteDefinition for a created pack, also delete its definition and its own jars and configs
+     */
+    public synchronized void remove(String id, boolean deleteDefinition) throws IOException {
+        boolean local = settings.find(id).map(Pack::isLocal).orElse(false);
         List<Pack> packs = settings.packs().stream().filter(pack -> !pack.id().equals(id)).toList();
         save(settings.withPacks(packs, settings.activeId()));
+        if (local && deleteDefinition) {
+            definitions.delete(id);
+        }
     }
 
     public synchronized void select(String id) throws IOException {
@@ -147,8 +208,7 @@ public class PackRegistry {
         Optional<Pack> other = packUsing(candidate.gameDir(), candidate.id());
         if (other.isPresent()) {
             Pack used = other.get();
-            String name = used.name().isEmpty() ? used.manifestUrl() : used.name();
-            throw new SyncException(new SyncFailure.FolderUsedByPack(candidate.gameDir().toString(), name));
+            throw new SyncException(new SyncFailure.FolderUsedByPack(candidate.gameDir().toString(), used.label()));
         }
     }
 

@@ -2,6 +2,7 @@ package hopsync.platform.settings;
 
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackSettings;
+import hopsync.core.pack.PackSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -25,7 +26,10 @@ class SettingsStoreTest {
         SettingsStore store = new SettingsStore(dir.resolve("nested/settings.json"));
         Pack first = new Pack("a1", "https://example.org/manifest.json", dir.resolve("My Instance [1.21]"), "Demo");
         Pack second = new Pack("b2", "https://example.org/other.json", dir.resolve("other"), "");
-        PackSettings settings = new PackSettings(List.of(first, second), "b2", false, false, 6, true);
+        Pack created = new Pack("c3", new PackSource.Local(null), dir.resolve("mine"), "Mi pack");
+        Pack published = new Pack("d4", new PackSource.Local(new PackSource.Publication("player/pack",
+            "https://github.com/player/pack/releases/download/hopsync/manifest.json")), dir.resolve("pub"), "Pub");
+        PackSettings settings = new PackSettings(List.of(first, second, created, published), "b2", false, false, 6, true);
 
         store.save(settings);
 
@@ -41,26 +45,29 @@ class SettingsStoreTest {
         Files.writeString(file, "not json");
         assertEquals(PackSettings.EMPTY, new SettingsStore(file).load());
 
-        Files.writeString(file, "{\"format\": 1, \"manifest_url\": 3, \"game_dir\": \"/x\"}");
-        assertEquals(PackSettings.EMPTY, new SettingsStore(file).load());
-
-        Files.writeString(file, "{\"format\": 1, \"manifest_url\": \"\", \"game_dir\": \"/x\"}");
+        Files.writeString(file, "[]");
         assertEquals(PackSettings.EMPTY, new SettingsStore(file).load());
     }
 
     @Test
-    void unknownFormatMeansNoSettings() throws IOException {
+    void otherFormatsMeanNoSettings() throws IOException {
         Path file = dir.resolve("settings.json");
-        Files.writeString(file, "{\"format\": 3, \"packs\": []}");
+        Files.writeString(file, "{\"format\": 4, \"packs\": []}");
+        assertEquals(PackSettings.EMPTY, new SettingsStore(file).load());
+
+        Files.writeString(file, "{\"format\": 2, \"packs\": [{\"id\": \"a\", \"manifest_url\": \"https://x/m.json\", "
+            + "\"game_dir\": \"" + jsonPath(dir.resolve("a")) + "\"}]}");
         assertEquals(PackSettings.EMPTY, new SettingsStore(file).load());
     }
 
     @Test
     void incompletePacksAreSkippedAndPreferencesClamped() throws IOException {
         Path file = dir.resolve("settings.json");
-        Files.writeString(file, "{\"format\": 2, \"active\": \"gone\", \"parallel_downloads\": 40, \"packs\": ["
-            + "{\"id\": \"a\", \"manifest_url\": \"https://x/m.json\", \"game_dir\": \"" + jsonPath(dir.resolve("a")) + "\"},"
-            + "{\"id\": \"b\", \"manifest_url\": \"https://x/m.json\"}]}");
+        String link = "\"source\": {\"kind\": \"link\", \"url\": \"https://x/m.json\"}";
+        Files.writeString(file, "{\"format\": 3, \"active\": \"gone\", \"parallel_downloads\": 40, \"packs\": ["
+            + "{\"id\": \"a\", " + link + ", \"game_dir\": \"" + jsonPath(dir.resolve("a")) + "\"},"
+            + "{\"id\": \"b\", " + link + "},"
+            + "{\"id\": \"c\", \"source\": {\"kind\": \"other\"}, \"game_dir\": \"" + jsonPath(dir.resolve("c")) + "\"}]}");
 
         PackSettings settings = new SettingsStore(file).load();
 
@@ -70,38 +77,6 @@ class SettingsStoreTest {
         assertEquals(PackSettings.MAX_PARALLEL_DOWNLOADS, settings.parallelDownloads());
         assertTrue(settings.checkOnStart());
         assertFalse(settings.reduceMotion(), "files saved before the preference existed keep the animation");
-    }
-
-    @Test
-    void singlePackFormatIsMigratedWithABackup() throws IOException {
-        Path file = dir.resolve("settings.json");
-        Path instance = dir.resolve("instance");
-        String v1 = "{\"format\": 1, \"manifest_url\": \"https://example.org/m.json\", \"game_dir\": \"" + jsonPath(instance) + "\"}";
-        Files.writeString(file, v1);
-        SettingsStore store = new SettingsStore(file);
-
-        PackSettings migrated = store.load();
-
-        assertEquals(1, migrated.packs().size());
-        Pack pack = migrated.packs().getFirst();
-        assertEquals("https://example.org/m.json", pack.manifestUrl());
-        assertEquals(instance.toAbsolutePath(), pack.gameDir());
-        assertEquals(pack.id(), migrated.activeId());
-        assertEquals(v1, Files.readString(store.backupFile()));
-        // Saved in format 2 right away, so the id stays the same on the next start
-        assertEquals(migrated, new SettingsStore(file).load());
-    }
-
-    @Test
-    void backupIsNeverOverwritten() throws IOException {
-        Path file = dir.resolve("settings.json");
-        SettingsStore store = new SettingsStore(file);
-        Files.writeString(store.backupFile(), "original");
-        Files.writeString(file, "{\"format\": 1, \"manifest_url\": \"https://example.org/m.json\", \"game_dir\": \"/x\"}");
-
-        store.load();
-
-        assertEquals("original", Files.readString(store.backupFile()));
     }
 
     private static String jsonPath(Path path) {

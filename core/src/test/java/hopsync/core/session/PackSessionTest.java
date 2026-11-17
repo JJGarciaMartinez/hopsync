@@ -6,6 +6,7 @@ import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
+import hopsync.core.pack.InMemoryDefinitions;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackRegistry;
 import hopsync.core.pack.PackSettings;
@@ -71,7 +72,7 @@ class PackSessionTest {
     void setUp() throws IOException {
         bus.subscribe(events::add);
         bus.subscribe(all::add);
-        registry = new PackRegistry(new InMemorySettings());
+        registry = new PackRegistry(new InMemorySettings(), new InMemoryDefinitions());
         queue = new ApplyQueue(executor, () -> true);
         pack = registry.add("https://example.org/manifest.json", game);
         coordinator = session(pack, service(url -> served));

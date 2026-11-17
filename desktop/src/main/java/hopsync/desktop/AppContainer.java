@@ -10,6 +10,7 @@ import hopsync.desktop.config.AppConfig;
 import hopsync.platform.http.DownloadService;
 import hopsync.platform.manifest.ManifestService;
 import hopsync.platform.settings.SettingsStore;
+import hopsync.platform.settings.DefinitionStore;
 
 import java.nio.file.Path;
 import java.util.concurrent.Executor;
@@ -35,7 +36,8 @@ public final class AppContainer {
     public AppContainer(AppConfig config, SettingsStore settingsStore) {
         this.config = config;
         this.settingsStore = settingsStore;
-        packRegistry = new PackRegistry(settingsStore);
+        packRegistry = new PackRegistry(settingsStore,
+            new DefinitionStore(settingsStore.getFile().resolveSibling("packs")));
         DownloadService downloadService = new DownloadService(config.network());
         manifestService = new ManifestService(downloadService, settingsStore.getFile().resolveSibling("manifests"));
         ModUpdateService modUpdateService = new ModUpdateService(manifestService, downloadService,

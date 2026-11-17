@@ -6,6 +6,7 @@ import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackPaths;
+import hopsync.core.pack.PackSource;
 import hopsync.core.port.ManifestSource;
 import hopsync.core.sync.FileDownloader;
 import hopsync.core.sync.FolderLock;
@@ -54,8 +55,12 @@ public class ModUpdateService {
         PackPaths paths = pack.paths();
         ensureFoldersExist(pack, paths, eventPublisher);
 
-        log(pack, eventPublisher, "Fetching the pack manifest from " + pack.manifestUrl());
-        Manifest manifest = manifestSource.fetchManifest(pack.manifestUrl());
+        if (!(pack.source() instanceof PackSource.Link(String url))) {
+            // Created packs are resolved from their definition, which comes with the Modrinth client
+            throw new UnsupportedOperationException("Created packs cannot be checked yet: " + pack.id());
+        }
+        log(pack, eventPublisher, "Fetching the pack manifest from " + url);
+        Manifest manifest = manifestSource.fetchManifest(url);
         log(pack, eventPublisher, "Pack " + manifest.pack().name() + " " + manifest.pack().version()
             + ": " + manifest.mods().size() + " mods, " + manifest.configs().size() + " configs");
 
