@@ -636,4 +636,11 @@ class ReducerTest {
         }
         return packs;
     }
+
+    @Test
+    void theLibraryKeepsTheWidthItWasDraggedToWithinItsLimits() {
+        assertEquals(300, reduce(loaded(), new UiAction.ResizeLibrary(300)).preferences().libraryWidth());
+        assertEquals(Preferences.MAX_LIBRARY_WIDTH, reduce(loaded(), new UiAction.ResizeLibrary(900)).preferences().libraryWidth());
+        assertEquals(Preferences.MIN_LIBRARY_WIDTH, reduce(loaded(), new UiAction.ResizeLibrary(20)).preferences().libraryWidth());
+    }
 }

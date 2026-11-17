@@ -17,6 +17,7 @@ import javax.swing.ListCellRenderer;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
@@ -44,6 +45,9 @@ final class PackCell extends JPanel implements ListCellRenderer<PackUiState> {
         status.putClientProperty(FlatClientProperties.STYLE, "font: -2");
         status.setForeground(Palette.textSecondary());
         status.setIconTextGap(UIScale.scale(6));
+        // Gives way to the library's width: the labels then end in "…"
+        name.setMinimumSize(new Dimension(0, 0));
+        status.setMinimumSize(new Dimension(0, 0));
         JPanel text = new JPanel(new GridLayout(2, 1));
         text.setOpaque(false);
         text.add(name);

@@ -29,7 +29,7 @@ class SettingsStoreTest {
         Pack created = new Pack("c3", new PackSource.Local(null), dir.resolve("mine"), "Mi pack");
         Pack published = new Pack("d4", new PackSource.Local(new PackSource.Publication("player/pack",
             "https://github.com/player/pack/releases/download/hopsync/manifest.json")), dir.resolve("pub"), "Pub");
-        PackSettings settings = new PackSettings(List.of(first, second, created, published), "b2", false, false, 6, true);
+        PackSettings settings = new PackSettings(List.of(first, second, created, published), "b2", false, false, 6, true, 300);
 
         store.save(settings);
 
@@ -75,6 +75,7 @@ class SettingsStoreTest {
         assertEquals("a", settings.activeId());
         assertEquals("", settings.packs().getFirst().name());
         assertEquals(PackSettings.MAX_PARALLEL_DOWNLOADS, settings.parallelDownloads());
+        assertEquals(PackSettings.DEFAULT_LIBRARY_WIDTH, settings.libraryWidth());
         assertTrue(settings.checkOnStart());
         assertFalse(settings.reduceMotion(), "files saved before the preference existed keep the animation");
     }

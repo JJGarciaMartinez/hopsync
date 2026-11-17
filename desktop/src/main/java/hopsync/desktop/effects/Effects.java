@@ -108,6 +108,7 @@ public final class Effects {
                     store.dispatch(new UiAction.ShowToast(Messages.get("toast.applied", done.successCount())));
                 }
             }
+            case UiAction.ResizeLibrary a -> background.execute(() -> registry.rememberLibraryWidth(a.width()));
             default -> sheets.run(action, state);
         }
     }
@@ -122,7 +123,7 @@ public final class Effects {
         var settings = registry.settings();
         store.dispatch(new UiAction.PacksLoaded(registry.packs(), active.map(Pack::id).orElse(null),
             new Preferences(settings.checkOnStart(), settings.chainQueue(), settings.parallelDownloads(),
-                settings.reduceMotion())));
+                settings.reduceMotion(), settings.libraryWidth())));
         active.ifPresent(pack -> {
             loadInstalled(pack.id());
             loadManifest(pack.id());

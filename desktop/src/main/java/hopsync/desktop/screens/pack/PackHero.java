@@ -41,11 +41,12 @@ import java.util.function.Function;
 
 /**
  * Header of the selected pack: mark tile, name and version, Minecraft · loader · mods, the server address
- * (click to copy), the status line and the actions that make sense in the pack's phase. Folder and ⋯ buttons
- * sit in the top right corner.
+ * (click to copy), the status line and the review tags under it. On the right, the folder and ⋯ buttons at the
+ * top and the actions that make sense in the pack's phase at the bottom, apart from the tags. Long names and
+ * details end in "…" instead of widening the window.
  */
 public final class PackHero extends JPanel {
-    private static final int MIN_HEIGHT = 138;
+    private static final int MIN_HEIGHT = 148;
     private static final int ACTIONS_MIN_WIDTH = 250;
     private static final int PROGRESS_WIDTH = 300;
 
@@ -53,16 +54,27 @@ public final class PackHero extends JPanel {
     private final ZoneId zone;
     private final PackMenu menu;
     private final JLabel tile = new JLabel();
-    private final JLabel name = new JLabel();
+    private final JLabel name = narrowing();
     private final JLabel version = new JLabel();
-    private final JLabel meta = new JLabel();
+    private final JLabel meta = narrowing();
     private final JButton serverIp = new JButton(Icons.get(Icons.Glyph.COPY, 12, null));
     private final JLabel stateMark = new JLabel();
     private final LoaderIcon loader = new LoaderIcon(18, LogoIcon.onDark());
     private final JLabel stateTitle = new JLabel();
     private final JLabel stateDetail = new JLabel();
-    private final JPanel tags = row(FlowLayout.RIGHT);
-    private final JPanel buttons = row(FlowLayout.RIGHT);
+    // Wraps to a second line when the header is narrow; the gaps are struts so the first tag lines up on the left
+    private final JPanel tags = new JPanel(new WrapLayout(FlowLayout.LEFT, 0, UIScale.scale(6))) {
+        @Override
+        public Dimension getMaximumSize() {
+            return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+        }
+
+        @Override
+        public Dimension getMinimumSize() {
+            return new Dimension(0, getPreferredSize().height);
+        }
+    };
+    private final JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, UIScale.scale(10), 0));
     // Fixed width: the file name changes many times while applying and must not resize the bar
     private final JPanel progress = new JPanel(new BorderLayout(0, 4)) {
         @Override
@@ -89,14 +101,16 @@ public final class PackHero extends JPanel {
     });
 
     public PackHero(Consumer<UiAction> dispatch, ZoneId zone) {
-        super(new BorderLayout(UIScale.scale(16), 0));
+        super(new BorderLayout(UIScale.scale(20), 0));
         this.dispatch = dispatch;
         this.zone = zone;
         this.menu = new PackMenu(dispatch);
         setBackground(Palette.surface());
         setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, Palette.line()),
-            BorderFactory.createEmptyBorder(18, 22, 18, 14)));
+            BorderFactory.createEmptyBorder(18, 24, 20, 16)));
+        buttons.setOpaque(false);
+        tags.setOpaque(false);
 
         add(tile, BorderLayout.WEST);
         add(info(), BorderLayout.CENTER);
@@ -108,9 +122,12 @@ public final class PackHero extends JPanel {
         version.setFont(new Font(Fonts.MONO_FAMILY, Font.PLAIN, Math.round(getFont().getSize2D() - 1)));
         version.setForeground(Palette.textSecondary());
         version.setBorder(new FlatLineBorder(new Insets(1, 6, 1, 6), Palette.line(), 1, 10));
-        JPanel nameRow = row(FlowLayout.LEFT);
+        // The name gives way first and ends in "…"; the version stays whole beside it
+        JPanel nameRow = line();
         nameRow.add(name);
+        nameRow.add(Box.createHorizontalStrut(UIScale.scale(10)));
         nameRow.add(version);
+        nameRow.add(Box.createHorizontalGlue());
 
         meta.setForeground(Palette.textSecondary());
         serverIp.setFont(new Font(Fonts.MONO_FAMILY, Font.PLAIN, Math.round(getFont().getSize2D() - 1.5f)));
@@ -118,11 +135,13 @@ public final class PackHero extends JPanel {
         serverIp.setToolTipText(Messages.get("hero.copyIp"));
         ButtonStyle.apply(serverIp, ButtonStyle.SECONDARY, ButtonStyle.SMALL);
         serverIp.addActionListener(e -> dispatchFor(UiAction.CopyServerIp::new));
-        // Wraps the server button under the line when the window is narrow
-        JPanel metaRow = new JPanel(new WrapLayout(FlowLayout.LEFT, UIScale.scale(6), UIScale.scale(2)));
-        metaRow.setOpaque(false);
+        // Both give way when narrow, the address down to a short stub that still shows it is there
+        serverIp.setMinimumSize(new Dimension(UIScale.scale(90), serverIp.getPreferredSize().height));
+        JPanel metaRow = line();
         metaRow.add(meta);
+        metaRow.add(Box.createHorizontalStrut(UIScale.scale(8)));
         metaRow.add(serverIp);
+        metaRow.add(Box.createHorizontalGlue());
 
         stateTitle.putClientProperty(FlatClientProperties.STYLE, "font: semibold");
         stateDetail.setForeground(Palette.textSecondary());
@@ -145,12 +164,17 @@ public final class PackHero extends JPanel {
         info.setOpaque(false);
         info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
         info.add(Box.createVerticalGlue());
-        for (JPanel line : new JPanel[] {nameRow, metaRow, stateRow}) {
-            line.setAlignmentX(Component.LEFT_ALIGNMENT);
-            info.add(line);
-            info.add(Box.createVerticalStrut(UIScale.scale(5)));
+        // The review tags sit under the state, away from the buttons on the right
+        JPanel[] lines = {nameRow, metaRow, stateRow, tags};
+        int[] gapsAfter = {6, 12, 10, 0};
+        for (int i = 0; i < lines.length; i++) {
+            lines[i].setAlignmentX(Component.LEFT_ALIGNMENT);
+            info.add(lines[i]);
+            if (gapsAfter[i] > 0) info.add(Box.createVerticalStrut(UIScale.scale(gapsAfter[i])));
         }
         info.add(Box.createVerticalGlue());
+        // Never wider than the space left: the long lines shorten instead
+        info.setMinimumSize(new Dimension(0, 0));
         return info;
     }
 
@@ -183,12 +207,13 @@ public final class PackHero extends JPanel {
         JPanel stack = new JPanel();
         stack.setOpaque(false);
         stack.setLayout(new BoxLayout(stack, BoxLayout.Y_AXIS));
-        for (JPanel part : new JPanel[] {tags, progress, buttons}) {
+        for (JPanel part : new JPanel[] {progress, buttons}) {
             part.setAlignmentX(Component.RIGHT_ALIGNMENT);
             stack.add(part);
         }
 
-        JPanel actions = new JPanel(new BorderLayout(0, UIScale.scale(6))) {
+        // Tools at the top, the phase's actions at the bottom, with at least 16 px between them
+        JPanel actions = new JPanel(new BorderLayout(0, UIScale.scale(16))) {
             @Override
             public Dimension getPreferredSize() {
                 Dimension size = super.getPreferredSize();
@@ -197,7 +222,7 @@ public final class PackHero extends JPanel {
         };
         actions.setOpaque(false);
         actions.add(tools, BorderLayout.NORTH);
-        actions.add(stack, BorderLayout.CENTER);
+        actions.add(stack, BorderLayout.SOUTH);
         return actions;
     }
 
@@ -220,10 +245,12 @@ public final class PackHero extends JPanel {
         PackInfo info = pack.packInfo();
         tile.setIcon(MarkTile.header());
         name.setText(pack.displayName());
+        name.setToolTipText(pack.displayName());
         version.setText(info == null ? "" : info.version());
         version.setVisible(info != null);
         String metaText = HeroModel.meta(pack);
         meta.setText(metaText == null ? " " : metaText);
+        meta.setToolTipText(metaText);
         boolean hasIp = info != null && info.serverIp() != null && !info.serverIp().isBlank();
         serverIp.setVisible(hasIp);
         serverIp.setText(hasIp ? info.serverIp() : "");
@@ -270,7 +297,10 @@ public final class PackHero extends JPanel {
         stateDetail.setToolTipText(model.detail());
 
         tags.removeAll();
-        model.tags().forEach(tag -> tags.add(new StatusTag(tag.text(), tag.tone())));
+        for (HeroModel.Tag tag : model.tags()) {
+            tags.add(new StatusTag(tag.text(), tag.tone()));
+            tags.add(Box.createHorizontalStrut(UIScale.scale(6)));
+        }
         tags.setVisible(!model.tags().isEmpty());
 
         progress.setVisible(model.applying() != null);
@@ -301,6 +331,35 @@ public final class PackHero extends JPanel {
         button.getAccessibleContext().setAccessibleName(Messages.get(key));
         ButtonStyle.apply(button, ButtonStyle.SECONDARY, ButtonStyle.ICON);
         return button;
+    }
+
+    /** A label that gets narrower, ending in "…", but never shorter than its text. */
+    private static JLabel narrowing() {
+        return new JLabel() {
+            @Override
+            public Dimension getMinimumSize() {
+                return new Dimension(0, getPreferredSize().height);
+            }
+        };
+    }
+
+    /** A left-to-right line whose labels shorten with "…" when the header gets narrow. */
+    private static JPanel line() {
+        // Gives way in width only: its height stays what its tallest part needs
+        JPanel line = new JPanel() {
+            @Override
+            public Dimension getMaximumSize() {
+                return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+            }
+
+            @Override
+            public Dimension getMinimumSize() {
+                return new Dimension(0, getPreferredSize().height);
+            }
+        };
+        line.setLayout(new BoxLayout(line, BoxLayout.X_AXIS));
+        line.setOpaque(false);
+        return line;
     }
 
     private static JPanel row(int align) {

@@ -146,6 +146,9 @@ public sealed interface UiAction {
     /** Search text of the pack library. */
     record SetPackQuery(String query) implements UiAction {}
 
+    /** The library dragged to a new width, in unscaled pixels; saved for the next start. */
+    record ResizeLibrary(int width) implements UiAction {}
+
     /** Expands the row of the file, or collapses it if it was expanded. */
     record ToggleRow(String file) implements UiAction {}
 }

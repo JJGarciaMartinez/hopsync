@@ -9,6 +9,7 @@ import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.store.PackUiState;
+import hopsync.desktop.store.Preferences;
 import hopsync.desktop.store.Sheet;
 import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
@@ -46,28 +47,36 @@ import java.util.function.Consumer;
 /**
  * The pack library on the left: every pack with its status, a search once there are
  * {@value UiState#PACK_SEARCH_FROM} packs, "Añadir pack" and the app settings. Selecting a pack (mouse, arrows)
- * dispatches {@link UiAction.SelectPack}; typing in the search dispatches {@link UiAction.SetPackQuery}.
+ * dispatches {@link UiAction.SelectPack}; typing in the search dispatches {@link UiAction.SetPackQuery}. Its right
+ * edge drags it between {@value Preferences#MIN_LIBRARY_WIDTH} and {@value Preferences#MAX_LIBRARY_WIDTH} px
+ * (double click: back to {@value Preferences#DEFAULT_LIBRARY_WIDTH}); the width is dispatched when the drag ends.
  */
 public final class PackLibrary extends JPanel {
-    private static final int WIDTH = 232;
 
     private final Consumer<UiAction> dispatch;
     private final DefaultListModel<PackUiState> model = new DefaultListModel<>();
-    private final JList<PackUiState> list = new JList<>(model);
+    // Always as wide as the library: a long name ends in "…" instead of scrolling sideways
+    private final JList<PackUiState> list = new JList<>(model) {
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+    };
     private final PackCell cell = new PackCell();
     private final JLabel title = new JLabel();
     private final JTextField search = new JTextField();
     private final JPanel searchRow = new JPanel(new BorderLayout());
     private final JLabel noMatch = new JLabel();
+    private final Grip grip = new Grip();
     private boolean rendering;
+    private int width = Preferences.DEFAULT_LIBRARY_WIDTH;
 
     public PackLibrary(Consumer<UiAction> dispatch) {
         super(new BorderLayout());
         this.dispatch = dispatch;
         setBackground(Palette.sidebar());
-        setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, Palette.line()));
-        setPreferredSize(new Dimension(UIScale.scale(WIDTH), 0));
-        setMinimumSize(getPreferredSize());
+        applyWidth(width);
+        add(grip, BorderLayout.EAST);
 
         add(header(), BorderLayout.NORTH);
         JPanel center = new JPanel(new BorderLayout());
@@ -177,7 +186,8 @@ public final class PackLibrary extends JPanel {
         };
         list.addMouseMotionListener(hover);
         list.addMouseListener(hover);
-        JScrollPane scroll = new JScrollPane(list);
+        JScrollPane scroll = new JScrollPane(list, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.setBorder(null);
         scroll.setOpaque(false);
         scroll.getViewport().setOpaque(false);
@@ -213,6 +223,9 @@ public final class PackLibrary extends JPanel {
     public void render(UiState state) {
         rendering = true;
         try {
+            if (!grip.dragging && state.preferences().libraryWidth() != width) {
+                applyWidth(state.preferences().libraryWidth());
+            }
             title.setText(Messages.get("library.title", state.packs().size()).toUpperCase(Locale.ROOT));
             cell.setNames(LibraryStatus.names(new ArrayList<>(state.packs().values())));
             searchRow.setVisible(state.packSearchShown());
@@ -222,7 +235,7 @@ public final class PackLibrary extends JPanel {
             List<PackUiState> packs = state.shownPacks();
             noMatch.setVisible(packs.isEmpty() && !state.packs().isEmpty());
             // Wraps inside the library instead of ending in "…": the search text is the part that matters
-            noMatch.setText("<html><body style='width:" + UIScale.scale(WIDTH - 40) + "px'>"
+            noMatch.setText("<html><body style='width:" + UIScale.scale(width - 40) + "px'>"
                 + escape(Messages.get("library.noMatch", state.packQuery().strip())) + "</body></html>");
             if (!sameEntries(packs)) {
                 model.clear();
@@ -234,6 +247,86 @@ public final class PackLibrary extends JPanel {
             }
         } finally {
             rendering = false;
+        }
+    }
+
+    private void applyWidth(int newWidth) {
+        width = Math.clamp(newWidth, Preferences.MIN_LIBRARY_WIDTH, Preferences.MAX_LIBRARY_WIDTH);
+        setPreferredSize(new Dimension(UIScale.scale(width), 0));
+        setMinimumSize(getPreferredSize());
+        revalidate();
+    }
+
+    /**
+     * The library's right edge: a line that turns turquoise under the mouse and drags the library wider or
+     * narrower. Names and status lines end in "…" when they no longer fit.
+     */
+    private final class Grip extends JComponent {
+        private static final int HIT = 6;
+        private boolean hover;
+        private boolean dragging;
+        private int startX;
+        private int startWidth;
+
+        Grip() {
+            setCursor(Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR));
+            setToolTipText(Messages.get("library.resize"));
+            MouseAdapter drag = new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hover = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hover = false;
+                    repaint();
+                }
+
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    dragging = true;
+                    startX = e.getXOnScreen();
+                    startWidth = width;
+                    repaint();
+                }
+
+                @Override
+                public void mouseDragged(MouseEvent e) {
+                    applyWidth(startWidth + Math.round(UIScale.unscale((float) (e.getXOnScreen() - startX))));
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    dragging = false;
+                    repaint();
+                    if (width != startWidth) dispatch.accept(new UiAction.ResizeLibrary(width));
+                }
+
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    if (e.getClickCount() == 2) {
+                        applyWidth(Preferences.DEFAULT_LIBRARY_WIDTH);
+                        dispatch.accept(new UiAction.ResizeLibrary(width));
+                    }
+                }
+            };
+            addMouseListener(drag);
+            addMouseMotionListener(drag);
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            return new Dimension(UIScale.scale(HIT), 0);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            boolean active = hover || dragging;
+            int line = UIScale.scale(active ? 2 : 1);
+            g.setColor(active ? Palette.mine() : Palette.line());
+            g.fillRect(getWidth() - line, 0, line, getHeight());
         }
     }
 

@@ -17,6 +17,7 @@ import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
 import org.junit.jupiter.api.BeforeAll;
+import javax.swing.JScrollPane;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JComponent;
@@ -164,6 +165,25 @@ class ScreensTest {
         PackLibrary library = new PackLibrary(dispatched::add);
         library.render(UiState.INITIAL);
         paint(library, 214, 560);
+    }
+
+    @Test
+    void longPackNamesNeverScrollTheLibrarySideways() throws Exception {
+        Pack longName = new Pack("long", "https://example.org/long.json", Path.of("/games/long").toAbsolutePath(),
+            "Un pack con un nombre larguísimo que no cabe en la biblioteca ni de lejos");
+        UiState state = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(longName), "long"),
+            new UiAction.ResizeLibrary(Preferences.MIN_LIBRARY_WIDTH));
+        PackLibrary library = new PackLibrary(dispatched::add);
+        SwingUtilities.invokeAndWait(() -> {
+            library.render(state);
+            library.setSize(library.getPreferredSize().width, UIScale.scale(560));
+            invalidateTree(library);
+            layoutTree(library);
+            layoutTree(library);
+        });
+        JScrollPane scroll = find(library, JScrollPane.class);
+        assertEquals(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER, scroll.getHorizontalScrollBarPolicy());
+        assertEquals(scroll.getViewport().getWidth(), scroll.getViewport().getView().getWidth());
     }
 
     @Test
