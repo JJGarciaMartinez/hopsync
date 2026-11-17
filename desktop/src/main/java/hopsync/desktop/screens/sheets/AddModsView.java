@@ -47,8 +47,8 @@ import java.util.function.Consumer;
  * the player to stop typing before it is dispatched.
  */
 public final class AddModsView extends JPanel {
-    static final int WIDTH = 576;
-    private static final int RESULTS_HEIGHT = 300;
+    /** The results take whatever height the card leaves; this is only their smallest. */
+    private static final int RESULTS_HEIGHT = 160;
     private static final int TYPING_PAUSE_MS = 300;
 
     private final Consumer<UiAction> dispatch;
@@ -113,7 +113,7 @@ public final class AddModsView extends JPanel {
         scroll.setBorder(BorderFactory.createMatteBorder(1, 0, 1, 0, Palette.line()));
         scroll.setOpaque(false);
         scroll.getViewport().setOpaque(false);
-        scroll.setPreferredSize(new Dimension(UIScale.scale(WIDTH), UIScale.scale(RESULTS_HEIGHT)));
+        scroll.setPreferredSize(new Dimension(0, UIScale.scale(RESULTS_HEIGHT)));
         scroll.getVerticalScrollBar().setUnitIncrement(UIScale.scale(16));
 
         JPanel top = SheetParts.column();
