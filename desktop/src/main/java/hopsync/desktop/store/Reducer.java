@@ -10,10 +10,12 @@ import hopsync.desktop.store.PackUiState.Progress;
 import hopsync.desktop.store.PackUiState.Result;
 
 import java.nio.file.Path;
+import java.text.Normalizer;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -125,6 +127,27 @@ public final class Reducer {
             case UiAction.SavePackSettings a -> state;
             case UiAction.SaveAppSettings a -> state;
             case UiAction.CopyDiagnostics a -> state;
+            case UiAction.OpenPublish a -> openPublish(state, a.packId());
+            case UiAction.PublishFilesLoaded a -> updatePublish(state, a.packId(), sheet -> sheet.with(sheet.repoName(),
+                a.ownFiles(), sheet.confirmed(), sheet.stage(), sheet.step(), sheet.link(), sheet.error()));
+            case UiAction.SetRepoName a -> updatePublish(state, null, sheet -> sheet.stage() != Sheet.Publish.Stage.REVIEW
+                ? sheet : sheet.with(a.name().strip(), sheet.ownFiles(), sheet.confirmed(), sheet.stage(), null, null, null));
+            case UiAction.ConfirmOwnFiles a -> updatePublish(state, null, sheet -> sheet.with(sheet.repoName(),
+                sheet.ownFiles(), a.confirmed(), sheet.stage(), sheet.step(), sheet.link(), sheet.error()));
+            case UiAction.StartPublish a -> updatePublish(state, null, sheet -> sheet.canPublish()
+                ? sheet.with(sheet.repoName(), sheet.ownFiles(), sheet.confirmed(), Sheet.Publish.Stage.PUBLISHING,
+                    null, null, null)
+                : sheet);
+            case UiAction.PublishProgressed a -> updatePublish(state, a.packId(), sheet -> sheet.with(sheet.repoName(),
+                sheet.ownFiles(), sheet.confirmed(), sheet.stage(), a.step(), null, null));
+            case UiAction.Published a -> updatePublish(state, a.packId(), sheet -> sheet.with(sheet.repoName(),
+                sheet.ownFiles(), sheet.confirmed(), Sheet.Publish.Stage.DONE, null, a.link(), null))
+                .withPack(withUnpublished(state, a.packId(), false));
+            // Back to the review, with what failed, so the player can fix it and try again
+            case UiAction.PublishFailed a -> updatePublish(state, a.packId(), sheet -> sheet.with(sheet.repoName(),
+                sheet.ownFiles(), sheet.confirmed(), Sheet.Publish.Stage.REVIEW, null, null, a.failure()));
+            case UiAction.PublishStateChecked a -> state.packs().containsKey(a.packId())
+                ? state.withPack(withUnpublished(state, a.packId(), a.unpublished())) : state;
             case UiAction.AccountLoaded a -> state.withAccount(state.account().loaded(a.login(), a.persistent(), a.available()));
             case UiAction.ConnectGitHub a -> state.account().available() && !state.account().connecting()
                 ? state.withAccount(state.account().startConnecting()) : state;
@@ -329,6 +352,36 @@ public final class Reducer {
 
     private static UiState updateAddMods(UiState state, UnaryOperator<Sheet.AddMods> change) {
         return state.sheet() instanceof Sheet.AddMods sheet ? state.withSheet(change.apply(sheet)) : state;
+    }
+
+    /** Only for a created pack with mods, and not while it checks, waits or writes files. */
+    private static UiState openPublish(UiState state, String packId) {
+        PackUiState pack = state.packs().get(packId);
+        if (pack == null || !pack.created() || pack.modCount() == 0 || pack.phase() == PackPhase.CHECKING
+                || pack.phase() == PackPhase.QUEUED || pack.phase().isWriting()) {
+            return state;
+        }
+        return state.withSheet(Sheet.Publish.start(packId, !pack.manifestUrl().isEmpty(),
+            repoNameFor(pack.displayName())));
+    }
+
+    /** A repository name from the pack's name: "Aventura con amigos" becomes "aventura-con-amigos". */
+    static String repoNameFor(String packName) {
+        String plain = Normalizer.normalize(packName == null ? "" : packName, Normalizer.Form.NFD)
+            .replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
+        String slug = plain.replaceAll("[^a-z0-9._-]+", "-").replaceAll("-{2,}", "-").replaceAll("^[-.]+|[-.]+$", "");
+        slug = slug.length() > 100 ? slug.substring(0, 100) : slug;
+        return slug.isEmpty() ? "mi-pack" : slug;
+    }
+
+    private static PackUiState withUnpublished(UiState state, String packId, boolean unpublished) {
+        return state.packs().get(packId).withUnpublished(unpublished);
+    }
+
+    /** @param packId only for the sheet of this pack, or {@code null} for whichever publish sheet is open */
+    private static UiState updatePublish(UiState state, String packId, UnaryOperator<Sheet.Publish> change) {
+        return state.sheet() instanceof Sheet.Publish sheet && (packId == null || sheet.packId().equals(packId))
+            ? state.withSheet(change.apply(sheet)) : state;
     }
 
     private static UiState updateCreation(UiState state, UnaryOperator<Sheet.Creation> change) {

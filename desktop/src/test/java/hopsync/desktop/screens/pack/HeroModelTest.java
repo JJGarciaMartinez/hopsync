@@ -1,6 +1,8 @@
 package hopsync.desktop.screens.pack;
 
 import hopsync.core.event.SyncEvent;
+import hopsync.core.pack.PackSource;
+import hopsync.core.pack.Pack;
 import hopsync.core.failure.SyncFailure;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.Icons;
@@ -201,10 +203,25 @@ class HeroModelTest {
     void aCreatedPackWithModsOffersToAddMoreBeforeItsUsualActions() {
         UiState state = reduce(created(), new SyncEvent.UpdateStarted(MINE.id()), new SyncEvent.UpToDate(MINE.id(), upToDatePlan()));
         List<String> labels = labels(HeroModel.of(state.packs().get(MINE.id()), state, ZoneOffset.UTC, NOW));
-        assertEquals(List.of(Messages.get("hero.addMods"), Messages.get("hero.checkAgain")), labels);
+        assertEquals(List.of(Messages.get("hero.addMods"), Messages.get("hero.publish"), Messages.get("hero.checkAgain")),
+            labels);
 
         UiState checking = reduce(state, new SyncEvent.UpdateStarted(MINE.id()));
         assertTrue(labels(HeroModel.of(checking.packs().get(MINE.id()), checking, ZoneOffset.UTC, NOW))
             .stream().noneMatch(Messages.get("hero.addMods")::equals), "nothing to add while it checks");
+    }
+
+    @Test
+    void aPublishedPackOffersToPublishOnlyItsChanges() {
+        Pack published = new Pack(MINE.id(), new PackSource.Local(new PackSource.Publication("p/r",
+            "https://github.com/p/r/releases/download/hopsync/manifest.json", "h")), MINE.gameDir(), MINE.name());
+        UiState state = reduce(created(), new UiAction.PacksLoaded(List.of(DEMO, published), MINE.id()),
+            new SyncEvent.UpdateStarted(MINE.id()), new SyncEvent.UpToDate(MINE.id(), upToDatePlan()));
+        assertEquals(List.of(Messages.get("hero.addMods"), Messages.get("hero.checkAgain")),
+            labels(HeroModel.of(state.packs().get(MINE.id()), state, ZoneOffset.UTC, NOW)));
+
+        UiState changed = reduce(state, new UiAction.PublishStateChecked(MINE.id(), true));
+        assertEquals(List.of(Messages.get("hero.addMods"), Messages.get("hero.publishChanges"), Messages.get("hero.checkAgain")),
+            labels(HeroModel.of(changed.packs().get(MINE.id()), changed, ZoneOffset.UTC, NOW)));
     }
 }

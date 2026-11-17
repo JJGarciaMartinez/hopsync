@@ -4,6 +4,7 @@ import hopsync.core.catalog.CatalogProject;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.Manifest;
+import hopsync.core.publish.PublishStep;
 import hopsync.core.pack.Pack;
 
 import java.nio.file.Path;
@@ -208,6 +209,27 @@ public sealed interface UiAction {
 
     /** Forgets the token on this computer. */
     record DisconnectGitHub() implements UiAction {}
+
+    /** "Publicar" or "Publicar cambios" on a created pack: opens the publish sheet. */
+    record OpenPublish(String packId) implements UiAction {}
+
+    /** The configs and jars of the player that a publish would share. */
+    record PublishFilesLoaded(String packId, List<String> ownFiles) implements UiAction {}
+
+    record SetRepoName(String name) implements UiAction {}
+
+    record ConfirmOwnFiles(boolean confirmed) implements UiAction {}
+
+    record StartPublish() implements UiAction {}
+
+    record PublishProgressed(String packId, PublishStep step) implements UiAction {}
+
+    record Published(String packId, String link) implements UiAction {}
+
+    record PublishFailed(String packId, SyncFailure failure) implements UiAction {}
+
+    /** Whether a published created pack changed since its last publish. */
+    record PublishStateChecked(String packId, boolean unpublished) implements UiAction {}
 
     /** Copies version, system and paths for a bug report. */
     record CopyDiagnostics() implements UiAction {}

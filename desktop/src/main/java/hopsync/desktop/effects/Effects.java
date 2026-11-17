@@ -13,6 +13,7 @@ import hopsync.core.session.PackSessions;
 import hopsync.core.session.UpdateState;
 import hopsync.core.usecase.DefinitionResolver;
 import hopsync.core.usecase.PackEditor;
+import hopsync.core.usecase.PackPublishing;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.store.ModVersions;
 import hopsync.desktop.store.Preferences;
@@ -57,6 +58,7 @@ public final class Effects {
     private final DefinitionResolver createdPacks;
     private final PackEditor editor;
     private final AccountEffects accounts;
+    private final PublishEffects publishes;
 
     /**
      * @param catalog      the mod catalog created packs pick from
@@ -64,15 +66,17 @@ public final class Effects {
      * @param editor       changes the mods of a created pack
      * @param secrets      the system keychain, holding the GitHub token
      * @param gitHub       signs the player in to GitHub
+     * @param publishing   publishes created packs
      */
     public Effects(Store store, PackRegistry registry, PackSessions sessions, ManifestService manifests,
                    ModCatalog catalog, DefinitionResolver createdPacks, PackEditor editor, SecretStore secrets,
-                   GitHubAuth gitHub, ModLoadService modLoadService,
+                   GitHubAuth gitHub, PackPublishing publishing, ModLoadService modLoadService,
                    InstanceFinder instances, Executor background, Path settingsFile, Clock clock, Runnable exit) {
         this.store = store;
         this.createdPacks = createdPacks;
         this.editor = editor;
         this.accounts = new AccountEffects(store, secrets, gitHub, background);
+        this.publishes = new PublishEffects(store, registry, publishing, background, this::reloadPacks);
         this.registry = registry;
         this.sessions = sessions;
         this.manifests = manifests;
@@ -98,6 +102,7 @@ public final class Effects {
     }
 
     private void run(UiAction action, UiState state) {
+        publishes.run(action, state);
         switch (action) {
             case UiAction.CheckPack a -> sessions.get(a.packId()).startUpdate();
             case UiAction.CheckAll a -> state.packs().values().stream()

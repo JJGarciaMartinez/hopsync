@@ -142,7 +142,7 @@ class PackRegistryTest {
             List.of(new PackDefinition.ModrinthMod("P7dR8mSH", "fabric-api", "abc123", "0.100.0")), List.of());
 
         registry.saveDefinition(pack.id(), edited);
-        registry.published(pack.id(), new PackSource.Publication("player/otro", URL));
+        registry.published(pack.id(), new PackSource.Publication("player/otro", URL, "abc"));
 
         Pack saved = registry.find(pack.id()).orElseThrow();
         assertEquals("Otro nombre", saved.name());

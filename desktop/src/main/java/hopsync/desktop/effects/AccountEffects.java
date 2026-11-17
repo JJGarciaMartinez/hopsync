@@ -23,7 +23,7 @@ import java.util.concurrent.Executor;
  * forgetting it. The token never reaches the UI state or the logs.
  */
 final class AccountEffects {
-    static final String TOKEN_KEY = "github.token";
+    static final String TOKEN_KEY = GitHubAuth.TOKEN_KEY;
     static final String LOGIN_KEY = "github.login";
     private static final System.Logger LOG = System.getLogger(AccountEffects.class.getName());
 
