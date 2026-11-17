@@ -69,13 +69,13 @@ public record PackUiState(String packId, String name, String manifestUrl, Path g
     }
 
     public static PackUiState of(Pack pack) {
-        return new PackUiState(pack.id(), pack.name(), pack.manifestUrl(), pack.gameDir(), PackPhase.UNCHECKED,
+        return new PackUiState(pack.id(), pack.name(), pack.link().orElse(""), pack.gameDir(), PackPhase.UNCHECKED,
             null, null, null, InstalledMods.NONE, Progress.NONE, Map.of(), Result.NONE, null, null);
     }
 
     /** Same pack with its link, folder and name taken from the registry. */
     PackUiState withPack(Pack pack) {
-        return new PackUiState(packId, pack.name(), pack.manifestUrl(), pack.gameDir(), phase, manifest,
+        return new PackUiState(packId, pack.name(), pack.link().orElse(""), pack.gameDir(), phase, manifest,
             manifestError, plan, installed, progress, rowStatus, result, error, lastChecked);
     }
 

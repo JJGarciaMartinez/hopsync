@@ -58,7 +58,7 @@ class LibraryStatusTest {
 
     @Test
     void copiesOfOnePackAddTheirFolder() {
-        Pack prism = new Pack("prism", DEMO.manifestUrl(),
+        Pack prism = new Pack("prism", DEMO.link().orElseThrow(),
             Path.of("/games/PrismLauncher/instances/Create 1.21/minecraft").toAbsolutePath(), "Demo");
         UiState state = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(DEMO, prism, OTHER), DEMO.id()));
 

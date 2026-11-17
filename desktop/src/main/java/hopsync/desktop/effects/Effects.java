@@ -6,6 +6,7 @@ import hopsync.core.failure.SyncFailures;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackRegistry;
+import hopsync.core.pack.PackSource;
 import hopsync.core.session.PackSessions;
 import hopsync.core.session.UpdateState;
 import hopsync.desktop.i18n.Messages;
@@ -96,8 +97,8 @@ public final class Effects {
                 .map(PackUiState::packInfo)
                 .filter(info -> info.serverIp() != null && !info.serverIp().isBlank())
                 .ifPresent(info -> copy(info.serverIp(), Messages.get("toast.ipCopied")));
-            case UiAction.CopyPackLink a -> registry.find(a.packId())
-                .ifPresent(pack -> copy(pack.manifestUrl(), Messages.get("toast.linkCopied")));
+            case UiAction.CopyPackLink a -> registry.find(a.packId()).flatMap(Pack::link)
+                .ifPresent(link -> copy(link, Messages.get("toast.linkCopied")));
             case UiAction.RemovePack a -> removePack(a.packId(), state);
             case UiAction.OpenModPage a -> openModPage(a.url());
             case UiAction.SyncEventReceived a when finishesUpdate(a.event()) -> {
@@ -169,11 +170,11 @@ public final class Effects {
         }
         String name = Optional.ofNullable(state.packs().get(packId)).map(PackUiState::displayName).orElse(packId);
         sessions.drop(packId);
-        Optional<String> link = registry.find(packId).map(Pack::manifestUrl);
+        Optional<String> link = registry.find(packId).flatMap(Pack::link);
         try {
             registry.remove(packId);
             // The cached manifest is HopSync's own file, unless another pack still uses the same link
-            link.filter(url -> registry.packs().stream().noneMatch(other -> other.manifestUrl().equals(url)))
+            link.filter(url -> registry.packs().stream().noneMatch(other -> other.link().filter(url::equals).isPresent()))
                 .ifPresent(manifests::forget);
             store.dispatch(new UiAction.ShowToast(Messages.get("toast.removed", name)));
         } catch (IOException e) {
@@ -214,17 +215,20 @@ public final class Effects {
 
     /** The cached manifest first, so the list shows right away, then the current one from the network. */
     private void loadManifest(String packId) {
-        registry.find(packId).ifPresent(pack -> background.execute(() -> {
-            manifests.cached(pack.manifestUrl())
+        Optional<Pack> found = registry.find(packId);
+        // A created pack's manifest comes from its definition, not from a link
+        if (found.isEmpty() || !(found.get().source() instanceof PackSource.Link(String url))) return;
+        background.execute(() -> {
+            manifests.cached(url)
                 .ifPresent(cached -> store.dispatch(new UiAction.ManifestLoaded(packId, cached)));
             try {
-                Manifest manifest = manifests.fetchManifest(pack.manifestUrl());
+                Manifest manifest = manifests.fetchManifest(url);
                 registry.rememberName(packId, manifest.pack().name());
                 store.dispatch(new UiAction.ManifestLoaded(packId, manifest));
             } catch (Exception e) {
                 store.dispatch(new UiAction.ManifestFailed(packId, SyncFailures.from(e, "")));
             }
-        }));
+        });
     }
 
     private void openModPage(String url) {

@@ -2,6 +2,7 @@ package hopsync.core.pack;
 
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.manifest.PackInfo;
 import hopsync.core.port.PackSettingsRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -10,9 +11,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,7 +27,8 @@ class PackRegistryTest {
     @TempDir
     Path dir;
     final InMemorySettings repository = new InMemorySettings();
-    final PackRegistry registry = new PackRegistry(repository);
+    final InMemoryDefinitions definitions = new InMemoryDefinitions();
+    final PackRegistry registry = new PackRegistry(repository, definitions);
 
     @Test
     void firstPackBecomesActiveAndEverythingIsSaved() throws IOException {
@@ -98,8 +102,58 @@ class PackRegistryTest {
     @Test
     void updatingAPackMayKeepItsOwnFolder() throws IOException {
         Pack pack = registry.add(URL, dir.resolve("a"));
-        registry.update(pack.withManifestUrl("https://example.org/other.json"));
-        assertEquals("https://example.org/other.json", registry.find(pack.id()).orElseThrow().manifestUrl());
+        registry.update(pack.withSource(new PackSource.Link("https://example.org/other.json")));
+        assertEquals(Optional.of("https://example.org/other.json"), registry.find(pack.id()).orElseThrow().link());
+    }
+
+    @Test
+    void createdPackKeepsItsDefinitionUntilAskedToDeleteIt() throws IOException {
+        PackDefinition definition = PackDefinition.empty(INFO);
+        Pack pack = registry.addLocal(definition, dir.resolve("mine"));
+
+        assertTrue(pack.isLocal());
+        assertEquals(Optional.empty(), pack.link(), "not published yet");
+        assertEquals("Mi pack", pack.name());
+        assertEquals(Optional.of(definition), registry.definition(pack.id()));
+
+        registry.remove(pack.id());
+        assertTrue(definitions.saved.containsKey(pack.id()), "removing a pack keeps its definition by default");
+
+        Pack again = registry.addLocal(definition, dir.resolve("mine"));
+        registry.remove(again.id(), true);
+        assertFalse(definitions.saved.containsKey(again.id()));
+    }
+
+    @Test
+    void savingADefinitionRenamesThePackAndPublishingGivesItALink() throws IOException {
+        Pack pack = registry.addLocal(PackDefinition.empty(INFO), dir.resolve("mine"));
+        PackInfo renamed = new PackInfo("Otro nombre", "1.0.0", "", null, "1.21.1", "fabric");
+        PackDefinition edited = new PackDefinition(renamed,
+            List.of(new PackDefinition.ModrinthMod("P7dR8mSH", "fabric-api", "abc123", "0.100.0")), List.of());
+
+        registry.saveDefinition(pack.id(), edited);
+        registry.published(pack.id(), new PackSource.Publication("player/otro", URL));
+
+        Pack saved = registry.find(pack.id()).orElseThrow();
+        assertEquals("Otro nombre", saved.name());
+        assertEquals(Optional.of(URL), saved.link());
+        assertEquals(Optional.of(edited), registry.definition(pack.id()));
+    }
+
+    @Test
+    void linkPacksHaveNoDefinition() throws IOException {
+        Pack pack = registry.add(URL, dir.resolve("a"));
+        assertEquals(Optional.empty(), registry.definition(pack.id()));
+        assertThrows(IllegalArgumentException.class, () -> registry.saveDefinition(pack.id(), PackDefinition.empty(INFO)));
+    }
+
+    @Test
+    void aCreatedPackCannotTakeAFolderInUse() throws IOException {
+        registry.add(URL, dir.resolve("a"));
+        SyncException e = assertThrows(SyncException.class,
+            () -> registry.addLocal(PackDefinition.empty(INFO), dir.resolve("a/inside")));
+        assertInstanceOf(SyncFailure.FolderUsedByPack.class, e.failure());
+        assertTrue(definitions.saved.isEmpty(), "nothing is kept for a pack that was not added");
     }
 
     @Test
@@ -130,6 +184,8 @@ class PackRegistryTest {
         SyncException e = assertThrows(SyncException.class, () -> registry.add(URL, folder));
         assertInstanceOf(SyncFailure.FolderUsedByPack.class, e.failure());
     }
+
+    static final PackInfo INFO = new PackInfo("Mi pack", "1.0.0", "", null, "1.21.1", "fabric");
 
     static final class InMemorySettings implements PackSettingsRepository {
         PackSettings saved = PackSettings.EMPTY;

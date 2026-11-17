@@ -2,6 +2,7 @@ package hopsync.platform.settings;
 
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackSettings;
+import hopsync.core.pack.PackSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -10,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,7 +27,10 @@ class SettingsStoreTest {
         SettingsStore store = new SettingsStore(dir.resolve("nested/settings.json"));
         Pack first = new Pack("a1", "https://example.org/manifest.json", dir.resolve("My Instance [1.21]"), "Demo");
         Pack second = new Pack("b2", "https://example.org/other.json", dir.resolve("other"), "");
-        PackSettings settings = new PackSettings(List.of(first, second), "b2", false, false, 6, true);
+        Pack created = new Pack("c3", new PackSource.Local(null), dir.resolve("mine"), "Mi pack");
+        Pack published = new Pack("d4", new PackSource.Local(new PackSource.Publication("player/pack",
+            "https://github.com/player/pack/releases/download/hopsync/manifest.json")), dir.resolve("pub"), "Pub");
+        PackSettings settings = new PackSettings(List.of(first, second, created, published), "b2", false, false, 6, true);
 
         store.save(settings);
 
@@ -51,7 +56,7 @@ class SettingsStoreTest {
     @Test
     void unknownFormatMeansNoSettings() throws IOException {
         Path file = dir.resolve("settings.json");
-        Files.writeString(file, "{\"format\": 3, \"packs\": []}");
+        Files.writeString(file, "{\"format\": 4, \"packs\": []}");
         assertEquals(PackSettings.EMPTY, new SettingsStore(file).load());
     }
 
@@ -84,11 +89,11 @@ class SettingsStoreTest {
 
         assertEquals(1, migrated.packs().size());
         Pack pack = migrated.packs().getFirst();
-        assertEquals("https://example.org/m.json", pack.manifestUrl());
+        assertEquals(Optional.of("https://example.org/m.json"), pack.link());
         assertEquals(instance.toAbsolutePath(), pack.gameDir());
         assertEquals(pack.id(), migrated.activeId());
-        assertEquals(v1, Files.readString(store.backupFile()));
-        // Saved in format 2 right away, so the id stays the same on the next start
+        assertEquals(v1, Files.readString(store.backupFile(1)));
+        // Saved in the current format right away, so the id stays the same on the next start
         assertEquals(migrated, new SettingsStore(file).load());
     }
 
@@ -96,12 +101,31 @@ class SettingsStoreTest {
     void backupIsNeverOverwritten() throws IOException {
         Path file = dir.resolve("settings.json");
         SettingsStore store = new SettingsStore(file);
-        Files.writeString(store.backupFile(), "original");
+        Files.writeString(store.backupFile(1), "original");
         Files.writeString(file, "{\"format\": 1, \"manifest_url\": \"https://example.org/m.json\", \"game_dir\": \"/x\"}");
 
         store.load();
 
-        assertEquals("original", Files.readString(store.backupFile()));
+        assertEquals("original", Files.readString(store.backupFile(1)));
+    }
+
+    @Test
+    void linkPacksFormatIsMigratedWithABackup() throws IOException {
+        Path file = dir.resolve("settings.json");
+        String v2 = "{\"format\": 2, \"active\": \"a\", \"reduce_motion\": true, \"packs\": [{\"id\": \"a\", "
+            + "\"manifest_url\": \"https://x/m.json\", \"game_dir\": \"" + jsonPath(dir.resolve("a")) + "\", \"name\": \"Demo\"}]}";
+        Files.writeString(file, v2);
+        SettingsStore store = new SettingsStore(file);
+
+        PackSettings migrated = store.load();
+
+        Pack pack = migrated.packs().getFirst();
+        assertEquals(new PackSource.Link("https://x/m.json"), pack.source());
+        assertEquals("Demo", pack.name());
+        assertTrue(migrated.reduceMotion());
+        assertEquals(v2, Files.readString(store.backupFile(2)));
+        assertTrue(Files.readString(file).contains("\"format\":3"));
+        assertEquals(migrated, new SettingsStore(file).load());
     }
 
     private static String jsonPath(Path path) {
