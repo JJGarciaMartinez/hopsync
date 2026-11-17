@@ -137,9 +137,10 @@ public class PackRegistry {
     }
 
     /** Saves the app-wide preferences; the number of parallel downloads is kept within 1–8. */
-    public synchronized void updatePreferences(boolean checkOnStart, boolean chainQueue, int parallelDownloads)
-            throws IOException {
-        save(new PackSettings(settings.packs(), settings.activeId(), checkOnStart, chainQueue, parallelDownloads));
+    public synchronized void updatePreferences(boolean checkOnStart, boolean chainQueue, int parallelDownloads,
+                                               boolean reduceMotion) throws IOException {
+        save(new PackSettings(settings.packs(), settings.activeId(), checkOnStart, chainQueue, parallelDownloads,
+            reduceMotion));
     }
 
     private void checkFolderIsFree(Pack candidate) throws SyncException {

@@ -48,7 +48,7 @@ public record LibraryStatus(StatusMark.Kind mark, int percent, String text) {
     public static LibraryStatus of(PackUiState pack) {
         return switch (pack.phase()) {
             case UNCHECKED -> new LibraryStatus(StatusMark.Kind.IDLE, 0, Messages.get("library.status.unchecked"));
-            case CHECKING -> new LibraryStatus(StatusMark.Kind.SPINNER, 0, Messages.get("library.status.checking"));
+            case CHECKING -> new LibraryStatus(StatusMark.Kind.WORKING, 0, Messages.get("library.status.checking"));
             case REVIEW -> new LibraryStatus(StatusMark.Kind.WARN, 0,
                 Messages.get("library.status.review", PlanSummary.of(pack.plan()).changes()));
             case QUEUED -> new LibraryStatus(StatusMark.Kind.QUEUED, 0, Messages.get("library.status.queued"));

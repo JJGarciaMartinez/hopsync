@@ -23,7 +23,7 @@ import java.awt.geom.RoundRectangle2D;
 public final class Icons {
 
     public enum Glyph {
-        CHECK, PLUS, UP, MINUS, X, WARN, SPINNER, PENDING, GEAR, FOLDER, COPY, SEARCH, REFRESH, CLOCK,
+        CHECK, PLUS, UP, MINUS, X, WARN, PENDING, GEAR, FOLDER, COPY, SEARCH, REFRESH, CLOCK,
         SHIELD, USER, FILE, MORE, CHEVRON, CHEVRON_DOWN, EXTERNAL, TRASH
     }
 
@@ -91,7 +91,6 @@ public final class Icons {
             case MINUS -> new Shape[] {line(3, 8, 13, 8)};
             case X -> new Shape[] {line(4, 4, 12, 12), line(12, 4, 4, 12)};
             case WARN -> new Shape[] {closed(8, 2.5, 14, 13, 2, 13), line(8, 6.5, 8, 9)};
-            case SPINNER -> new Shape[] {new Arc2D.Double(2.5, 2.5, 11, 11, 90, 270, Arc2D.OPEN)};
             case PENDING -> new Shape[] {circle(8, 8, 5.5), polyline(8, 5, 8, 8)};
             case GEAR -> gear();
             case FOLDER -> new Shape[] {closed(2, 4, 6, 4, 7.5, 5.5, 14, 5.5, 14, 12.5, 2, 12.5)};

@@ -128,7 +128,7 @@ class ModRowModelTest {
             new SyncEvent.ModRemoved(D, "gone.jar")));
 
         assertEquals(ModRow.Look.CURRENT, mod(model, "new.jar").look());
-        assertEquals(Glyph.SPINNER, mod(model, "new.jar").icon());
+        assertEquals(Glyph.PLUS, mod(model, "new.jar").icon(), "a still icon, the bar shows the progress");
         assertEquals(ModRow.Look.ERROR, mod(model, "upd.jar").look());
         assertEquals(Messages.failure(locked), mod(model, "upd.jar").author(), "the reason replaces the author");
         assertEquals(Messages.get("mods.status.removed"), mod(model, "gone.jar").tag().text());

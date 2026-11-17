@@ -41,6 +41,7 @@ public final class AppSettingsView extends JPanel {
     private final SegmentedControl<Section> sections;
     private final JCheckBox checkOnStart = new JCheckBox(Messages.get("sheet.app.checkOnStart"));
     private final JCheckBox chainQueue = new JCheckBox(Messages.get("sheet.app.chainQueue"));
+    private final JCheckBox reduceMotion = new JCheckBox(Messages.get("sheet.app.reduceMotion"));
     private final JSpinner parallel = new JSpinner(new SpinnerNumberModel(Preferences.DEFAULT.parallelDownloads(),
         PackSettings.MIN_PARALLEL_DOWNLOADS, PackSettings.MAX_PARALLEL_DOWNLOADS, 1));
     private final JPanel general = SheetParts.column();
@@ -64,6 +65,7 @@ public final class AppSettingsView extends JPanel {
 
         checkOnStart.addActionListener(e -> changed());
         chainQueue.addActionListener(e -> changed());
+        reduceMotion.addActionListener(e -> changed());
         parallel.addChangeListener(e -> changed());
         parallel.getAccessibleContext().setAccessibleName(Messages.get("sheet.app.parallel"));
         JPanel parallelRow = new JPanel(new BorderLayout(UIScale.scale(12), 0));
@@ -74,6 +76,7 @@ public final class AppSettingsView extends JPanel {
         SheetParts.stack(general, 14, option(chainQueue, "sheet.app.chainQueueHint"));
         SheetParts.stack(general, 14, parallelRow);
         SheetParts.stack(general, 4, SheetParts.hint(Messages.get("sheet.app.parallelHint")));
+        SheetParts.stack(general, 14, option(reduceMotion, "sheet.app.reduceMotionHint"));
 
         JButton copy = SheetParts.button("sheet.app.copyDiagnostics", ButtonStyle.SECONDARY, dispatch,
             new UiAction.CopyDiagnostics());
@@ -96,6 +99,7 @@ public final class AppSettingsView extends JPanel {
             sections.setSelected(sheet.section());
             checkOnStart.setSelected(sheet.draft().checkOnStart());
             chainQueue.setSelected(sheet.draft().chainQueue());
+            reduceMotion.setSelected(sheet.draft().reduceMotion());
             parallel.setValue(sheet.draft().parallelDownloads());
         } finally {
             rendering = false;
@@ -118,7 +122,7 @@ public final class AppSettingsView extends JPanel {
     private void changed() {
         if (rendering) return;
         dispatch.accept(new UiAction.SetPreferences(new Preferences(checkOnStart.isSelected(),
-            chainQueue.isSelected(), (Integer) parallel.getValue())));
+            chainQueue.isSelected(), (Integer) parallel.getValue(), reduceMotion.isSelected())));
     }
 
     private static JComponent option(JCheckBox box, String hintKey) {

@@ -148,7 +148,9 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
         String size = PlanSummary.formatBytes(mod.size());
         String author = mod.author() == null ? "" : mod.author();
         return switch (pack.rowStatus().get(mod.file())) {
-            case RowStatus.Downloading s -> new ModRow.Mod(mod.file(), Glyph.SPINNER, ModRow.IconTone.MINE, mod.name(),
+            // A still icon: the row's own bar shows the progress, the only animation is in the pack header
+            case RowStatus.Downloading s -> new ModRow.Mod(mod.file(), change == ModChange.UPDATE ? Glyph.UP : Glyph.PLUS,
+                ModRow.IconTone.MINE, mod.name(),
                 version, oldVersion, author, size, null, s.percent(), null, ModRow.Look.CURRENT, true);
             case RowStatus.Done s -> row(mod, Glyph.CHECK, ModRow.IconTone.MINE, version, oldVersion, author, size,
                 tag(change == ModChange.UPDATE ? "mods.status.updated" : "mods.status.installed", Tone.MINE),

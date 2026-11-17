@@ -11,13 +11,14 @@ import java.util.Optional;
  * @param checkOnStart      check every pack in the background when the app starts
  * @param chainQueue        keep applying queued packs after the running one is cancelled
  * @param parallelDownloads files downloaded at the same time, 1–8
+ * @param reduceMotion      keep the animated mark still, for players sensitive to motion
  */
 public record PackSettings(List<Pack> packs, String activeId, boolean checkOnStart, boolean chainQueue,
-                           int parallelDownloads) {
+                           int parallelDownloads, boolean reduceMotion) {
 
     public static final int MIN_PARALLEL_DOWNLOADS = 1;
     public static final int MAX_PARALLEL_DOWNLOADS = 8;
-    public static final PackSettings EMPTY = new PackSettings(List.of(), null, true, true, 4);
+    public static final PackSettings EMPTY = new PackSettings(List.of(), null, true, true, 4, false);
 
     public PackSettings {
         packs = List.copyOf(packs);
@@ -37,6 +38,6 @@ public record PackSettings(List<Pack> packs, String activeId, boolean checkOnSta
     }
 
     public PackSettings withPacks(List<Pack> newPacks, String newActiveId) {
-        return new PackSettings(newPacks, newActiveId, checkOnStart, chainQueue, parallelDownloads);
+        return new PackSettings(newPacks, newActiveId, checkOnStart, chainQueue, parallelDownloads, reduceMotion);
     }
 }

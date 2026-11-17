@@ -15,6 +15,7 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.ListCellRenderer;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -68,13 +69,15 @@ final class PackCell extends JPanel implements ListCellRenderer<PackUiState> {
     public Component getListCellRendererComponent(JList<? extends PackUiState> list, PackUiState pack, int index,
                                                   boolean isSelected, boolean cellHasFocus) {
         LibraryStatus line = LibraryStatus.of(pack);
-        tile.setIcon(MarkTile.library(LogoIcon.onDark()));
+        // The badge is the mark's silhouette in the state's color; still, the pack header is where it moves
+        Color tone = StatusMark.colorOf(line.mark());
+        tile.setIcon(MarkTile.library(LogoIcon.oneInk(tone)));
         String shownName = names.getOrDefault(pack.packId(), pack.displayName());
         name.setText(shownName);
         name.setToolTipText(pack.gameDir().toString());
         name.setForeground(Palette.text());
         status.setText(line.text());
-        status.setIcon(line.mark() == StatusMark.Kind.PROGRESS ? StatusMark.progress(line.percent()) : StatusMark.of(line.mark()));
+        status.setForeground(tone);
         selected = isSelected;
         hovered = index == hoverIndex;
         getAccessibleContext().setAccessibleName(shownName + ", " + line.text());

@@ -31,7 +31,7 @@ class LibraryStatusTest {
     @Test
     void everyPhaseHasAMarkAndAText() {
         assertEquals(new LibraryStatus(StatusMark.Kind.IDLE, 0, Messages.get("library.status.unchecked")), status(loaded()));
-        assertEquals(StatusMark.Kind.SPINNER, status(reduce(loaded(), new SyncEvent.UpdateStarted(D))).mark());
+        assertEquals(StatusMark.Kind.WORKING, status(reduce(loaded(), new SyncEvent.UpdateStarted(D))).mark());
         assertEquals(new LibraryStatus(StatusMark.Kind.WARN, 0, Messages.get("library.status.review", 3)),
             status(reduce(loaded(), new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()))));
         assertEquals(StatusMark.Kind.OK,
