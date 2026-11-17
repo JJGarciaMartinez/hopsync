@@ -30,6 +30,7 @@ core/        Domain: manifest model and parser, sync planner and executor, pack 
 platform/    Adapters: HTTP downloads, manifest fetching and cache, settings, game folder and instance detection
 desktop/     Swing app (FlatLaf): store, reducer and effects, screens, theme kit, Main and packaging tasks
 packaging/   Installer icons and the launchers of the portable ZIP
+brand/       Brand sheet (BRAND.md), tokens.json and the mark, app icon, logotype and pattern as SVG and PNG
 ```
 
 ## Development
@@ -44,6 +45,13 @@ Java 21 and the Gradle wrapper (`gradlew.bat` on Windows).
 
 Packaging and versioning are Gradle tasks too; see [BUILD_GUIDE.md](BUILD_GUIDE.md) and
 [VERSION_GUIDE.md](VERSION_GUIDE.md). Branches and pull requests follow [BRANCHING.md](BRANCHING.md).
+
+## Brand
+
+The identity (mark "Tu caja", palette Tinta, turquesa y coral, type, the three heights, voice) is documented in
+[brand/BRAND.md](brand/BRAND.md), with its tokens and assets next to it. They are generated from the app's own
+theme and drawing code (`./gradlew brandAssets`), so no color, font or icon is added to the app outside
+`HopSyncDark.properties` and `kit/Palette`.
 
 ## Requirements
 
