@@ -2,7 +2,8 @@ package hopsync.desktop.screens.library;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.util.UIScale;
-import hopsync.desktop.kit.BlockTile;
+import hopsync.desktop.kit.LogoIcon;
+import hopsync.desktop.kit.MarkTile;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.StatusMark;
 import hopsync.desktop.store.PackUiState;
@@ -23,7 +24,7 @@ import java.awt.RenderingHints;
 import java.util.Map;
 
 /**
- * One pack in the library: block tile, name and status line. The selected pack is raised like a pressed
+ * One pack in the library: mark tile, name and status line. The selected pack is raised like a pressed
  * key; the pack under the mouse gets a faint background.
  */
 final class PackCell extends JPanel implements ListCellRenderer<PackUiState> {
@@ -68,7 +69,7 @@ final class PackCell extends JPanel implements ListCellRenderer<PackUiState> {
     public Component getListCellRendererComponent(JList<? extends PackUiState> list, PackUiState pack, int index,
                                                   boolean isSelected, boolean cellHasFocus) {
         LibraryStatus line = LibraryStatus.of(pack);
-        tile.setIcon(BlockTile.forPack(pack.packId(), 34));
+        tile.setIcon(MarkTile.library(LogoIcon.onDark()));
         String shownName = names.getOrDefault(pack.packId(), pack.displayName());
         name.setText(shownName);
         name.setToolTipText(pack.gameDir().toString());

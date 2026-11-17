@@ -4,8 +4,8 @@ import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.util.UIScale;
 import hopsync.core.manifest.PackInfo;
 import hopsync.desktop.i18n.Messages;
-import hopsync.desktop.kit.BlockTile;
 import hopsync.desktop.kit.ButtonStyle;
+import hopsync.desktop.kit.MarkTile;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.screens.pack.PlanSummary;
 import hopsync.desktop.store.LinkCheck;
@@ -158,7 +158,7 @@ final class LinkField extends JPanel {
         card.setBackground(Palette.raised());
         card.putClientProperty(FlatClientProperties.STYLE, "arc: 10");
         card.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
-        card.add(new JLabel(BlockTile.forPack(valid.url(), 44)), BorderLayout.WEST);
+        card.add(new JLabel(MarkTile.link()), BorderLayout.WEST);
         card.add(text, BorderLayout.CENTER);
         return card;
     }

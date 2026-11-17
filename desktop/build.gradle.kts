@@ -96,6 +96,16 @@ tasks.register<Exec>("jpackage") {
     }
 }
 
+// Installer icons are drawn by LogoIcon at each exact size; regenerate them after changing the mark
+tasks.register<JavaExec>("brandIcons") {
+    group = "distribution"
+    description = "Writes packaging/icon.png, icon.ico and icon.icns from the HopSync mark."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("hopsync.desktop.kit.IconExport")
+    jvmArgs("-Djava.awt.headless=true")
+    args(packagingDir.asFile.path)
+}
+
 tasks.register<Zip>("portableZip") {
     group = "distribution"
     description = "Packs the JAR with double-click launchers into desktop/build/distributions, for Java 21 users."
