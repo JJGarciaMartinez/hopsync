@@ -5,6 +5,7 @@ import com.formdev.flatlaf.ui.FlatLineBorder;
 import com.formdev.flatlaf.util.UIScale;
 import hopsync.core.manifest.PackInfo;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.i18n.RelativeTime;
 import hopsync.desktop.kit.ButtonStyle;
 import hopsync.desktop.kit.Fonts;
 import hopsync.desktop.kit.Icons;
@@ -24,6 +25,7 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.Timer;
 import javax.swing.JProgressBar;
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -31,6 +33,7 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Insets;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -78,6 +81,12 @@ public final class PackHero extends JPanel {
     private final JLabel currentFile = new JLabel();
     private String packId;
     private HeroModel shown;
+    private PackUiState lastPack;
+    private UiState lastState;
+    /** "comprobado hace 5 min" ages while nothing else changes, so the header re-reads it now and then. */
+    private final Timer ageing = new Timer(RelativeTime.REFRESH_MS, e -> {
+        if (lastPack != null && isShowing()) render(lastPack, lastState);
+    });
 
     public PackHero(Consumer<UiAction> dispatch, ZoneId zone) {
         super(new BorderLayout(UIScale.scale(16), 0));
@@ -192,7 +201,21 @@ public final class PackHero extends JPanel {
         return actions;
     }
 
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        ageing.start();
+    }
+
+    @Override
+    public void removeNotify() {
+        ageing.stop();
+        super.removeNotify();
+    }
+
     public void render(PackUiState pack, UiState state) {
+        lastPack = pack;
+        lastState = state;
         packId = pack.packId();
         PackInfo info = pack.packInfo();
         tile.setIcon(MarkTile.header());
@@ -206,7 +229,7 @@ public final class PackHero extends JPanel {
         serverIp.setText(hasIp ? info.serverIp() : "");
         menu.setPack(pack);
 
-        HeroModel model = HeroModel.of(pack, state, zone);
+        HeroModel model = HeroModel.of(pack, state, zone, Instant.now());
         if (!sameLayout(shown, model)) {
             rebuild(model);
         }

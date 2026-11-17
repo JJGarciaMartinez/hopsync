@@ -3,6 +3,7 @@ package hopsync.desktop.screens.pack;
 import hopsync.core.manifest.PackInfo;
 import hopsync.core.sync.SyncPlan;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.i18n.RelativeTime;
 import hopsync.desktop.kit.ButtonStyle;
 import hopsync.desktop.kit.Icons.Glyph;
 import hopsync.desktop.kit.StatusMark;
@@ -14,8 +15,8 @@ import hopsync.desktop.store.RowStatus;
 import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
 
+import java.time.Instant;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -46,9 +47,8 @@ public record HeroModel(StatusMark.Kind mark, String title, String detail, List<
     public record Action(String label, Glyph icon, UiAction action, ButtonStyle style) {
     }
 
-    private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
 
-    public static HeroModel of(PackUiState pack, UiState state, ZoneId zone) {
+    public static HeroModel of(PackUiState pack, UiState state, ZoneId zone, Instant now) {
         String id = pack.packId();
         Action checkAgain = new Action(Messages.get("hero.checkAgain"), Glyph.REFRESH, new UiAction.CheckPack(id),
             ButtonStyle.SECONDARY);
@@ -88,7 +88,7 @@ public record HeroModel(StatusMark.Kind mark, String title, String detail, List<
                 applying(pack));
             case UP_TO_DATE -> new HeroModel(StatusMark.Kind.OK, Messages.get("hero.state.upToDate"),
                 pack.lastChecked() == null ? null
-                    : Messages.get("hero.detail.checkedAt", TIME.withZone(zone).format(pack.lastChecked())),
+                    : Messages.get("hero.detail.checkedAt", RelativeTime.ago(pack.lastChecked(), now, zone)),
                 List.of(), List.of(checkAgain), null);
             case DONE -> new HeroModel(StatusMark.Kind.OK, Messages.get("hero.state.upToDate"),
                 Messages.get("hero.detail.applied", pack.result().succeeded()), List.of(), List.of(checkAgain), null);
