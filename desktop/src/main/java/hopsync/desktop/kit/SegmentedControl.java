@@ -25,7 +25,7 @@ import java.util.function.Consumer;
  * A choice between a few options: a sunken track (you choose here) with the chosen segment raised.
  */
 public final class SegmentedControl<T> extends JPanel {
-    private static final int ARC = 9;
+    private static final int ARC = 20;
 
     private final Map<T, JToggleButton> segments = new LinkedHashMap<>();
     private final ButtonGroup group = new ButtonGroup();
@@ -122,7 +122,7 @@ public final class SegmentedControl<T> extends JPanel {
             Graphics2D g2 = (Graphics2D) g.create();
             try {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int arc = UIScale.scale(6);
+                int arc = UIScale.scale(14);
                 int w = getWidth();
                 int h = getHeight();
                 if (isSelected()) {

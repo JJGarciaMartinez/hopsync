@@ -131,7 +131,7 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
         rows.add(new ModRow.Detail(row.key(),
             mod.description() == null || mod.description().isBlank()
                 ? Messages.get("mods.detail.noDescription") : mod.description(),
-            mod.file(), mod.version(), PlanSummary.formatBytes(mod.size()),
+            mod.file(), mod.author(),
             url == null ? null : Messages.get(mod.source() == ModSource.MODRINTH
                 ? "mods.detail.modrinth" : "mods.detail.repository"),
             url));

@@ -23,6 +23,7 @@ final class PackMenu extends JPopupMenu {
     PackMenu(Consumer<UiAction> dispatch) {
         check = item("menu.check", Icons.Glyph.REFRESH, () -> dispatch.accept(forPack(UiAction.CheckPack::new)));
         add(check);
+        add(item("menu.checkAll", Icons.Glyph.REFRESH, () -> dispatch.accept(new UiAction.CheckAll())));
         add(item("menu.openFolder", Icons.Glyph.FOLDER, () -> dispatch.accept(forPack(UiAction.OpenFolder::new))));
         add(item("menu.copyLink", Icons.Glyph.COPY, () -> dispatch.accept(forPack(UiAction.CopyPackLink::new))));
         settings = item("menu.settings", Icons.Glyph.GEAR, () -> dispatch.accept(new UiAction.OpenSettings()));

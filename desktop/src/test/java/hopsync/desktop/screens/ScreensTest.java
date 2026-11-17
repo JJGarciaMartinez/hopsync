@@ -3,6 +3,7 @@ package hopsync.desktop.screens;
 import com.formdev.flatlaf.util.UIScale;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.pack.Pack;
 import hopsync.desktop.kit.HopSyncDark;
 import hopsync.desktop.screens.library.PackLibrary;
 import hopsync.desktop.screens.mods.ModsPanel;
@@ -163,6 +164,23 @@ class ScreensTest {
         PackLibrary library = new PackLibrary(dispatched::add);
         library.render(UiState.INITIAL);
         paint(library, 214, 560);
+    }
+
+    @Test
+    void librarySearchRendersMatchesAndNoMatch() {
+        List<Pack> six = new ArrayList<>();
+        for (int i = 0; i < UiState.PACK_SEARCH_FROM; i++) {
+            six.add(new Pack("p" + i, "https://example.org/p" + i + ".json", Path.of("/games/p" + i).toAbsolutePath(),
+                "Pack " + i));
+        }
+        UiState many = reduce(UiState.INITIAL, new UiAction.PacksLoaded(six, "p0"));
+        PackLibrary library = new PackLibrary(dispatched::add);
+        for (UiState state : List.of(many, reduce(many, new UiAction.SetPackQuery("pack 3")),
+                reduce(many, new UiAction.SetPackQuery("zzz")))) {
+            library.render(state);
+            paint(library, 232, 560);
+        }
+        assertTrue(dispatched.isEmpty(), "rendering never dispatches, not even the search text: " + dispatched);
     }
 
     /** Every sheet in every state it can be in, as the store would leave it. */

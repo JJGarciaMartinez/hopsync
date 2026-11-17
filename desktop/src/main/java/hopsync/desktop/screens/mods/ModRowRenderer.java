@@ -41,7 +41,7 @@ import java.util.Locale;
  * status tag and chevron; the name takes the remaining width.
  */
 final class ModRowRenderer implements ListCellRenderer<ModRow> {
-    static final int ROW_HEIGHT = 34;
+    static final int ROW_HEIGHT = 36;
 
     private final ModLine mod = new ModLine();
     private final DetailLine detail = new DetailLine();
@@ -55,7 +55,7 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
     ModRowRenderer() {
         group.putClientProperty(FlatClientProperties.STYLE, "font: semibold -2");
         group.setForeground(Palette.textSecondary());
-        group.setBorder(BorderFactory.createEmptyBorder(12, 20, 4, 20));
+        group.setBorder(BorderFactory.createEmptyBorder(14, 22, 5, 22));
         more.setForeground(Palette.textSecondary());
         more.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
         message.setForeground(Palette.textSecondary());
@@ -158,12 +158,11 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
         return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
-    /** A 34 px mod row with fixed columns. */
+    /** A 36 px mod row with fixed columns. */
     private static final class ModLine extends JPanel {
         private final JLabel icon = new JLabel();
         private final JLabel name = new JLabel();
         private final JLabel version = new JLabel();
-        private final JLabel author = new JLabel();
         private final JLabel size = new JLabel();
         private final JPanel status = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         private final StatusTag tag = new StatusTag("", StatusTag.Tone.NEUTRAL);
@@ -179,7 +178,6 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
             name.setFont(Fonts.medium(name.getFont()));
             version.setForeground(Palette.textSecondary());
             version.setFont(new Font(Fonts.MONO_FAMILY, Font.PLAIN, Math.round(UIScale.scale(11.5f))));
-            author.setForeground(Palette.textFaint());
             size.setForeground(Palette.textFaint());
             size.setHorizontalAlignment(JLabel.RIGHT);
             status.setOpaque(false);
@@ -187,21 +185,22 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
             status.add(tag);
             status.add(bar);
             status.add(retry);
-            for (JComponent part : new JComponent[] {icon, name, version, author, size, status, chevron}) {
+            for (JComponent part : new JComponent[] {icon, name, version, size, status, chevron}) {
                 add(part);
             }
         }
 
         ModLine show(ModRow.Mod row, boolean hovered, boolean expanded) {
             icon.setIcon(Icons.get(row.icon(), 16, toneColor(row.iconTone())));
-            name.setText(row.name());
+            // A failed row keeps its reason next to the name, where the eye already is
+            boolean failed = row.look() == ModRow.Look.ERROR && row.author() != null && !row.author().isBlank();
+            name.setText(failed ? "<html>" + escape(row.name()) + "&nbsp;&nbsp;<span style='color:"
+                + hex(Palette.error()) + "'>" + escape(row.author()) + "</span></html>" : row.name());
             name.setForeground(Palette.text());
-            name.setToolTipText(row.name());
+            name.setToolTipText(failed ? row.name() + " · " + row.author() : row.name());
             version.setText(row.oldVersion() == null ? row.version()
                 : "<html><span style='color:" + hex(Palette.textFaint()) + "'>" + escape(row.oldVersion())
                     + "</span> → " + escape(row.version()) + "</html>");
-            author.setText(row.author());
-            author.setForeground(row.look() == ModRow.Look.ERROR ? Palette.error() : Palette.textFaint());
             size.setText(row.size());
             tag.setVisible(row.tag() != null && row.progress() == null);
             if (row.tag() != null) {
@@ -235,7 +234,7 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
 
         @Override
         public Dimension getPreferredSize() {
-            return new Dimension(UIScale.scale(60), UIScale.scale(6));
+            return new Dimension(UIScale.scale(64), UIScale.scale(5));
         }
 
         @Override
@@ -255,15 +254,15 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
     }
 
     /**
-     * Lays out icon 18 · name (rest) · version 128 · author 104 · size 72 · status 96 · chevron 14. Size and
-     * status grow when their content needs it (a long config tag), taking the room from the name.
+     * Lays out icon 18 · name (rest) · version 150 · size 70 · status 104 · chevron 14. Size and status grow
+     * when their content needs it (a long config tag), taking the room from the name.
      */
     private static final class Columns implements LayoutManager {
-        private static final int[] FIXED = {18, 0, 128, 104, 72, 96, 14};
-        private static final boolean[] GROWS = {false, false, false, false, true, true, false};
-        private static final int GAP = 10;
-        private static final int LEFT = 20;
-        private static final int RIGHT = 14;
+        private static final int[] FIXED = {18, 0, 150, 70, 104, 14};
+        private static final boolean[] GROWS = {false, false, false, true, true, false};
+        private static final int GAP = 12;
+        private static final int LEFT = 22;
+        private static final int RIGHT = 16;
 
         @Override
         public void layoutContainer(Container parent) {
@@ -321,7 +320,7 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
             setBackground(Palette.rowDetail());
             setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, Palette.line()),
-                BorderFactory.createEmptyBorder(10, 48, 14, 20)));
+                BorderFactory.createEmptyBorder(10, 52, 14, 22)));
             description.setForeground(Palette.text());
             facts.setForeground(Palette.textFaint());
             facts.putClientProperty(FlatClientProperties.STYLE, "font: -1");
@@ -344,16 +343,17 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
 
         DetailLine show(ModRow.Detail row, boolean hovered) {
             description.setText("<html>" + escape(row.description()) + "</html>");
-            facts.setText("<html>" + fact("mods.detail.file", row.file()) + "&nbsp;&nbsp;&nbsp;&nbsp;"
-                + fact("mods.detail.version", row.version()) + "&nbsp;&nbsp;&nbsp;&nbsp;"
-                + fact("mods.detail.size", row.size()) + "</html>");
+            facts.setText("<html>" + fact("mods.detail.file", row.file())
+                + (row.author() == null || row.author().isBlank() ? ""
+                    : "&nbsp;&nbsp;&nbsp;&nbsp;" + fact("mods.detail.author", row.author())) + "</html>");
             link.setVisible(row.url() != null);
             link.setText(row.linkLabel() == null ? "" : "<html><u>" + escape(row.linkLabel()) + "</u></html>");
             return this;
         }
 
         private static String fact(String key, String value) {
-            return escape(Messages.get(key)) + " <span style='color:"
+            // Values in mono, as in the design: they are file names and handles, not prose
+            return escape(Messages.get(key)) + " <span style='font-family:" + Fonts.MONO_FAMILY + ";color:"
                 + hex(Palette.textSecondary()) + "'>" + escape(value) + "</span>";
         }
     }

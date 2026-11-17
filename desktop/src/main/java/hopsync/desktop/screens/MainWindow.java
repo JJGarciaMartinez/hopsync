@@ -17,10 +17,16 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
+import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GridBagLayout;
+import java.awt.RadialGradientPaint;
+import java.awt.RenderingHints;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.geom.Ellipse2D;
 import java.nio.file.Path;
 import java.time.ZoneId;
 import java.util.Optional;
@@ -71,7 +77,13 @@ public final class MainWindow extends JFrame {
         JPanel main = new JPanel(new BorderLayout());
         main.add(library, BorderLayout.WEST);
         main.add(packArea, BorderLayout.CENTER);
-        JPanel onboarding = new JPanel(new GridBagLayout());
+        JPanel onboarding = new JPanel(new GridBagLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                paintHalos((Graphics2D) g, getWidth(), getHeight());
+            }
+        };
         onboarding.setBackground(Palette.background());
         onboarding.add(sheets.firstRunWizard());
         body.add(onboarding, ONBOARDING);
@@ -85,7 +97,7 @@ public final class MainWindow extends JFrame {
         toast = new Toast(getLayeredPane());
 
         setMinimumSize(new Dimension(UIScale.scale(820), UIScale.scale(540)));
-        setSize(UIScale.scale(960), UIScale.scale(620));
+        setSize(UIScale.scale(1040), UIScale.scale(660));
         setLocationRelativeTo(null);
     }
 
@@ -122,5 +134,31 @@ public final class MainWindow extends JFrame {
         statusBar.render(pack);
         toast.render(state.toast());
         sheets.render(state);
+    }
+
+    /** Two soft halos behind the welcome card: turquoise from the top (yours), coral from the bottom (what arrives). */
+    private static void paintHalos(Graphics2D g, int width, int height) {
+        Graphics2D g2 = (Graphics2D) g.create();
+        try {
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            halo(g2, width / 2f, 0, UIScale.scale(640f), UIScale.scale(320f), Palette.mine(), 0.08f);
+            halo(g2, width / 2f, height, UIScale.scale(520f), UIScale.scale(260f), Palette.action(), 0.06f);
+        } finally {
+            g2.dispose();
+        }
+    }
+
+    private static void halo(Graphics2D g, float cx, float cy, float w, float h, Color color, float alpha) {
+        Color inner = new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.round(alpha * 255));
+        Color outer = new Color(color.getRed(), color.getGreen(), color.getBlue(), 0);
+        Graphics2D g2 = (Graphics2D) g.create();
+        try {
+            g2.translate(cx, cy);
+            g2.scale(w / h, 1);
+            g2.setPaint(new RadialGradientPaint(0, 0, h * 0.7f, new float[] {0, 1}, new Color[] {inner, outer}));
+            g2.fill(new Ellipse2D.Float(-h, -h, h * 2, h * 2));
+        } finally {
+            g2.dispose();
+        }
     }
 }

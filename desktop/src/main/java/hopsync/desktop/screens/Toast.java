@@ -2,7 +2,7 @@ package hopsync.desktop.screens;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.util.UIScale;
-import hopsync.desktop.kit.Icons;
+import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.store.UiState;
 
@@ -20,7 +20,7 @@ import java.awt.RenderingHints;
  * itself after {@value #VISIBLE_MS} ms.
  */
 final class Toast extends JLabel {
-    private static final int VISIBLE_MS = 1700;
+    private static final int VISIBLE_MS = 2600;
 
     private final JLayeredPane layer;
     private final Timer hide = new Timer(VISIBLE_MS, e -> setVisible(false));
@@ -33,8 +33,8 @@ final class Toast extends JLabel {
         setVisible(false);
         setForeground(Palette.background());
         putClientProperty(FlatClientProperties.STYLE, "font: semibold");
-        setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
-        setIconTextGap(UIScale.scale(8));
+        setBorder(BorderFactory.createEmptyBorder(9, 14, 9, 14));
+        setIconTextGap(UIScale.scale(9));
         layer.add(this, JLayeredPane.POPUP_LAYER);
     }
 
@@ -42,7 +42,7 @@ final class Toast extends JLabel {
         if (toast == null || toast.id() == shownId) return;
         shownId = toast.id();
         setText(toast.text());
-        setIcon(Icons.get(Icons.Glyph.CHECK, 14, Palette.background()));
+        setIcon(new LogoIcon(16, new LogoIcon.Colors(Palette.background(), Palette.printMine(), Palette.printAction())));
         Dimension size = getPreferredSize();
         setBounds((layer.getWidth() - size.width) / 2, layer.getHeight() - size.height - UIScale.scale(44),
             size.width, size.height);
@@ -55,8 +55,8 @@ final class Toast extends JLabel {
         Graphics2D g2 = (Graphics2D) g.create();
         try {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(Palette.text());
-            int arc = UIScale.scale(8);
+            g2.setColor(Palette.brand());
+            int arc = UIScale.scale(20);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
         } finally {
             g2.dispose();

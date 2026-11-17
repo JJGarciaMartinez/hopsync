@@ -87,7 +87,7 @@ final class PackCell extends JPanel implements ListCellRenderer<PackUiState> {
             Graphics2D g2 = (Graphics2D) g.create();
             try {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int arc = UIScale.scale(10);
+                int arc = UIScale.scale(20);
                 int inset = UIScale.scale(2);
                 int w = getWidth() - 1;
                 int h = getHeight() - inset * 2;
