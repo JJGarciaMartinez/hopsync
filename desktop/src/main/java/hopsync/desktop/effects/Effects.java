@@ -116,7 +116,8 @@ public final class Effects {
         Optional<Pack> active = registry.active();
         var settings = registry.settings();
         store.dispatch(new UiAction.PacksLoaded(registry.packs(), active.map(Pack::id).orElse(null),
-            new Preferences(settings.checkOnStart(), settings.chainQueue(), settings.parallelDownloads())));
+            new Preferences(settings.checkOnStart(), settings.chainQueue(), settings.parallelDownloads(),
+                settings.reduceMotion())));
         active.ifPresent(pack -> {
             loadInstalled(pack.id());
             loadManifest(pack.id());

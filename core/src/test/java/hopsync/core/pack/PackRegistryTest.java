@@ -90,9 +90,9 @@ class PackRegistryTest {
 
     @Test
     void preferencesAreSavedAndClamped() throws IOException {
-        registry.updatePreferences(false, false, 40);
+        registry.updatePreferences(false, false, 40, true);
 
-        assertEquals(new PackSettings(List.of(), null, false, false, 8), repository.saved);
+        assertEquals(new PackSettings(List.of(), null, false, false, 8, true), repository.saved);
     }
 
     @Test

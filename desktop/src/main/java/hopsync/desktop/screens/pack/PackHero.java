@@ -8,6 +8,8 @@ import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.ButtonStyle;
 import hopsync.desktop.kit.Fonts;
 import hopsync.desktop.kit.Icons;
+import hopsync.desktop.kit.LoaderIcon;
+import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.MarkTile;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.StatusMark;
@@ -53,6 +55,7 @@ public final class PackHero extends JPanel {
     private final JLabel meta = new JLabel();
     private final JButton serverIp = new JButton(Icons.get(Icons.Glyph.COPY, 12, null));
     private final JLabel stateMark = new JLabel();
+    private final LoaderIcon loader = new LoaderIcon(18, LogoIcon.onDark());
     private final JLabel stateTitle = new JLabel();
     private final JLabel stateDetail = new JLabel();
     private final JPanel tags = row(FlowLayout.RIGHT);
@@ -237,7 +240,8 @@ public final class PackHero extends JPanel {
     }
 
     private void rebuild(HeroModel model) {
-        stateMark.setIcon(StatusMark.of(model.mark()));
+        // Checking and downloading are the long waits: there the mark itself moves
+        stateMark.setIcon(model.mark() == StatusMark.Kind.WORKING ? loader : StatusMark.of(model.mark()));
         stateTitle.setText(model.title());
         stateDetail.setText(model.detail() == null ? "" : "· " + model.detail());
         stateDetail.setToolTipText(model.detail());

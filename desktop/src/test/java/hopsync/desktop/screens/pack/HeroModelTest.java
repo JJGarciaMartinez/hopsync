@@ -52,7 +52,7 @@ class HeroModelTest {
     void checkingCanBeCancelledAndTheMainButtonIsDisabled() {
         HeroModel model = hero(reduce(loaded(), new SyncEvent.UpdateStarted(D)), D);
 
-        assertEquals(StatusMark.Kind.SPINNER, model.mark());
+        assertEquals(StatusMark.Kind.WORKING, model.mark());
         assertEquals(new UiAction.CancelUpdate(D), model.actions().get(0).action());
         assertNull(model.actions().get(1).action(), "Buscando… is shown disabled");
     }

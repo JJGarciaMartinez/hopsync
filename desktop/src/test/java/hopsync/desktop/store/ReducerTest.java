@@ -66,7 +66,7 @@ class ReducerTest {
 
     @Test
     void preferencesArriveWithThePacks() {
-        Preferences preferences = new Preferences(false, false, 2);
+        Preferences preferences = new Preferences(false, false, 2, true);
 
         UiState state = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(DEMO), D, preferences));
 
@@ -390,10 +390,10 @@ class ReducerTest {
     @Test
     void appSettingsStartFromTheSavedPreferences() {
         UiState state = reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.GENERAL),
-            new UiAction.SetPreferences(new Preferences(false, true, 12)));
+            new UiAction.SetPreferences(new Preferences(false, true, 12, true)));
 
         Sheet.AppSettings settings = assertInstanceOf(Sheet.AppSettings.class, state.sheet());
-        assertEquals(new Preferences(false, true, 8), settings.draft());
+        assertEquals(new Preferences(false, true, 8, true), settings.draft());
         assertEquals(Preferences.DEFAULT, state.preferences());
     }
 

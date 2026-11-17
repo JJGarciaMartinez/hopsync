@@ -26,13 +26,14 @@ public final class StatusMark extends FlatAbstractIcon {
         ERROR,
         /** Empty ring: waiting in the apply queue. */
         QUEUED,
-        /** Open coral arc: checking or applying. */
-        SPINNER,
+        /** Coral dot with a halo: checking or applying; the pack header shows the animated mark instead. */
+        WORKING,
         /** Turquoise ring filled up to the percent: downloading. */
         PROGRESS
     }
 
-    private static final int SIZE = 12;
+    /** A 9 px dot inside a 3 px halo. */
+    private static final int SIZE = 15;
 
     private final Kind kind;
     private final int percent;
@@ -55,6 +56,18 @@ public final class StatusMark extends FlatAbstractIcon {
         return kind;
     }
 
+    /** The color that stands for a state, shared by the dot, the library badge and its text. */
+    public static Color colorOf(Kind kind) {
+        return switch (kind) {
+            case IDLE -> Palette.textFaint();
+            case OK -> Palette.mine();
+            case WARN -> Palette.update();
+            case ERROR -> Palette.error();
+            case QUEUED -> Palette.textSecondary();
+            case WORKING, PROGRESS -> Palette.action();
+        };
+    }
+
     @Override
     protected void paintIcon(Component c, Graphics2D g) {
         switch (kind) {
@@ -65,13 +78,9 @@ public final class StatusMark extends FlatAbstractIcon {
             case QUEUED -> {
                 g.setColor(Palette.textSecondary());
                 g.setStroke(new BasicStroke(2f));
-                g.draw(new Ellipse2D.Float(3, 3, 6, 6));
+                g.draw(new Ellipse2D.Float(4, 4, 7, 7));
             }
-            case SPINNER -> {
-                g.setColor(Palette.action());
-                g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                g.draw(new Arc2D.Float(1.5f, 1.5f, 9, 9, 90, 270, Arc2D.OPEN));
-            }
+            case WORKING -> dot(g, Palette.action(), true);
             case PROGRESS -> {
                 g.setColor(Palette.raised());
                 g.fill(new Ellipse2D.Float(0, 0, SIZE, SIZE));
@@ -87,6 +96,6 @@ public final class StatusMark extends FlatAbstractIcon {
             g.fill(new Ellipse2D.Float(0, 0, SIZE, SIZE));
         }
         g.setColor(color);
-        g.fill(new Ellipse2D.Float(2, 2, 8, 8));
+        g.fill(new Ellipse2D.Float(3, 3, 9, 9));
     }
 }

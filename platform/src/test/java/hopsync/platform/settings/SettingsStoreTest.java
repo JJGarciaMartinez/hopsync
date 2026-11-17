@@ -25,7 +25,7 @@ class SettingsStoreTest {
         SettingsStore store = new SettingsStore(dir.resolve("nested/settings.json"));
         Pack first = new Pack("a1", "https://example.org/manifest.json", dir.resolve("My Instance [1.21]"), "Demo");
         Pack second = new Pack("b2", "https://example.org/other.json", dir.resolve("other"), "");
-        PackSettings settings = new PackSettings(List.of(first, second), "b2", false, false, 6);
+        PackSettings settings = new PackSettings(List.of(first, second), "b2", false, false, 6, true);
 
         store.save(settings);
 
@@ -69,6 +69,7 @@ class SettingsStoreTest {
         assertEquals("", settings.packs().getFirst().name());
         assertEquals(PackSettings.MAX_PARALLEL_DOWNLOADS, settings.parallelDownloads());
         assertTrue(settings.checkOnStart());
+        assertFalse(settings.reduceMotion(), "files saved before the preference existed keep the animation");
     }
 
     @Test

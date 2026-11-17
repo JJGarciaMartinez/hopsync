@@ -175,7 +175,8 @@ final class SheetEffects {
     private void saveAppSettings(Preferences draft) {
         background.execute(() -> {
             try {
-                registry.updatePreferences(draft.checkOnStart(), draft.chainQueue(), draft.parallelDownloads());
+                registry.updatePreferences(draft.checkOnStart(), draft.chainQueue(), draft.parallelDownloads(),
+                    draft.reduceMotion());
                 store.dispatch(new UiAction.SheetSaved());
                 reloadPacks.run();
             } catch (IOException e) {

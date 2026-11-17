@@ -56,10 +56,10 @@ public record HeroModel(StatusMark.Kind mark, String title, String detail, List<
             case UNCHECKED -> new HeroModel(StatusMark.Kind.IDLE, Messages.get("hero.state.unchecked"), null, List.of(),
                 List.of(new Action(Messages.get("hero.check"), Glyph.REFRESH, new UiAction.CheckPack(id), ButtonStyle.PRIMARY)),
                 null);
-            case CHECKING -> new HeroModel(StatusMark.Kind.SPINNER, Messages.get("hero.state.checking"),
+            case CHECKING -> new HeroModel(StatusMark.Kind.WORKING, Messages.get("hero.state.checking"),
                 pack.modCount() > 0 ? Messages.get("hero.detail.mods", pack.modCount()) : null, List.of(),
                 List.of(new Action(Messages.get("hero.cancel"), null, new UiAction.CancelUpdate(id), ButtonStyle.QUIET),
-                    new Action(Messages.get("hero.checking"), Glyph.SPINNER, null, ButtonStyle.PRIMARY)),
+                    new Action(Messages.get("hero.checking"), null, null, ButtonStyle.PRIMARY)),
                 null);
             case REVIEW -> {
                 PlanSummary summary = PlanSummary.of(pack.plan());
@@ -82,7 +82,7 @@ public record HeroModel(StatusMark.Kind mark, String title, String detail, List<
                     List.of(new Action(Messages.get("hero.unqueue"), null, new UiAction.CancelUpdate(id), ButtonStyle.QUIET)),
                     null);
             }
-            case APPLYING -> new HeroModel(StatusMark.Kind.SPINNER, Messages.get("hero.state.applying"),
+            case APPLYING -> new HeroModel(StatusMark.Kind.WORKING, Messages.get("hero.state.applying"),
                 Messages.get("hero.detail.applying"), List.of(),
                 List.of(new Action(Messages.get("hero.cancel"), null, new UiAction.CancelUpdate(id), ButtonStyle.SECONDARY)),
                 applying(pack));

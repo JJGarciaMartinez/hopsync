@@ -2,6 +2,7 @@ package hopsync.desktop.kit;
 
 import com.formdev.flatlaf.icons.FlatAbstractIcon;
 
+import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Component;
@@ -113,6 +114,14 @@ public final class LogoIcon extends FlatAbstractIcon {
     }
 
     static void paint(Graphics2D g, float size, Colors colors, boolean small) {
+        paint(g, size, colors, small, 0, 1);
+    }
+
+    /**
+     * @param drop  how far above its place the incoming piece is, in grid units (the loader animates it)
+     * @param alpha opacity of the incoming piece
+     */
+    static void paint(Graphics2D g, float size, Colors colors, boolean small, float drop, float alpha) {
         Graphics2D g2 = (Graphics2D) g.create();
         try {
             antialias(g2);
@@ -126,8 +135,12 @@ public final class LogoIcon extends FlatAbstractIcon {
                 g2.fill(CIRCLE);
                 g2.fill(SQUARE);
             }
-            g2.setColor(colors.incoming());
-            g2.fill(small ? SMALL_TRIANGLE : TRIANGLE);
+            if (alpha > 0) {
+                g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.min(1, alpha)));
+                g2.translate(0, -drop);
+                g2.setColor(colors.incoming());
+                g2.fill(small ? SMALL_TRIANGLE : TRIANGLE);
+            }
         } finally {
             g2.dispose();
         }

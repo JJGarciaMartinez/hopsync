@@ -2,6 +2,7 @@ package hopsync.desktop.screens;
 
 import com.formdev.flatlaf.util.UIScale;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.kit.LoaderIcon;
 import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.screens.library.PackLibrary;
@@ -119,6 +120,9 @@ public final class MainWindow extends JFrame {
 
     public void render(UiState state) {
         shown = state;
+        if (LoaderIcon.reducedMotion() != state.preferences().reduceMotion()) {
+            LoaderIcon.setReducedMotion(state.preferences().reduceMotion());
+        }
         PackUiState pack = state.selected().orElse(null);
         String card = pack == null ? ONBOARDING : MAIN;
         if (!card.equals(shownCard)) {

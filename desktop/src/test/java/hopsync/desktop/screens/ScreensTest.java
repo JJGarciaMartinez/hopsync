@@ -217,7 +217,7 @@ class ScreensTest {
                 new UiAction.FolderChecked(new GameFolder(GameFolder.Kind.OTHER, null, OTHER.gameDir(), 2, "Other"))),
             reduce(packSettings, new UiAction.SelectPackSection(Sheet.PackSettings.Section.REMOVE)),
             reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.GENERAL),
-                new UiAction.SetPreferences(new Preferences(false, true, 6))),
+                new UiAction.SetPreferences(new Preferences(false, true, 6, true))),
             reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ABOUT)));
     }
 
