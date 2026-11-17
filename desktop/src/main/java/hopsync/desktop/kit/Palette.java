@@ -47,6 +47,13 @@ public final class Palette {
     /** Errors and files the update will remove. */
     public static Color error() { return color("HopSync.error", 0xF2668B); }
 
+    /** The mark's box on paper (documents, web, print). */
+    public static Color printBox() { return color("HopSync.print.box", 0x2A2733); }
+    /** The mark's own pieces on paper. */
+    public static Color printMine() { return color("HopSync.print.mine", 0x0E7A71); }
+    /** The mark's incoming piece on paper. */
+    public static Color printAction() { return color("HopSync.print.action", 0xC23A1C); }
+
     private static Color color(String key, int fallback) {
         Color color = UIManager.getColor(key);
         return color != null ? color : new Color(fallback);

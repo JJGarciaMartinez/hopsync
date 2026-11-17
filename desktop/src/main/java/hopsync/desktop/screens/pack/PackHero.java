@@ -5,10 +5,10 @@ import com.formdev.flatlaf.ui.FlatLineBorder;
 import com.formdev.flatlaf.util.UIScale;
 import hopsync.core.manifest.PackInfo;
 import hopsync.desktop.i18n.Messages;
-import hopsync.desktop.kit.BlockTile;
 import hopsync.desktop.kit.ButtonStyle;
 import hopsync.desktop.kit.Fonts;
 import hopsync.desktop.kit.Icons;
+import hopsync.desktop.kit.MarkTile;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.StatusMark;
 import hopsync.desktop.kit.StatusTag;
@@ -35,7 +35,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * Header of the selected pack: block tile, name and version, Minecraft · loader · mods, the server address
+ * Header of the selected pack: mark tile, name and version, Minecraft · loader · mods, the server address
  * (click to copy), the status line and the actions that make sense in the pack's phase. Folder and ⋯ buttons
  * sit in the top right corner.
  */
@@ -192,7 +192,7 @@ public final class PackHero extends JPanel {
     public void render(PackUiState pack, UiState state) {
         packId = pack.packId();
         PackInfo info = pack.packInfo();
-        tile.setIcon(BlockTile.forPack(pack.packId(), 64));
+        tile.setIcon(MarkTile.header());
         name.setText(pack.displayName());
         version.setText(info == null ? "" : info.version());
         version.setVisible(info != null);

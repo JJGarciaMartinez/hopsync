@@ -64,7 +64,7 @@ public final class PackLibrary extends JPanel {
     }
 
     private JPanel header() {
-        JLabel logo = new JLabel("HopSync", new LogoIcon(), JLabel.LEFT);
+        JLabel logo = new JLabel("HopSync", new LogoIcon(26, LogoIcon.onDark()), JLabel.LEFT);
         logo.setFont(Fonts.display(logo.getFont(), 4));
         logo.setIconTextGap(UIScale.scale(8));
         JPanel brand = new JPanel(new BorderLayout());
