@@ -36,13 +36,15 @@ public sealed interface PackSource {
     /**
      * A created pack once published.
      *
-     * @param repo GitHub repository as {@code owner/name}
-     * @param url  https link of the manifest the repository publishes
+     * @param repo        GitHub repository as {@code owner/name}
+     * @param url         https link of the manifest the repository publishes
+     * @param contentHash fingerprint of what was published last, or {@code ""} when unknown
      */
-    record Publication(String repo, String url) {
+    record Publication(String repo, String url, String contentHash) {
         public Publication {
             Objects.requireNonNull(repo, "repo");
             Objects.requireNonNull(url, "url");
+            contentHash = contentHash == null ? "" : contentHash;
         }
     }
 }

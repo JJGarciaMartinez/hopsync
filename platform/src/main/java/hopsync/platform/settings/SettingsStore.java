@@ -148,6 +148,7 @@ public class SettingsStore implements PackSettingsRepository {
                 if (local.publication() != null) {
                     out.put("repo", local.publication().repo());
                     out.put("url", local.publication().url());
+                    out.put("content_hash", local.publication().contentHash());
                 }
             }
         }
@@ -164,7 +165,8 @@ public class SettingsStore implements PackSettingsRepository {
             case "local" -> new PackSource.Local(
                 source.get("repo") instanceof String repo && !repo.isBlank()
                     && source.get("url") instanceof String url && !url.isBlank()
-                    ? new PackSource.Publication(repo, url) : null);
+                    ? new PackSource.Publication(repo, url,
+                        source.get("content_hash") instanceof String hash ? hash : "") : null);
             default -> null;
         };
     }

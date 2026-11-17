@@ -28,7 +28,7 @@ class SettingsStoreTest {
         Pack second = new Pack("b2", "https://example.org/other.json", dir.resolve("other"), "");
         Pack created = new Pack("c3", new PackSource.Local(null), dir.resolve("mine"), "Mi pack");
         Pack published = new Pack("d4", new PackSource.Local(new PackSource.Publication("player/pack",
-            "https://github.com/player/pack/releases/download/hopsync/manifest.json")), dir.resolve("pub"), "Pub");
+            "https://github.com/player/pack/releases/download/hopsync/manifest.json", "f".repeat(64))), dir.resolve("pub"), "Pub");
         PackSettings settings = new PackSettings(List.of(first, second, created, published), "b2", false, false, 6, true, 300);
 
         store.save(settings);
