@@ -84,20 +84,29 @@ public final class PackEditor {
             return new Added(titleOf(projectId), List.of());
         }
 
-        Map<String, CatalogProject> projects = catalog.projects(seen);
+        // The mod asked for may be named by its slug; its version carries the project's id
+        String requested = picked.getFirst().projectId();
+        if (inPack.contains(requested)) {
+            return new Added(titleOf(requested), List.of());
+        }
+        Set<String> ids = new LinkedHashSet<>();
+        picked.forEach(version -> ids.add(version.projectId()));
+        Map<String, CatalogProject> projects = catalog.projects(ids);
         List<PackDefinition.Mod> mods = new ArrayList<>(definition.mods());
         List<String> alsoAdded = new ArrayList<>();
         for (CatalogVersion version : picked) {
+            if (inPack.contains(version.projectId())) continue;
+            inPack.add(version.projectId());
             CatalogProject project = projects.get(version.projectId());
             mods.add(new PackDefinition.ModrinthMod(version.projectId(),
                 project == null ? version.projectId() : project.slug(), version.id(), version.versionNumber()));
-            if (!version.projectId().equals(projectId)) {
+            if (!version.projectId().equals(requested)) {
                 alsoAdded.add(project == null ? version.projectId() : project.title());
             }
         }
         registry.saveDefinition(packId, definition.withMods(mods));
-        CatalogProject added = projects.get(projectId);
-        return new Added(added == null ? projectId : added.title(), alsoAdded);
+        CatalogProject added = projects.get(requested);
+        return new Added(added == null ? requested : added.title(), alsoAdded);
     }
 
     /**

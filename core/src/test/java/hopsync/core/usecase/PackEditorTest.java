@@ -197,4 +197,15 @@ class PackEditorTest {
         SyncException gone = assertThrows(SyncException.class, () -> editor.changeVersion(pack.id(), "sodium-slug", "nope"));
         assertEquals(new SyncFailure.ModUnavailable("sodium-slug"), gone.failure());
     }
+
+    @Test
+    void aModNamedByItsSlugIsNotItsOwnDependency() throws IOException {
+        // The catalog answers for a slug with versions that carry the project's id
+        versions.put("sodium-slug", List.of(version("s1", "sodium", "0.6", true)));
+
+        assertEquals(new PackEditor.Added("Title sodium", List.of()), editor.addFromCatalog(pack.id(), "sodium-slug"));
+        assertEquals(List.of(new PackDefinition.ModrinthMod("sodium", "sodium-slug", "s1", "0.6")), mods());
+        assertEquals(List.of(), editor.addFromCatalog(pack.id(), "sodium-slug").alsoAdded());
+        assertEquals(1, mods().size(), "the slug finds the mod already in the pack");
+    }
 }
