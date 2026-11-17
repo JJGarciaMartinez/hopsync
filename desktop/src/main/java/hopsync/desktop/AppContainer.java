@@ -3,14 +3,17 @@ package hopsync.desktop;
 import hopsync.core.event.EventBus;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.pack.PackRegistry;
+import hopsync.core.port.ModCatalog;
 import hopsync.core.session.ApplyQueue;
 import hopsync.core.session.PackSessions;
+import hopsync.core.usecase.DefinitionResolver;
 import hopsync.core.usecase.ModUpdateService;
 import hopsync.desktop.config.AppConfig;
 import hopsync.platform.http.DownloadService;
 import hopsync.platform.manifest.ManifestService;
-import hopsync.platform.settings.SettingsStore;
+import hopsync.platform.modrinth.ModrinthClient;
 import hopsync.platform.settings.DefinitionStore;
+import hopsync.platform.settings.SettingsStore;
 
 import java.nio.file.Path;
 import java.util.concurrent.Executor;
@@ -29,6 +32,7 @@ public final class AppContainer {
     private final SettingsStore settingsStore;
     private final PackRegistry packRegistry;
     private final ManifestService manifestService;
+    private final ModCatalog modCatalog;
     private final PackSessions packSessions;
     private final ExecutorService backgroundExecutor =
         Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("hopsync-update-", 0).factory());
@@ -36,12 +40,13 @@ public final class AppContainer {
     public AppContainer(AppConfig config, SettingsStore settingsStore) {
         this.config = config;
         this.settingsStore = settingsStore;
-        packRegistry = new PackRegistry(settingsStore,
-            new DefinitionStore(settingsStore.getFile().resolveSibling("packs")));
+        DefinitionStore definitions = new DefinitionStore(settingsStore.getFile().resolveSibling("packs"));
+        packRegistry = new PackRegistry(settingsStore, definitions);
         DownloadService downloadService = new DownloadService(config.network());
         manifestService = new ManifestService(downloadService, settingsStore.getFile().resolveSibling("manifests"));
-        ModUpdateService modUpdateService = new ModUpdateService(manifestService, downloadService,
-            packRegistry::parallelDownloads);
+        modCatalog = new ModrinthClient(downloadService::getUrlString);
+        ModUpdateService modUpdateService = new ModUpdateService(manifestService,
+            new DefinitionResolver(modCatalog, definitions), downloadService, packRegistry::parallelDownloads);
         ApplyQueue applyQueue = new ApplyQueue(backgroundExecutor, packRegistry::chainQueue);
         packSessions = new PackSessions(packRegistry, modUpdateService, applyQueue, eventBus::publish,
             backgroundExecutor);
@@ -71,6 +76,10 @@ public final class AppContainer {
 
     public ManifestService manifestService() {
         return manifestService;
+    }
+
+    public ModCatalog modCatalog() {
+        return modCatalog;
     }
 
     /** Virtual threads for background work: checks, applies, listing files, fetching manifests. */

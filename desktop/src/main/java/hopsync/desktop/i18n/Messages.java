@@ -33,6 +33,8 @@ public final class Messages {
             case SyncFailure.HttpStatus f -> get(httpStatusKey(f.status()), String.valueOf(f.status()));
             case SyncFailure.ResponseTooLarge f -> get("failure.responseTooLarge");
             case SyncFailure.ManifestInvalid f -> get("failure.manifestInvalid", f.detail());
+            case SyncFailure.ModUnavailable f -> get("failure.modUnavailable", f.mod());
+            case SyncFailure.DefinitionMissing f -> get("failure.definitionMissing");
             case SyncFailure.UnsupportedFormat f -> get("failure.unsupportedFormat", String.valueOf(f.found()), String.valueOf(f.supported()));
             case SyncFailure.HashMismatch f -> get("failure.hashMismatch", f.file());
             case SyncFailure.SizeMismatch f -> get("failure.sizeMismatch", f.file());

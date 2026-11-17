@@ -91,9 +91,19 @@ public class DownloadService implements FileDownloader {
     @Override
     public void download(String url, Path destination, String expectedSha512, long expectedSize,
                          LongConsumer onBytes, CancellationToken cancel) throws IOException {
-        URI uri = toUri(url);
         Path part = destination.resolveSibling(destination.getFileName() + PART_SUFFIX);
         String file = destination.getFileName().toString();
+        if (url.startsWith("file:")) {
+            // A created pack's own jars and configs; remote manifests never carry file: addresses
+            try (InputStream in = Files.newInputStream(Path.of(URI.create(url)))) {
+                copyVerified(in, part, file, expectedSha512, expectedSize, onBytes, cancel, "local");
+                AtomicFiles.move(part, destination);
+            } finally {
+                Files.deleteIfExists(part);
+            }
+            return;
+        }
+        URI uri = toUri(url);
         try {
             withRetries(url, () -> {
                 AtomicLong reported = new AtomicLong();

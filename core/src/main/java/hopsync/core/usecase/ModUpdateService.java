@@ -30,6 +30,7 @@ import java.util.function.LongSupplier;
  * change without touching any file, and {@link #apply} performs that plan and records the result.
  */
 public class ModUpdateService {
+    private final DefinitionResolver createdPacks;
     private final ManifestSource manifestSource;
     private final FileDownloader downloader;
     private final IntSupplier parallelDownloads;
@@ -38,14 +39,16 @@ public class ModUpdateService {
     /**
      * @param parallelDownloads read on every apply, so a changed preference applies to the next update
      */
-    public ModUpdateService(ManifestSource manifestSource, FileDownloader downloader, IntSupplier parallelDownloads) {
-        this(manifestSource, downloader, parallelDownloads, System::nanoTime);
+    public ModUpdateService(ManifestSource manifestSource, DefinitionResolver createdPacks, FileDownloader downloader,
+                            IntSupplier parallelDownloads) {
+        this(manifestSource, createdPacks, downloader, parallelDownloads, System::nanoTime);
     }
 
     /** @param clock nanoseconds for the download speed, as {@link System#nanoTime()} */
-    public ModUpdateService(ManifestSource manifestSource, FileDownloader downloader, IntSupplier parallelDownloads,
-                            LongSupplier clock) {
+    public ModUpdateService(ManifestSource manifestSource, DefinitionResolver createdPacks, FileDownloader downloader,
+                            IntSupplier parallelDownloads, LongSupplier clock) {
         this.manifestSource = manifestSource;
+        this.createdPacks = createdPacks;
         this.downloader = downloader;
         this.parallelDownloads = parallelDownloads;
         this.clock = clock;
@@ -55,12 +58,15 @@ public class ModUpdateService {
         PackPaths paths = pack.paths();
         ensureFoldersExist(pack, paths, eventPublisher);
 
-        if (!(pack.source() instanceof PackSource.Link(String url))) {
-            // Created packs are resolved from their definition, which comes with the Modrinth client
-            throw new UnsupportedOperationException("Created packs cannot be checked yet: " + pack.id());
+        Manifest manifest;
+        if (pack.source() instanceof PackSource.Link(String url)) {
+            log(pack, eventPublisher, "Fetching the pack manifest from " + url);
+            manifest = manifestSource.fetchManifest(url);
+        } else {
+            // The player's own pack, even once published: what they edit is what they get
+            log(pack, eventPublisher, "Resolving the created pack's definition");
+            manifest = createdPacks.resolve(pack);
         }
-        log(pack, eventPublisher, "Fetching the pack manifest from " + url);
-        Manifest manifest = manifestSource.fetchManifest(url);
         log(pack, eventPublisher, "Pack " + manifest.pack().name() + " " + manifest.pack().version()
             + ": " + manifest.mods().size() + " mods, " + manifest.configs().size() + " configs");
 
