@@ -14,6 +14,7 @@ import hopsync.core.port.ManifestSource;
 import hopsync.core.port.PackSettingsRepository;
 import hopsync.core.sync.FileDownloader;
 import hopsync.core.sync.FolderLock;
+import hopsync.core.usecase.DefinitionResolver;
 import hopsync.core.usecase.ModUpdateService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,7 +80,7 @@ class PackSessionTest {
     }
 
     private ModUpdateService service(ManifestSource manifests) {
-        return new ModUpdateService(manifests, (url, d, sha, size, onBytes, cancel) ->
+        return new ModUpdateService(manifests, new DefinitionResolver(null, new InMemoryDefinitions()), (url, d, sha, size, onBytes, cancel) ->
             downloader.download(url, d, sha, size, onBytes, cancel), () -> 4);
     }
 

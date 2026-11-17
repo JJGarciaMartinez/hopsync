@@ -22,6 +22,8 @@ class MessagesTest {
         new SyncFailure.HttpStatus(404, "https://x.org/m.json"),
         new SyncFailure.ResponseTooLarge("https://x.org/m.json", 5),
         new SyncFailure.ManifestInvalid("mods[0].sha512 has an invalid format"),
+        new SyncFailure.ModUnavailable("sodium"),
+        new SyncFailure.DefinitionMissing("3f2a9c1e"),
         new SyncFailure.UnsupportedFormat(3, 2),
         new SyncFailure.HashMismatch("create.jar"),
         new SyncFailure.SizeMismatch("create.jar", 10, 9),

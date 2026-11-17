@@ -1,0 +1,605 @@
+[
+ {
+  "id": "QDNS5oAT",
+  "slug": "repurposed-structures-forge",
+  "title": "Repurposed Structures - Neoforge/Forge",
+  "description": "Adds more variations of vanilla structures and features such as a Jungle Fortress!",
+  "team": "Jd8zRpjm",
+  "icon_url": "https://cdn.modrinth.com/data/QDNS5oAT/icon.png",
+  "downloads": 5519922
+ },
+ {
+  "id": "YL57xq9U",
+  "slug": "iris",
+  "title": "Iris Shaders",
+  "description": "A modern shader pack loader for Minecraft intended to be compatible with existing OptiFine shader packs",
+  "team": "1HMZl6Mn",
+  "icon_url": "https://cdn.modrinth.com/data/YL57xq9U/18d0e7f076d3d6ed5bedd472b853909aac5da202_96.webp",
+  "downloads": 195746876
+ },
+ {
+  "id": "vvuO3ImH",
+  "slug": "curios",
+  "title": "Curios API",
+  "description": "A flexible and expandable accessory/equipment API for users and developers.",
+  "team": "JCm9vxVF",
+  "icon_url": "https://cdn.modrinth.com/data/vvuO3ImH/2a7323ca80849de0bcb50299e18acdf8bf394682.png",
+  "downloads": 33864789
+ },
+ {
+  "id": "1OE8wbN0",
+  "slug": "prism-lib",
+  "title": "Prism",
+  "description": "A library all about color! Provides lots of color-related functionality for dependent mods.",
+  "team": "PyFeuZCL",
+  "icon_url": "https://cdn.modrinth.com/data/1OE8wbN0/2fecc17cdc6036b648f0defc7c9a85a6733be435_96.webp",
+  "downloads": 18944729
+ },
+ {
+  "id": "Z2mXHnxP",
+  "slug": "yungs-better-nether-fortresses",
+  "title": "YUNG's Better Nether Fortresses",
+  "description": "A complete redesign of Minecraft's Nether fortresses!",
+  "team": "5dSGn2do",
+  "icon_url": "https://cdn.modrinth.com/data/Z2mXHnxP/3c88dd70c00b5e47addd9fdeba53a7c96076088d_96.webp",
+  "downloads": 24150785
+ },
+ {
+  "id": "7iJ65LNI",
+  "slug": "create-more-automation",
+  "title": "Create More Automation",
+  "description": "A simple Create addon adding more methods for automation",
+  "team": "CG1KtgR0",
+  "icon_url": "https://cdn.modrinth.com/data/7iJ65LNI/8563e8111a8b79befa81df8de263465353533296_96.webp",
+  "downloads": 323124
+ },
+ {
+  "id": "cs7iGVq1",
+  "slug": "yungs-cave-biomes",
+  "title": "YUNG's Cave Biomes",
+  "description": "Adds new vanilla+ cave biomes and underground content!",
+  "team": "Uf3evfvd",
+  "icon_url": "https://cdn.modrinth.com/data/cs7iGVq1/e5ce74259dece306f7d25c55c59d6afcc3d473ea_96.webp",
+  "downloads": 4679585
+ },
+ {
+  "id": "jSQXzmcf",
+  "slug": "rapid-leaf-decay",
+  "title": "Rapid Leaf Decay",
+  "description": "Makes leaf decay rapidly fast.",
+  "team": "rxzkLKNY",
+  "icon_url": "https://cdn.modrinth.com/data/jSQXzmcf/28ed2eb0092505ae07c68c4064a514ec942a57ef.png",
+  "downloads": 99461
+ },
+ {
+  "id": "ib8iIkX3",
+  "slug": "create-more-additions",
+  "title": "Create: Crafts & (More) Additions",
+  "description": "Silver Ore, proper Electrum recipe, and more content for Create Crafts & Additions.",
+  "team": "HL4YO5xm",
+  "icon_url": "https://cdn.modrinth.com/data/ib8iIkX3/ff2a4090cd833c43df64e2e7e228d5a27f458e28.gif",
+  "downloads": 76261
+ },
+ {
+  "id": "fFEIiSDQ",
+  "slug": "supplementaries",
+  "title": "Supplementaries",
+  "description": "Vanilla+ additions: Jars, signposts, faucets, weather vanes spring launchers, sconces, planters, lights, decoration and automation",
+  "team": "GgWB22vK",
+  "icon_url": "https://cdn.modrinth.com/data/fFEIiSDQ/e9f5f66fa3b67e54acb91258a1428d68311c58bc_96.webp",
+  "downloads": 29410508
+ },
+ {
+  "id": "6iTJugQR",
+  "slug": "amendments",
+  "title": "Amendments",
+  "description": "Many changes to vanilla blocks",
+  "team": "l5gISBeN",
+  "icon_url": "https://cdn.modrinth.com/data/6iTJugQR/46e156f1c798bfc3c18bd2a55567af1086674f02_96.webp",
+  "downloads": 20427361
+ },
+ {
+  "id": "TaSmHw8V",
+  "slug": "immersive-melodies",
+  "title": "Immersive Melodies",
+  "description": "Play custom melodies on various instruments and annoy your friends!",
+  "team": "Qba90VnH",
+  "icon_url": "https://cdn.modrinth.com/data/TaSmHw8V/0a6a64c671e15a657e18d623f2912a9b0a058809_96.webp",
+  "downloads": 9406758
+ },
+ {
+  "id": "f3wjDYg6",
+  "slug": "create-blaze-burner-fuels",
+  "title": "Create: Blaze Burner Fuels",
+  "description": "A Create addon that adds new fuel sources for Blaze Burners, increasing automation possibilities.",
+  "team": "e6TNqvC9",
+  "icon_url": "https://cdn.modrinth.com/data/f3wjDYg6/9fcdacd970aeff3977a294702351aa3eb1375ad6_96.webp",
+  "downloads": 41079
+ },
+ {
+  "id": "Gi02250Z",
+  "slug": "almanac",
+  "title": "Almanac",
+  "description": "Almanac is a library used by my mods with mostly loader independent shared code between multiple mods to avoid duplication of code.",
+  "team": "BGnWjc2l",
+  "icon_url": "https://cdn.modrinth.com/data/Gi02250Z/f0bb3148fcb735bb989ef5723d199114e1f24542.png",
+  "downloads": 22897461
+ },
+ {
+  "id": "gvQqBUqZ",
+  "slug": "lithium",
+  "title": "Lithium",
+  "description": "No-compromises game logic optimization mod, useful for both single-player games and multi-player servers.",
+  "team": "peSx5UYg",
+  "icon_url": "https://cdn.modrinth.com/data/gvQqBUqZ/bcc8686c13af0143adf4285d741256af824f70b7_96.webp",
+  "downloads": 144363695
+ },
+ {
+  "id": "kU1G12Nn",
+  "slug": "createaddition",
+  "title": "Create Crafts & Additions",
+  "description": "Create Crafts & Additions extends Create and acts as a bridge between electricity and kinetic energy",
+  "team": "gi4UGsOA",
+  "icon_url": "https://cdn.modrinth.com/data/kU1G12Nn/d8d1ec226747a800ba175f70ad00a80f37047cb6_96.webp",
+  "downloads": 11492124
+ },
+ {
+  "id": "r4PuRGfV",
+  "slug": "mes-moogs-end-structures",
+  "title": "MES - Moog's End Structures",
+  "description": "Lots of Vanilla styled structrues to fill up the end dimension with life!",
+  "team": "I4pmxO7w",
+  "icon_url": "https://cdn.modrinth.com/data/r4PuRGfV/d6eddee27d7863a8bae92c5d0a91a80b8e89f537.gif",
+  "downloads": 11265390
+ },
+ {
+  "id": "8oi3bsk5",
+  "slug": "terralith",
+  "title": "Terralith",
+  "description": "Explore almost 100 new biomes consisting of both realism and light fantasy, using just Vanilla blocks. Complete with several immersive structures to compliment the overhauled terrain.",
+  "team": "L2q5L80c",
+  "icon_url": "https://cdn.modrinth.com/data/8oi3bsk5/1959d924a1088944bbf07a06ba523726112d7e7a_96.webp",
+  "downloads": 24926600
+ },
+ {
+  "id": "Ua7DFN59",
+  "slug": "yungs-api",
+  "title": "YUNG's API",
+  "description": "Library mod for YUNG's mods.",
+  "team": "3TidTIHz",
+  "icon_url": "https://cdn.modrinth.com/data/Ua7DFN59/0fab1c351bf00926a8e1c91dc64b7c88832c3e1f_96.webp",
+  "downloads": 36995689
+ },
+ {
+  "id": "DjLobEOy",
+  "slug": "towns-and-towers",
+  "title": "Towns and Towers",
+  "description": "Spice up your world with new villages, pillager outposts, and even new ships!",
+  "team": "PfKGoCzl",
+  "icon_url": "https://cdn.modrinth.com/data/DjLobEOy/f7f552ec019c9ad8b777c9ab5eecbb95da8707a0_96.webp",
+  "downloads": 18905184
+ },
+ {
+  "id": "1kcHy4de",
+  "slug": "borninchaos",
+  "title": "Born in Chaos",
+  "description": "Adds a lot of aggressive mobs, with their unique properties that can diversify and complicate your survival. Also adds new structures, equipment, blocks and achievements.",
+  "team": "Z8teTG0d",
+  "icon_url": "https://cdn.modrinth.com/data/1kcHy4de/2681453b4ba4b411834b0941149dd6abbe8cb3ea_96.webp",
+  "downloads": 1935876
+ },
+ {
+  "id": "PxQSWIcD",
+  "slug": "sodium-dynamic-lights",
+  "title": "Sodium Dynamic Lights",
+  "description": "Multiloader port of LambDynLights that adds Sodium options integration",
+  "team": "hBGCPeKZ",
+  "icon_url": "https://cdn.modrinth.com/data/PxQSWIcD/a5ab5515213391934e18baaf487c87e4b24ebfa3_96.webp",
+  "downloads": 20257989
+ },
+ {
+  "id": "e0M1UDsY",
+  "slug": "collective",
+  "title": "Collective",
+  "description": "🎓 Collective is a shared library with common code for all of Serilum's mods.",
+  "team": "UTtoE2WS",
+  "icon_url": "https://cdn.modrinth.com/data/e0M1UDsY/f5e4fe9ac298e2c14591920d6bda937c566accd0_96.webp",
+  "downloads": 71410381
+ },
+ {
+  "id": "TYHpvAhl",
+  "slug": "spice-of-life-valheim-reforged",
+  "title": "Spice of Life: Valheim Reforged",
+  "description": "A complete rewrite of Spice of Life: Valheim Edition, updated for the latest versions of Minecraft.",
+  "team": "7XBJuABl",
+  "icon_url": "https://cdn.modrinth.com/data/TYHpvAhl/225380405d9d3e6a11892e65f8ef5ae151ca42e8_96.webp",
+  "downloads": 19938
+ },
+ {
+  "id": "Ru97clEJ",
+  "slug": "hardcore-torches",
+  "title": "Hardcore Torches",
+  "description": "Makes torches burn out after a configurable amount of time, as well as optionally starting unlit and extinguishing when broken or in the rain",
+  "team": "RIMgchX1",
+  "icon_url": "https://cdn.modrinth.com/data/Ru97clEJ/icon.png",
+  "downloads": 61700
+ },
+ {
+  "id": "5faXoLqX",
+  "slug": "iceberg",
+  "title": "Iceberg",
+  "description": "A modding library that contains new events, helpers, and utilities to make modder's lives easier.",
+  "team": "fGvFvA3S",
+  "icon_url": "https://cdn.modrinth.com/data/5faXoLqX/88c9b9918841470dad995049244ef7a3cb2f34f5_96.webp",
+  "downloads": 38290475
+ },
+ {
+  "id": "twkfQtEc",
+  "slug": "moonlight",
+  "title": "Moonlight Lib",
+  "description": "dynamic data pack and registration, villager activities, custom map marker and a lot more",
+  "team": "Se0LRYS8",
+  "icon_url": "https://cdn.modrinth.com/data/twkfQtEc/icon.png",
+  "downloads": 43758923
+ },
+ {
+  "id": "NNAgCjsB",
+  "slug": "entityculling",
+  "title": "Entity Culling",
+  "description": "Using async path-tracing to hide Block-/Entities that are not visible",
+  "team": "hLPrl6Gq",
+  "icon_url": "https://cdn.modrinth.com/data/NNAgCjsB/7873452d6cede4daed12da3d7d8c193ab88b4fd6_96.webp",
+  "downloads": 189955447
+ },
+ {
+  "id": "aKCwCJlY",
+  "slug": "structory",
+  "title": "Structory",
+  "description": "A seasonally updated and atmospheric structure mod with light lore",
+  "team": "zELVRgKb",
+  "icon_url": "https://cdn.modrinth.com/data/aKCwCJlY/81c79a9d58c605ad79c4a8da15c865902bec8d42_96.webp",
+  "downloads": 9399081
+ },
+ {
+  "id": "cl223EMc",
+  "slug": "cristel-lib",
+  "title": "Cristel Lib",
+  "description": "A Library mod for easy structure config and runtime datapacks.",
+  "team": "jQLbV11P",
+  "icon_url": "https://cdn.modrinth.com/data/cl223EMc/22b1072af55724911840b93a30cf8d3b3fc514bf_96.webp",
+  "downloads": 19433543
+ },
+ {
+  "id": "1oUDhxuy",
+  "slug": "moogs-structure-lib",
+  "title": "Moog's Structure Lib (moogs_structures)",
+  "description": "This is a library mod for the Moogs Structure series",
+  "team": "KSF4UUwG",
+  "icon_url": "https://cdn.modrinth.com/data/1oUDhxuy/edb1c17063f481da9bfdb5f584ee0e92073bb782.gif",
+  "downloads": 5551249
+ },
+ {
+  "id": "u6dRKJwZ",
+  "slug": "jei",
+  "title": "Just Enough Items (JEI)",
+  "description": "View Items and Recipes",
+  "team": "H2zAm1Kt",
+  "icon_url": "https://cdn.modrinth.com/data/u6dRKJwZ/4a3f18ac0d096c9f8e9176984c44be4e58f94c89_96.webp",
+  "downloads": 86093082
+ },
+ {
+  "id": "N9QToVpw",
+  "slug": "create-ultimate-factory",
+  "title": "Create: Ultimate Factory",
+  "description": "An addon for the Create mod developed to increase automation possibilities, adding 30 (reasonably) balanced recipes to the game.",
+  "team": "zQiHWwCp",
+  "icon_url": "https://cdn.modrinth.com/data/N9QToVpw/973e6f8a59b52aa91236d2fd54dd92d953148a5f_96.webp",
+  "downloads": 1392504
+ },
+ {
+  "id": "M1953qlQ",
+  "slug": "resourceful-config",
+  "title": "Resourceful Config",
+  "description": "Resourceful Config is a mod that allows for developers to make cross-platform configs",
+  "team": "HZyf49is",
+  "icon_url": "https://cdn.modrinth.com/data/M1953qlQ/cadcab644905f7e9ee92220d29f5c27113eb167b_96.webp",
+  "downloads": 27084784
+ },
+ {
+  "id": "SfMw2IZN",
+  "slug": "nvidium",
+  "title": "Nvidium",
+  "description": "Fast nvidia only rendering engine for sodium",
+  "team": "JbFXqWoE",
+  "icon_url": "https://cdn.modrinth.com/data/SfMw2IZN/2db76d464a0f67cdb9e30fd99040eb096ac62016_96.webp",
+  "downloads": 7586151
+ },
+ {
+  "id": "LNytGWDc",
+  "slug": "create",
+  "title": "Create",
+  "description": "Aesthetic Technology that empowers the Player",
+  "team": "yyROG8qL",
+  "icon_url": "https://cdn.modrinth.com/data/LNytGWDc/61d716699bcf1ec42ed4926a9e1c7311be6087e2_96.webp",
+  "downloads": 28242911
+ },
+ {
+  "id": "zBuk6egG",
+  "slug": "create-winery",
+  "title": "Create: Winery",
+  "description": "Build your own winery with Create.",
+  "team": "vJKIrK7v",
+  "icon_url": "https://cdn.modrinth.com/data/zBuk6egG/55e89efe6930dad51fbc6a5d0c91b33bf38fc363_96.webp",
+  "downloads": 258220
+ },
+ {
+  "id": "G1hIVOrD",
+  "slug": "resourceful-lib",
+  "title": "Resourceful Lib",
+  "description": "Resourceful Lib",
+  "team": "sbhau9BZ",
+  "icon_url": "https://cdn.modrinth.com/data/G1hIVOrD/52130f41d05162ce6d7d1832a47d3c238d102632_96.webp",
+  "downloads": 37711591
+ },
+ {
+  "id": "AANobbMI",
+  "slug": "sodium",
+  "title": "Sodium",
+  "description": "A high-performance rendering engine replacement for Minecraft, which greatly improves frame rates and reduces micro-stutter.",
+  "team": "4reLOAKe",
+  "icon_url": "https://cdn.modrinth.com/data/AANobbMI/295862f4724dc3f78df3447ad6072b2dcd3ef0c9_96.webp",
+  "downloads": 253638154
+ },
+ {
+  "id": "vE2FN5qn",
+  "slug": "lmd",
+  "title": "Let Me Despawn",
+  "description": "Improves performance by tweaking mob despawn rules. Say bye to pesky unintentional persistent mobs.",
+  "team": "1Vzc5PLn",
+  "icon_url": "https://cdn.modrinth.com/data/vE2FN5qn/2609f745e46bd92e57a67e1da07319eb2154c6f7.png",
+  "downloads": 25711933
+ },
+ {
+  "id": "Dfu00ggU",
+  "slug": "yungs-better-caves",
+  "title": "YUNG's Better Caves",
+  "description": "Overhauled cave generation, underground lakes and rivers, lava oceans, and more!",
+  "team": "sPIlieNJ",
+  "icon_url": "https://cdn.modrinth.com/data/Dfu00ggU/0fd178fe0c735fae747c5711e0423b1a89276610_96.webp",
+  "downloads": 1588492
+ },
+ {
+  "id": "OQAgZMH1",
+  "slug": "moogs-voyager-structures",
+  "title": "MVS - Moog's Voyager Structures",
+  "description": "adds 130+ vanilla style structures to your world to bring it alive, using vanilla blocks. Includes dungeons and enemies to fight!",
+  "team": "JO8zYlq4",
+  "icon_url": "https://cdn.modrinth.com/data/OQAgZMH1/33277345757fcfdae356bb1b58064de77b065722.gif",
+  "downloads": 9152599
+ },
+ {
+  "id": "bZgeDzN8",
+  "slug": "stellarity",
+  "title": "Stellarity",
+  "description": "Extreme rehaul of The End in a unique fantasy style, combined with biome and structure overhauls, new items, weapons and plenty of other content to discover.",
+  "team": "CM2kvglh",
+  "icon_url": "https://cdn.modrinth.com/data/bZgeDzN8/334f13776890a2b288269a3bbdbd6719719524fe_96.webp",
+  "downloads": 1055233
+ },
+ {
+  "id": "1eAoo2KR",
+  "slug": "yacl",
+  "title": "YetAnotherConfigLib (YACL)",
+  "description": "A builder-based configuration library for Minecraft!",
+  "team": "Nwpe87D0",
+  "icon_url": "https://cdn.modrinth.com/data/1eAoo2KR/08c0cd32515e260f4bb20bbc0696510041523f9a_96.webp",
+  "downloads": 136062505
+ },
+ {
+  "id": "5ZwdcRci",
+  "slug": "immediatelyfast",
+  "title": "ImmediatelyFast",
+  "description": "Speed up immediate mode rendering in Minecraft",
+  "team": "wkdnKsNZ",
+  "icon_url": "https://cdn.modrinth.com/data/5ZwdcRci/e57b6b451425692ac17ad322d5e14bea686a383a_96.webp",
+  "downloads": 138679714
+ },
+ {
+  "id": "FZb6dmQf",
+  "slug": "create-ironworks",
+  "title": "Create: Ironworks",
+  "description": "An addon for the Create mod bringing new materials (Tin, Bronze, Steel) and related items.",
+  "team": "CfME0H0k",
+  "icon_url": "https://cdn.modrinth.com/data/FZb6dmQf/61a779b01ec6dbe3fc7b2f0683bbcdce1de2fd44_96.webp",
+  "downloads": 299609
+ },
+ {
+  "id": "tpehi7ww",
+  "slug": "dungeons-and-taverns",
+  "title": "Dungeons and Taverns",
+  "description": "A Structure Datapack adding dungeons, taverns and other structures to find while you explore the world.",
+  "team": "rThExdJv",
+  "icon_url": "https://cdn.modrinth.com/data/tpehi7ww/429ba22d212868940cdd82465df949ac51c9791e_96.webp",
+  "downloads": 22311122
+ },
+ {
+  "id": "g2dqKlDd",
+  "slug": "aures-sea-dwellers",
+  "title": "Aures - Sea Dwellers",
+  "description": "Underwater villages and sea traders with random generation. Vanilla style.",
+  "team": "la4c3yp4",
+  "icon_url": "https://cdn.modrinth.com/data/g2dqKlDd/8f2c77da6f40f303cb525908c92d8f425cbf9f00_96.webp",
+  "downloads": 30143
+ },
+ {
+  "id": "hl5OLM95",
+  "slug": "geophilic",
+  "title": "Geophilic",
+  "description": "A subtle-ish overhaul of vanilla Overworld biomes! Reworked!",
+  "team": "VnZb9yVa",
+  "icon_url": "https://cdn.modrinth.com/data/hl5OLM95/6846fa80f84d2baa0dd07f8ee65b6f10bf223a84_96.webp",
+  "downloads": 11302122
+ },
+ {
+  "id": "C00Y5Ci9",
+  "slug": "beautified-chat-server",
+  "title": "Beautified Chat [Server]",
+  "description": "💬 A highly configurable mod to change the style and colour of chat messages with optional ranks server-wide.",
+  "team": "IbxgttWq",
+  "icon_url": "https://cdn.modrinth.com/data/C00Y5Ci9/2af014fa3aa2594f3a3b691920dea531a27259f2_96.webp",
+  "downloads": 63125
+ },
+ {
+  "id": "BOCJKD49",
+  "slug": "friends-and-foes-forge",
+  "title": "Friends&Foes (Forge/NeoForge)",
+  "description": "Adds outvoted and forgotten mobs from the mob vote, expanding on their original concepts and adding new vanilla-like features. The mod includes: Copper Golem, Crab, Glare, Moobloom, Iceologer, Rascal, Tuff Golem, Wildfire, Illusioner, Zombie Horse",
+  "team": "MHW3Xqt5",
+  "icon_url": "https://cdn.modrinth.com/data/BOCJKD49/0d5db692d86ca2f99935ebc01123d4c55a714122_96.webp",
+  "downloads": 5208676
+ },
+ {
+  "id": "atHH8NyV",
+  "slug": "legendary-tooltips",
+  "title": "Legendary Tooltips",
+  "description": "Give your rare items a fancier tooltip! Also adds additional tooltip configuration options.",
+  "team": "80MpFuhC",
+  "icon_url": "https://cdn.modrinth.com/data/atHH8NyV/bd47257c8d4aca0e04c43269e5beb7af680b144b_96.webp",
+  "downloads": 11051495
+ },
+ {
+  "id": "nmDcB62a",
+  "slug": "modernfix",
+  "title": "ModernFix",
+  "description": "All-in-one mod that improves performance, reduces memory usage, and fixes many bugs. Compatible with all your favorite performance mods!",
+  "team": "xw684WUq",
+  "icon_url": "https://cdn.modrinth.com/data/nmDcB62a/2af94de5e08ae54567ee86b968fc7ce076d9fee5_96.webp",
+  "downloads": 84583814
+ },
+ {
+  "id": "NcUtCpym",
+  "slug": "xaeros-world-map",
+  "title": "Xaero's World Map",
+  "description": "Adds a full screen world map which shows you what you have explored in the world. Works great together with Xaero's Minimap.",
+  "team": "QWyiT27S",
+  "icon_url": "https://cdn.modrinth.com/data/NcUtCpym/354080f65407e49f486fcf9c4580e82c45ae63b8_96.webp",
+  "downloads": 106344313
+ },
+ {
+  "id": "aqYNR6rI",
+  "slug": "create-copper-zinc",
+  "title": "Create: Copper & Zinc",
+  "description": "An addon for the Create mod providing recipes for Veridium and Asurine, to give the player renewable sources of Copper and Zinc.",
+  "team": "bcqjTXuH",
+  "icon_url": "https://cdn.modrinth.com/data/aqYNR6rI/5f3112d7479fc1c64d1a3d0797119b81a1ccb873.gif",
+  "downloads": 1424692
+ },
+ {
+  "id": "8YcE8y4T",
+  "slug": "ribbits",
+  "title": "Ribbits",
+  "description": "Swamp villages and musical frogs!",
+  "team": "Ya8dyb4x",
+  "icon_url": "https://cdn.modrinth.com/data/8YcE8y4T/3ce5ca40bdbae97978c5950a8be3222c97ac0c35_96.webp",
+  "downloads": 6125645
+ },
+ {
+  "id": "vqqx0QiE",
+  "slug": "sodium-extras",
+  "title": "Sodium Extras",
+  "description": "An add-on mod for Sodium that adds new features and customization.",
+  "team": "CuMc2VjV",
+  "icon_url": "https://cdn.modrinth.com/data/vqqx0QiE/3fcad840acf5e9e27fc71fa195f89a769f6ad27a_96.webp",
+  "downloads": 13052404
+ },
+ {
+  "id": "lhGA9TYQ",
+  "slug": "architectury-api",
+  "title": "Architectury API",
+  "description": "An intermediary api aimed to ease developing multiplatform mods.",
+  "team": "72qgsq9X",
+  "icon_url": "https://cdn.modrinth.com/data/lhGA9TYQ/05fe3a61c28faaccaec3533b92e1b321edde7bf6_96.webp",
+  "downloads": 109125125
+ },
+ {
+  "id": "bq6nqeOx",
+  "slug": "medieval-buildings-end-edition",
+  "title": "Medieval Buildings [End Edition]",
+  "description": "New incredible medieval-style structures for the End!",
+  "team": "pJ8pDWpz",
+  "icon_url": "https://cdn.modrinth.com/data/bq6nqeOx/db41b74b2c5845a85fc4281407e65633eff61349_96.webp",
+  "downloads": 2813236
+ },
+ {
+  "id": "zCh7omyG",
+  "slug": "better-archeology",
+  "title": "Better Archeology",
+  "description": "Discover artifacts & fossils by encountering new structures that'll enhance your adventure and exploration!",
+  "team": "WGV0KdAx",
+  "icon_url": "https://cdn.modrinth.com/data/zCh7omyG/6e077f9529b6789aed7696655d8fd84758e1b54e_96.webp",
+  "downloads": 7569326
+ },
+ {
+  "id": "8BmcQJ2H",
+  "slug": "geckolib",
+  "title": "Geckolib",
+  "description": "A 3D animation library for entities, blocks, items, armor, and more!",
+  "team": "XGT1SohE",
+  "icon_url": "https://cdn.modrinth.com/data/8BmcQJ2H/012d1aadbc754995de66e8c149a56aa10b63fe05_96.webp",
+  "downloads": 77794925
+ },
+ {
+  "id": "2uEhdGKt",
+  "slug": "enders-delight",
+  "title": "Ender's Delight",
+  "description": "An addon for Farmer's Delight based around adding culinary content to the end!",
+  "team": "hfGv0TRw",
+  "icon_url": "https://cdn.modrinth.com/data/2uEhdGKt/0cf9c0392fdec68443e8c1136f78a5a5485d2cbb_96.webp",
+  "downloads": 5937430
+ },
+ {
+  "id": "aeW9oim1",
+  "slug": "create-stone-generators",
+  "title": "Create: Easy Stone Generators",
+  "description": "Easier, lag-free stone generators using Create. Includes Cobblestone, Smooth Stone, Obsidian, Basalt, Limestone and Scoria generators.",
+  "team": "GMRltQZ3",
+  "icon_url": "https://cdn.modrinth.com/data/aeW9oim1/aea313f58e618fdf4314bea2d9d8553ec8ea926d_96.webp",
+  "downloads": 244593
+ },
+ {
+  "id": "uXXizFIs",
+  "slug": "ferrite-core",
+  "title": "FerriteCore",
+  "description": "Memory usage optimizations",
+  "team": "2JhABx1f",
+  "icon_url": "https://cdn.modrinth.com/data/uXXizFIs/222a126f26f8f9ae1eb339f3b767677f18bff31f_96.webp",
+  "downloads": 168386717
+ },
+ {
+  "id": "j3FONRYr",
+  "slug": "structory-towers",
+  "title": "Structory: Towers",
+  "description": "Adds immersive biome-themed towers to the world, as a standalone option or add-on to Structory",
+  "team": "U6JCnZqP",
+  "icon_url": "https://cdn.modrinth.com/data/j3FONRYr/e7d6877a7b7a03680383fd1a1fdd3496604e372a_96.webp",
+  "downloads": 10023346
+ },
+ {
+  "id": "R2OftAxM",
+  "slug": "farmers-delight",
+  "title": "Farmer's Delight",
+  "description": "A cozy expansion to farming and cooking!",
+  "team": "gg7pp5NT",
+  "icon_url": "https://cdn.modrinth.com/data/R2OftAxM/8e7aa38ab94d94bb0a2894a218b69beb49002b34.png",
+  "downloads": 25903683
+ },
+ {
+  "id": "VgySJMNg",
+  "slug": "valheim-delight",
+  "title": "Valheim Delight",
+  "description": "An addon mod for Farmer's Delight that adds your favorite foods from Valheim.",
+  "team": "n5qXfIOC",
+  "icon_url": "https://cdn.modrinth.com/data/VgySJMNg/d4607aa8bf877459a151ebab84ed061520d1b37c.png",
+  "downloads": 14942
+ }
+]

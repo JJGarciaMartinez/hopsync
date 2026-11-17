@@ -157,6 +157,22 @@ class DownloadServiceTest {
     }
 
     @Test
+    void copiesALocalFileWithTheSameChecks() throws Exception {
+        Path source = Files.write(dir.resolve("own.jar"), PAYLOAD);
+        Path target = dir.resolve("mods-own.jar");
+        AtomicLong reported = new AtomicLong();
+
+        service.download(source.toUri().toString(), target, sha512(PAYLOAD), PAYLOAD.length, reported::addAndGet,
+            CancellationToken.none());
+
+        assertArrayEquals(PAYLOAD, Files.readAllBytes(target));
+        assertEquals(PAYLOAD.length, reported.get());
+        assertInstanceOf(SyncFailure.HashMismatch.class, failureOf(() -> service.download(source.toUri().toString(),
+            dir.resolve("other.jar"), "0".repeat(128), PAYLOAD.length, n -> { }, CancellationToken.none())));
+        assertFalse(Files.exists(dir.resolve("other.jar")));
+    }
+
+    @Test
     void wrongSizeIsRejected() throws Exception {
         Path target = dir.resolve("mod.jar");
 

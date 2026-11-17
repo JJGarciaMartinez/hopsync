@@ -36,6 +36,16 @@ public sealed interface SyncFailure {
         public String describe() { return "invalid manifest: " + detail; }
     }
 
+    /** A mod a created pack lists is no longer in the catalog, or its own jar is gone. */
+    record ModUnavailable(String mod) implements SyncFailure {
+        public String describe() { return "mod no longer available: " + mod; }
+    }
+
+    /** What HopSync keeps of a created pack is missing or cannot be read. */
+    record DefinitionMissing(String packId) implements SyncFailure {
+        public String describe() { return "pack definition missing or unreadable: " + packId; }
+    }
+
     /** The manifest uses a format version this build does not understand. */
     record UnsupportedFormat(long found, int supported) implements SyncFailure {
         public String describe() { return "manifest format " + found + " is not supported (expected " + supported + ")"; }
