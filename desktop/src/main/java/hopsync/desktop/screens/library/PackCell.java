@@ -5,6 +5,7 @@ import com.formdev.flatlaf.util.UIScale;
 import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.MarkTile;
 import hopsync.desktop.kit.Palette;
+import hopsync.desktop.kit.Relief;
 import hopsync.desktop.kit.StatusMark;
 import hopsync.desktop.store.PackUiState;
 
@@ -14,9 +15,7 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.ListCellRenderer;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
-import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
@@ -93,14 +92,12 @@ final class PackCell extends JPanel implements ListCellRenderer<PackUiState> {
                 int w = getWidth() - 1;
                 int h = getHeight() - inset * 2;
                 if (selected) {
-                    g2.setColor(new Color(0x08090A));
-                    g2.fillRoundRect(0, inset + UIScale.scale(2), w, h, arc, arc);
-                    g2.setPaint(new GradientPaint(0, inset, Palette.raised(), 0, inset + h, new Color(0x22262A)));
-                    g2.fillRoundRect(0, inset, w, h, arc, arc);
-                    g2.setColor(Palette.edge());
-                    g2.drawRoundRect(0, inset, w, h, arc, arc);
+                    int bevel = UIScale.scale(2);
+                    Relief.paintRaised(g2, new Relief.Raised(Palette.selectedTop(), Palette.selectedBottom(),
+                        Palette.raisedBorder(), Palette.raisedBorder(), Palette.raisedHighlight(), Palette.raisedBevel()),
+                        0, inset, w, h - bevel, arc, bevel);
                 } else {
-                    g2.setColor(new Color(255, 255, 255, 9));
+                    g2.setColor(Palette.hoverTint());
                     g2.fillRoundRect(0, inset, w, h, arc, arc);
                 }
             } finally {

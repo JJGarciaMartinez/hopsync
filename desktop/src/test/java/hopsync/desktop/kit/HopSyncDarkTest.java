@@ -1,5 +1,6 @@
 package hopsync.desktop.kit;
 
+import com.formdev.flatlaf.ui.FlatUIUtils;
 import com.formdev.flatlaf.util.UIScale;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import javax.swing.JComponent;
 import javax.swing.JTextField;
 import javax.swing.UIManager;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -59,14 +61,52 @@ class HopSyncDarkTest {
     }
 
     @Test
-    void raisedButtonsReserveRoomForTheBevel() {
-        JButton raised = new JButton("Aplicar");
-        JButton quiet = new JButton("Aplicar");
+    void everyRoleIsRaisedQuietIncluded() {
+        JButton quiet = new JButton("Ajustes");
         ButtonStyle.apply(quiet, ButtonStyle.QUIET);
-        assertTrue(RaisedButtonUI.isRaised(raised));
-        assertFalse(RaisedButtonUI.isRaised(quiet));
-        assertEquals(quiet.getPreferredSize().height + UIScale.scale(UIManager.getInt("HopSync.bevelWidth")),
-            raised.getPreferredSize().height);
+        JButton danger = new JButton("Quitar");
+        ButtonStyle.apply(danger, ButtonStyle.DANGER);
+        JButton primary = new JButton("Aplicar cambios");
+        ButtonStyle.apply(primary, ButtonStyle.PRIMARY);
+        assertTrue(RaisedButtonUI.isRaised(quiet));
+        assertEquals("quiet", RaisedButtonUI.role(quiet));
+        assertEquals("danger", RaisedButtonUI.role(danger));
+        assertEquals("primary", RaisedButtonUI.role(primary));
+        assertEquals("secondary", RaisedButtonUI.role(new JButton("Ahora no")));
+    }
+
+    @Test
+    void facesHaveThePlannedHeights() {
+        JButton secondary = new JButton("Ahora no");
+        JButton primary = new JButton("Aplicar cambios");
+        ButtonStyle.apply(primary, ButtonStyle.PRIMARY);
+        int focus = Math.round(FlatUIUtils.getBorderFocusWidth(secondary)) * 2;
+        int lift = UIScale.scale(UIManager.getInt("HopSync.bevelWidth")) + UIScale.scale(1);
+        int primaryLift = UIScale.scale(UIManager.getInt("HopSync.bevelWidth.primary")) + UIScale.scale(1);
+        assertEquals(UIScale.scale(36) + focus + lift, secondary.getPreferredSize().height);
+        assertEquals(UIScale.scale(38) + focus + primaryLift, primary.getPreferredSize().height);
+    }
+
+    @Test
+    void iconButtonsAreSquare() {
+        JButton icon = new JButton(Icons.get(Icons.Glyph.FOLDER));
+        ButtonStyle.apply(icon, ButtonStyle.SECONDARY, ButtonStyle.ICON);
+        JButton small = new JButton(Icons.get(Icons.Glyph.REFRESH));
+        ButtonStyle.apply(small, ButtonStyle.SECONDARY, ButtonStyle.ICON, ButtonStyle.SMALL);
+        int focus = Math.round(FlatUIUtils.getBorderFocusWidth(icon)) * 2;
+        int lift = UIScale.scale(UIManager.getInt("HopSync.bevelWidth")) + UIScale.scale(1);
+        assertEquals(UIScale.scale(30) + focus, icon.getPreferredSize().width);
+        assertEquals(UIScale.scale(30) + focus + lift, icon.getPreferredSize().height);
+        assertEquals(UIScale.scale(26) + focus, small.getPreferredSize().width);
+    }
+
+    @Test
+    void disabledButtonsDropTheHandCursor() {
+        JButton button = new JButton("Aplicar cambios");
+        ButtonStyle.apply(button, ButtonStyle.PRIMARY);
+        assertEquals(Cursor.HAND_CURSOR, button.getCursor().getType());
+        button.setEnabled(false);
+        assertEquals(Cursor.DEFAULT_CURSOR, button.getCursor().getType());
     }
 
     @Test

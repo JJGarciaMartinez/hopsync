@@ -272,7 +272,7 @@ public final class PackHero extends JPanel {
         JButton button = new JButton(Icons.get(glyph));
         button.setToolTipText(Messages.get(key));
         button.getAccessibleContext().setAccessibleName(Messages.get(key));
-        ButtonStyle.apply(button, ButtonStyle.SECONDARY, ButtonStyle.SMALL);
+        ButtonStyle.apply(button, ButtonStyle.SECONDARY, ButtonStyle.ICON);
         return button;
     }
 
