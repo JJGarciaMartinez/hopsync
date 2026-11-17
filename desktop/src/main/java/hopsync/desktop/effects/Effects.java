@@ -100,9 +100,13 @@ public final class Effects {
                 .ifPresent(pack -> copy(pack.manifestUrl(), Messages.get("toast.linkCopied")));
             case UiAction.RemovePack a -> removePack(a.packId(), state);
             case UiAction.OpenModPage a -> openModPage(a.url());
-            case UiAction.SyncEventReceived a when finishesUpdate(a.event()) ->
+            case UiAction.SyncEventReceived a when finishesUpdate(a.event()) -> {
                 // Back to what is on disk once the worker has stopped
                 loadInstalled(a.event().packId());
+                if (a.event() instanceof SyncEvent.UpdateCompleted done && done.failCount() == 0 && done.successCount() > 0) {
+                    store.dispatch(new UiAction.ShowToast(Messages.get("toast.applied", done.successCount())));
+                }
+            }
             default -> sheets.run(action, state);
         }
     }

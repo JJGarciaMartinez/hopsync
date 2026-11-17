@@ -49,6 +49,7 @@ class DownloadServiceTest {
     final AtomicInteger downCalls = new AtomicInteger();
     final AtomicInteger missingCalls = new AtomicInteger();
     final AtomicInteger textCalls = new AtomicInteger();
+    final AtomicInteger fileCalls = new AtomicInteger();
     final DownloadService service = new DownloadService(new NetworkConfig(2_000, 2_000, "test"), Duration.ofMillis(5));
 
     @BeforeEach
@@ -56,7 +57,10 @@ class DownloadServiceTest {
         server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         serverThreads = Executors.newCachedThreadPool();
         server.setExecutor(serverThreads);
-        server.createContext("/file", exchange -> send(exchange, 200, PAYLOAD));
+        server.createContext("/file", exchange -> {
+            fileCalls.incrementAndGet();
+            send(exchange, 200, PAYLOAD);
+        });
         server.createContext("/missing", exchange -> {
             missingCalls.incrementAndGet();
             send(exchange, 404, null);
@@ -140,13 +144,14 @@ class DownloadServiceTest {
     }
 
     @Test
-    void wrongHashKeepsTheOldFile() throws Exception {
+    void wrongHashIsRetriedThenKeepsTheOldFile() throws Exception {
         Path target = Files.writeString(dir.resolve("mod.jar"), "old version");
 
         SyncFailure failure = failureOf(() ->
             service.download(baseUrl + "/file", target, "0".repeat(128), PAYLOAD.length, n -> { }, CancellationToken.none()));
 
         assertEquals(new SyncFailure.HashMismatch("mod.jar"), failure);
+        assertEquals(DownloadService.MAX_ATTEMPTS, fileCalls.get(), "a damaged file is downloaded again");
         assertEquals("old version", Files.readString(target));
         assertFalse(Files.exists(part(target)));
     }

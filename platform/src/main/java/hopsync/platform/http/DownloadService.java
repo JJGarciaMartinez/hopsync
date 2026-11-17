@@ -135,8 +135,10 @@ public class DownloadService implements FileDownloader {
         }
     }
 
+    /** Worth another try: the network, a busy server, or a file that arrived damaged on the way. */
     private static boolean isTransient(SyncFailure failure) {
         return failure instanceof SyncFailure.Network
+            || failure instanceof SyncFailure.HashMismatch
             || failure instanceof SyncFailure.HttpStatus status && (status.status() >= 500 || status.status() == 429);
     }
 

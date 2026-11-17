@@ -67,8 +67,11 @@ class MessagesTest {
     void pluralsAndAccents() {
         assertEquals("Aplicado con 1 error", Messages.get("hero.state.doneWithErrors", 1));
         assertEquals("Aplicado con 3 errores", Messages.get("hero.state.doneWithErrors", 3));
-        assertEquals("1 mod ya está al día · Ver todos", Messages.get("mods.upToDateMore", 1));
-        assertEquals("70 mods ya están al día · Ver todos", Messages.get("mods.upToDateMore", 70));
+        assertEquals("Ya instalados · 70 sin cambios · Ver todos", Messages.get("mods.upToDateMore", 70));
+        assertEquals("1 nuevo", Messages.get("hero.chip.new", 1));
+        assertEquals("3 actualizan", Messages.get("hero.chip.update", 3));
+        assertEquals("1 se quita", Messages.get("hero.chip.remove", 1));
+        assertEquals("7 cambios aplicados", Messages.get("toast.applied", 7));
         assertEquals("Comparando con el pack…", Messages.get("hero.state.checking"));
     }
 }
