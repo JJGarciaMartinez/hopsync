@@ -129,7 +129,7 @@ public class GitHubAuth {
         return map.get(key) instanceof Number value ? value.longValue() : fallback;
     }
 
-    private static void sleepUnlessCancelled(Duration duration, CancellationToken cancel) throws IOException {
+    static void sleepUnlessCancelled(Duration duration, CancellationToken cancel) throws IOException {
         long until = System.nanoTime() + duration.toNanos();
         while (System.nanoTime() < until) {
             cancel.throwIfCancelled();

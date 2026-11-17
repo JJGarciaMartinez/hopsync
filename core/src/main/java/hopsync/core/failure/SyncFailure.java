@@ -61,6 +61,21 @@ public sealed interface SyncFailure {
         public String describe() { return "GitHub access was denied"; }
     }
 
+    /** The GitHub token is gone or no longer valid. */
+    record GitHubSignedOut() implements SyncFailure {
+        public String describe() { return "not signed in to GitHub, or the token was revoked"; }
+    }
+
+    /** The player already has a repository with the name chosen for a new pack. */
+    record RepoNameTaken(String name) implements SyncFailure {
+        public String describe() { return "a repository named " + name + " already exists"; }
+    }
+
+    /** The pack repository's build did not publish the manifest; the page shows why. */
+    record PublishBuildFailed(String url) implements SyncFailure {
+        public String describe() { return "the pack repository's build failed: " + url; }
+    }
+
     /** The manifest uses a format version this build does not understand. */
     record UnsupportedFormat(long found, int supported) implements SyncFailure {
         public String describe() { return "manifest format " + found + " is not supported (expected " + supported + ")"; }

@@ -51,6 +51,9 @@ public final class Messages {
             case SyncFailure.GitHubNotConfigured f -> get("failure.githubNotConfigured");
             case SyncFailure.GitHubCodeExpired f -> get("failure.githubCodeExpired");
             case SyncFailure.GitHubDenied f -> get("failure.githubDenied");
+            case SyncFailure.GitHubSignedOut f -> get("failure.githubSignedOut");
+            case SyncFailure.RepoNameTaken f -> get("failure.repoNameTaken", f.name());
+            case SyncFailure.PublishBuildFailed f -> get("failure.publishBuildFailed");
             case SyncFailure.UnsupportedFormat f -> get("failure.unsupportedFormat", String.valueOf(f.found()), String.valueOf(f.supported()));
             case SyncFailure.HashMismatch f -> get("failure.hashMismatch", f.file());
             case SyncFailure.SizeMismatch f -> get("failure.sizeMismatch", f.file());
