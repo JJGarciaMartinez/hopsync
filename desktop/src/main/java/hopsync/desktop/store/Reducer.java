@@ -125,6 +125,19 @@ public final class Reducer {
             case UiAction.SavePackSettings a -> state;
             case UiAction.SaveAppSettings a -> state;
             case UiAction.CopyDiagnostics a -> state;
+            case UiAction.AccountLoaded a -> state.withAccount(state.account().loaded(a.login(), a.persistent(), a.available()));
+            case UiAction.ConnectGitHub a -> state.account().available() && !state.account().connecting()
+                ? state.withAccount(state.account().startConnecting()) : state;
+            // Answers for a sign-in the player already cancelled are dropped
+            case UiAction.GitHubCodeShown a -> state.account().connecting()
+                ? state.withAccount(state.account().withCode(a.userCode(), a.verificationUri())) : state;
+            case UiAction.OpenGitHubDevice a -> state;
+            case UiAction.GitHubConnected a -> state.account().connecting()
+                ? state.withAccount(state.account().connected(a.login())) : state;
+            case UiAction.GitHubConnectFailed a -> state.account().connecting()
+                ? state.withAccount(state.account().stopped(a.failure())) : state;
+            case UiAction.CancelGitHubConnect a -> state.withAccount(state.account().stopped(null));
+            case UiAction.DisconnectGitHub a -> state;
             case UiAction.ShowToast a -> state.withToast(a.text());
             case UiAction.SelectPack a -> state.packs().containsKey(a.packId())
                 ? state.withSelected(a.packId()).withFilter(UiState.Filter.CHANGES) : state;

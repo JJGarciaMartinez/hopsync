@@ -214,6 +214,6 @@ public sealed interface Sheet {
     /** Preferences for every pack, and information about the app. */
     record AppSettings(Section section, Preferences draft) implements Sheet {
 
-        public enum Section { GENERAL, ABOUT }
+        public enum Section { GENERAL, ACCOUNT, ABOUT }
     }
 }

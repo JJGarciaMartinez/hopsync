@@ -161,9 +161,10 @@ public final class AddPackView extends JPanel {
         steps.setStep(sheet.step());
         title.setText(Messages.get(creating ? "sheet.wizard.createTitle"
             : sheet.firstRun() ? "sheet.wizard.firstRunTitle" : "sheet.wizard.title"));
-        subtitle.setText(Messages.get(sheet.step() == 1
+        // Wraps at the content width: the card no longer grows to fit one long line
+        subtitle.setText(SheetParts.wrap(Messages.get(sheet.step() == 1
             ? creating ? "sheet.wizard.createSubtitle" : "sheet.wizard.linkSubtitle"
-            : creating ? "sheet.wizard.createFolderSubtitle" : "sheet.wizard.folderSubtitle"));
+            : creating ? "sheet.wizard.createFolderSubtitle" : "sheet.wizard.folderSubtitle"), SheetParts.CONTENT_WIDTH));
 
         if (sheet.step() == 1 && creating) {
             showCreation(sheet.creation());

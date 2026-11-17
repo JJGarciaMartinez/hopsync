@@ -11,9 +11,11 @@ import java.util.Properties;
  *
  * @param presetManifestUrl manifest offered to players who have not chosen a pack yet
  */
-public record AppConfig(NetworkConfig network, String presetManifestUrl) {
+public record AppConfig(NetworkConfig network, String presetManifestUrl, String githubClientId) {
     private static final System.Logger LOG = System.getLogger(AppConfig.class.getName());
 
+    /** HopSync's GitHub OAuth app; a client id is not a secret (device flow, no client secret). */
+    static final String DEFAULT_GITHUB_CLIENT_ID = "Ov23lihI0NGFxSrR2Y5K";
     static final String DEFAULT_MANIFEST_URL =
         "https://github.com/JJGarciaMartinez/hopsync-demo/releases/download/hopsync/manifest.json";
 
@@ -33,7 +35,8 @@ public record AppConfig(NetworkConfig network, String presetManifestUrl) {
             intOr(props, "network.connect.timeout", defaults.connectTimeoutMillis()),
             intOr(props, "network.read.timeout", defaults.readTimeoutMillis()),
             props.getProperty("network.user.agent", defaults.userAgent()));
-        return new AppConfig(network, props.getProperty("manifest.url", DEFAULT_MANIFEST_URL));
+        return new AppConfig(network, props.getProperty("manifest.url", DEFAULT_MANIFEST_URL),
+            props.getProperty("github.client.id", DEFAULT_GITHUB_CLIENT_ID).strip());
     }
 
     private static int intOr(Properties props, String key, int fallback) {

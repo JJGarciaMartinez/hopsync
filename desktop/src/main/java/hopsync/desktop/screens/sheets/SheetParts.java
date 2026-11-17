@@ -18,6 +18,8 @@ import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.Scrollable;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -26,6 +28,7 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Insets;
+import java.awt.Rectangle;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -50,6 +53,54 @@ final class SheetParts {
             BorderFactory.createEmptyBorder(30, 32, 26, 32)));
         card.add(content, BorderLayout.CENTER);
         return card;
+    }
+
+    /**
+     * A card for a sheet over the window: it takes the size the layer gives it, keeps the sheet's footer at its
+     * bottom, and scrolls the sheet vertically when it is taller than the card.
+     */
+    static JPanel floatingCard(JComponent content) {
+        JScrollPane scroll = new JScrollPane(new Fitting(content), JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setBorder(null);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getVerticalScrollBar().setUnitIncrement(UIScale.scale(16));
+        return card(scroll);
+    }
+
+    /** Fills the card's width, and its height too whenever the sheet is shorter than the card. */
+    private static final class Fitting extends JPanel implements Scrollable {
+        Fitting(JComponent content) {
+            super(new BorderLayout());
+            setOpaque(false);
+            add(content, BorderLayout.CENTER);
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
+            return UIScale.scale(16);
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
+            return visible.height;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return getParent() != null && getParent().getHeight() >= getPreferredSize().height;
+        }
     }
 
     static JPanel column() {

@@ -1,5 +1,6 @@
 package hopsync.desktop.screens.sheets;
 
+import com.formdev.flatlaf.util.UIScale;
 import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.Sheet;
 import hopsync.desktop.store.UiAction;
@@ -13,8 +14,8 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.Graphics;
-import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
@@ -24,8 +25,10 @@ import java.util.function.Consumer;
 
 /**
  * Draws {@link UiState#sheet()} inside the window: a dimmed layer over everything with the sheet's card in
- * the middle. The layer takes every click, Esc closes the sheet, and Tab stays inside it. The first-run
- * wizard is not drawn here: it fills the window instead (see {@link #firstRunWizard()}).
+ * the middle. Every card has the same size, a share of the window's ({@link #cardSize}), so switching a sheet's
+ * section never resizes it; what does not fit scrolls inside the card. The layer takes every click, Esc closes the
+ * sheet, and Tab stays inside it. The first-run wizard is not drawn here: it fills the window instead (see
+ * {@link #firstRunWizard()}).
  */
 public final class SheetLayer extends JPanel {
     private static final Color SCRIM = new Color(0, 0, 0, 150);
@@ -43,17 +46,17 @@ public final class SheetLayer extends JPanel {
     private JComponent shownCard;
 
     public SheetLayer(JLayeredPane owner, Consumer<UiAction> dispatch, String demoUrl, Path settingsFile) {
-        super(new GridBagLayout());
+        super(null);
         this.owner = owner;
         wizard = new AddPackView(dispatch, demoUrl);
         firstRunWizard = new AddPackView(dispatch, demoUrl);
         packSettings = new PackSettingsView(dispatch);
         appSettings = new AppSettingsView(dispatch, settingsFile);
-        wizardCard = SheetParts.card(wizard);
-        packSettingsCard = SheetParts.card(packSettings);
-        appSettingsCard = SheetParts.card(appSettings);
+        wizardCard = SheetParts.floatingCard(wizard);
+        packSettingsCard = SheetParts.floatingCard(packSettings);
+        appSettingsCard = SheetParts.floatingCard(appSettings);
         addMods = new AddModsView(dispatch);
-        addModsCard = SheetParts.card(addMods);
+        addModsCard = SheetParts.floatingCard(addMods);
         setOpaque(false);
         setVisible(false);
         setFocusCycleRoot(true);
@@ -99,7 +102,7 @@ public final class SheetLayer extends JPanel {
                 yield pack == null ? null : packSettingsCard;
             }
             case Sheet.AppSettings settings -> {
-                appSettings.render(settings);
+                appSettings.render(settings, state.account());
                 yield appSettingsCard;
             }
             case Sheet.AddMods mods -> {
@@ -127,6 +130,26 @@ public final class SheetLayer extends JPanel {
                 if (first != null) first.requestFocusInWindow();
             });
         }
+    }
+
+    /**
+     * A card's size in a window of the given size: 62 % of its width within 600–720 px and 82 % of its height
+     * within 460–600 px, never larger than the window less a margin.
+     */
+    static Dimension cardSize(int windowWidth, int windowHeight) {
+        int margin = UIScale.scale(24);
+        int width = Math.clamp(Math.round(windowWidth * 0.62f), UIScale.scale(600), UIScale.scale(720));
+        int height = Math.clamp(Math.round(windowHeight * 0.82f), UIScale.scale(460), UIScale.scale(600));
+        return new Dimension(Math.max(0, Math.min(width, windowWidth - margin * 2)),
+            Math.max(0, Math.min(height, windowHeight - margin * 2)));
+    }
+
+    @Override
+    public void doLayout() {
+        if (getComponentCount() == 0) return;
+        Dimension size = cardSize(getWidth(), getHeight());
+        getComponent(0).setBounds((getWidth() - size.width) / 2, (getHeight() - size.height) / 2, size.width,
+            size.height);
     }
 
     @Override
