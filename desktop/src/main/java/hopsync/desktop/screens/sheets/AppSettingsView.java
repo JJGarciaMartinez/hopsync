@@ -11,6 +11,7 @@ import hopsync.desktop.kit.Fonts;
 import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.SegmentedControl;
+import hopsync.desktop.logging.Logging;
 import hopsync.desktop.store.Account;
 import hopsync.desktop.store.Preferences;
 import hopsync.desktop.store.Sheet.AppSettings.Section;
@@ -20,6 +21,8 @@ import hopsync.desktop.store.UiState;
 import hopsync.platform.system.SystemInfoService;
 
 import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
@@ -220,7 +223,17 @@ public final class AppSettingsView extends JPanel {
         JButton copy = SheetParts.button("sheet.app.copyDiagnostics", ButtonStyle.SECONDARY, dispatch,
             new UiAction.CopyDiagnostics());
         copy.setIcon(Icons.get(Icons.Glyph.COPY));
-        SheetParts.stack(about, 18, facts(settingsFile), copy);
+        JButton logs = SheetParts.button("sheet.app.openLogs", ButtonStyle.SECONDARY, dispatch,
+            new UiAction.OpenLogsFolder());
+        logs.setIcon(Icons.get(Icons.Glyph.FOLDER));
+        JPanel buttons = new JPanel();
+        buttons.setLayout(new BoxLayout(buttons, BoxLayout.X_AXIS));
+        buttons.setOpaque(false);
+        buttons.add(copy);
+        buttons.add(Box.createHorizontalStrut(UIScale.scale(8)));
+        buttons.add(logs);
+        SheetParts.stack(about, 18, facts(settingsFile), buttons);
+        SheetParts.stack(about, 8, SheetParts.hint(Messages.get("sheet.app.reportHint")));
         about.revalidate();
         about.repaint();
     }
@@ -255,6 +268,7 @@ public final class AppSettingsView extends JPanel {
             {"sheet.app.scale", String.format(Locale.ROOT, "%.2f×", UIScale.getUserScaleFactor())
                 + " · sun.java2d.uiScale=" + System.getProperty("sun.java2d.uiScale", "auto")},
             {"sheet.app.settingsFile", settingsFile.toString()},
+            {"sheet.app.logs", Logging.folderFor(settingsFile).toString()},
         };
         JPanel grid = new JPanel(new GridBagLayout());
         grid.setOpaque(false);

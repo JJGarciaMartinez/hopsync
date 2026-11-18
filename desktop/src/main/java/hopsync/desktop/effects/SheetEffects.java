@@ -12,6 +12,7 @@ import hopsync.core.port.ModCatalog;
 import hopsync.core.usecase.PackEditor;
 import hopsync.desktop.config.AppVersion;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.logging.Logging;
 import hopsync.desktop.store.GameFolder;
 import hopsync.desktop.store.LinkCheck;
 import hopsync.desktop.store.Preferences;
@@ -23,6 +24,7 @@ import hopsync.platform.fs.InstanceFinder;
 import hopsync.platform.manifest.ManifestService;
 import hopsync.platform.system.SystemInfoService;
 
+import java.awt.Desktop;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.io.IOException;
@@ -115,6 +117,7 @@ final class SheetEffects {
             case UiAction.SaveAppSettings a when state.sheet() instanceof Sheet.AppSettings settings ->
                 saveAppSettings(settings.draft());
             case UiAction.CopyDiagnostics a -> copyDiagnostics();
+            case UiAction.OpenLogsFolder a -> openLogsFolder();
             default -> { }
         }
     }
@@ -340,6 +343,22 @@ final class SheetEffects {
         store.dispatch(new UiAction.ShowToast(Messages.get("toast.diagnosticsCopied")));
     }
 
+    private void openLogsFolder() {
+        Path logs = Logging.folderFor(settingsFile);
+        background.execute(() -> {
+            try {
+                if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
+                    throw new IOException("opening folders is not supported here");
+                }
+                Files.createDirectories(logs);
+                Desktop.getDesktop().open(logs.toFile());
+            } catch (IOException | RuntimeException e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not open " + logs, e);
+                store.dispatch(new UiAction.ShowToast(Messages.get("toast.folderFailed")));
+            }
+        });
+    }
+
     /** What a bug report needs: versions, system, scale, paths and packs, without personal data beyond paths. */
     String diagnostics() {
         StringBuilder text = new StringBuilder();
@@ -350,6 +369,7 @@ final class SheetEffects {
             .append(System.getProperty("java.vendor")).append('\n');
         text.append("UI scale: ").append(System.getProperty("sun.java2d.uiScale", "auto")).append('\n');
         text.append("Settings: ").append(settingsFile).append('\n');
+        text.append("Logs: ").append(Logging.folderFor(settingsFile)).append('\n');
         text.append("Packs: ").append(registry.packs().size()).append('\n');
         for (Pack pack : registry.packs()) {
             text.append("- ").append(pack.name().isEmpty() ? "?" : pack.name()).append(" | ").append(pack.link().orElse("created here"))

@@ -29,6 +29,11 @@ public final class Logging {
     private Logging() {
     }
 
+    /** The log folder, next to the settings file. */
+    public static Path folderFor(Path settingsFile) {
+        return settingsFile.resolveSibling("logs");
+    }
+
     /**
      * Must run before the first log message. Falls back to console-only logging if the folder cannot
      * be written.
