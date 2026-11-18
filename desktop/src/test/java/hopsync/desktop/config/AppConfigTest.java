@@ -19,7 +19,7 @@ class AppConfigTest {
         props.setProperty("manifest.url", "https://example.org/manifest.json");
         props.setProperty("github.client.id", " Iv1.test ");
 
-        AppConfig config = AppConfig.fromProperties(props);
+        AppConfig config = AppConfig.fromProperties(props, "b26.2.0");
         assertEquals("Iv1.test", config.githubClientId());
 
         assertEquals(new NetworkConfig(5000, 7000, "HopSync-Test"), config.network());
@@ -31,7 +31,7 @@ class AppConfigTest {
         Properties props = new Properties();
         props.setProperty("network.connect.timeout", "soon");
 
-        AppConfig config = AppConfig.fromProperties(props);
+        AppConfig config = AppConfig.fromProperties(props, "b26.2.0");
 
         assertEquals(NetworkConfig.DEFAULT, config.network());
         assertEquals(AppConfig.DEFAULT_MANIFEST_URL, config.presetManifestUrl());
@@ -39,9 +39,21 @@ class AppConfigTest {
     }
 
     @Test
+    void userAgentCarriesTheAppVersion() {
+        Properties props = new Properties();
+        props.setProperty("network.user.agent", "owner/hopsync/{version} (https://example.org)");
+
+        AppConfig config = AppConfig.fromProperties(props, "26.2.0");
+
+        assertEquals("owner/hopsync/26.2.0 (https://example.org)", config.network().userAgent());
+    }
+
+    @Test
     void packagedPropertiesLoad() {
         AppConfig config = AppConfig.load();
         assertTrue(config.presetManifestUrl().startsWith("https://"));
         assertTrue(config.network().connectTimeoutMillis() > 0);
+        assertEquals("JJGarciaMartinez/hopsync/" + AppVersion.VERSION + " (https://github.com/JJGarciaMartinez/hopsync)",
+            config.network().userAgent());
     }
 }
