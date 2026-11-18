@@ -22,7 +22,9 @@ import org.junit.jupiter.api.BeforeAll;
 import javax.swing.JScrollPane;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JLayeredPane;
 import javax.swing.JProgressBar;
 import javax.swing.JTextField;
@@ -30,6 +32,7 @@ import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.time.ZoneOffset;
@@ -129,6 +132,61 @@ class ScreensTest {
 
         assertTrue(shortName > 0);
         assertEquals(shortName, longName);
+    }
+
+    @Test
+    void aNarrowHeaderMovesTheButtonsUnderTheNameInsteadOfHidingIt() throws Exception {
+        // A created pack in review has the most buttons: add mods, publish, not now, apply
+        UiState review = reduce(created(), new SyncEvent.UpdateStarted(MINE.id()), new SyncEvent.PlanReady(MINE.id(), plan()));
+        PackHero hero = new PackHero(dispatched::add, ZoneOffset.UTC);
+
+        for (int width : new int[] {600, 800, 1100}) {
+            SwingUtilities.invokeAndWait(() -> {
+                hero.render(review.selected().orElseThrow(), review);
+                hero.setSize(UIScale.scale(width), UIScale.scale(134));
+                invalidateTree(hero);
+                layoutTree(hero);
+                // The row of buttons makes the header taller, as the window would then give it
+                hero.setSize(hero.getWidth(), hero.getPreferredSize().height);
+                invalidateTree(hero);
+                layoutTree(hero);
+                // Right the first time: a window lays it out once more only if something else changes
+                assertEquals(hero.getHeight(), hero.getPreferredSize().height, width + " px: the height kept changing");
+
+                JLabel name = findLabel(hero, review.selected().orElseThrow().displayName());
+                assertTrue(name.getWidth() >= name.getPreferredSize().width,
+                    width + " px: the name is cut to " + name.getWidth() + " px");
+                Rectangle header = new Rectangle(0, 0, hero.getWidth(), hero.getHeight());
+                for (JButton button : buttons(hero)) {
+                    Rectangle bounds = SwingUtilities.convertRectangle(button.getParent(), button.getBounds(), hero);
+                    assertTrue(header.contains(bounds), width + " px: " + button.getText() + " at " + bounds);
+                }
+            });
+        }
+    }
+
+    private static JLabel findLabel(Container container, String text) {
+        for (Component child : container.getComponents()) {
+            if (child instanceof JLabel label && text.equals(label.getText())) return label;
+            if (child instanceof Container inner) {
+                JLabel found = findLabel(inner, text);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private static List<JButton> buttons(Container container) {
+        List<JButton> found = new ArrayList<>();
+        for (Component child : container.getComponents()) {
+            if (child instanceof JButton button && button.isVisible() && button.getText() != null
+                    && !button.getText().isEmpty()) {
+                found.add(button);
+            } else if (child instanceof Container inner && child.isVisible()) {
+                found.addAll(buttons(inner));
+            }
+        }
+        return found;
     }
 
     /**
