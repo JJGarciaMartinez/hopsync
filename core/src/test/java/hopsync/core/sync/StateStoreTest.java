@@ -21,12 +21,32 @@ class StateStoreTest {
         Path file = dir.resolve(".hopsync/state.json");
         LocalState state = new LocalState("abc",
             Map.of("a.jar", new FileRecord("1".repeat(128), 10, 1234, "6.0.8"), "b c [x].jar", new FileRecord("2".repeat(128), 0, 0)),
-            Map.of("sub/x.toml", new FileRecord("3".repeat(128), 5, 99)));
+            Map.of("sub/x.toml", new FileRecord("3".repeat(128), 5, 99)), "pack-1");
 
         new StateStore(file).save(state);
 
         assertEquals(state, new StateStore(file).load());
         assertFalse(Files.exists(file.resolveSibling("state.json.tmp")));
+    }
+
+    @Test
+    void aPackOnlySeesTheFilesItInstalled() throws IOException {
+        Path file = dir.resolve("state.json");
+        LocalState removedPacks = new LocalState("abc", Map.of("a.jar", new FileRecord("1".repeat(128), 10, 5)),
+            Map.of(), "removed-pack");
+        new StateStore(file).save(removedPacks);
+
+        assertEquals(removedPacks, new StateStore(file).load("removed-pack"));
+        assertEquals(LocalState.empty(), new StateStore(file).load("new-pack"), "the new pack must not remove a.jar");
+    }
+
+    @Test
+    void aStateWithoutItsPackBelongsToNoPack() throws IOException {
+        Path file = Files.writeString(dir.resolve("state.json"), "{\"format\": 1, \"content_hash\": \"abc\", "
+            + "\"mods\": {\"a.jar\": {\"sha512\": \"" + "1".repeat(128) + "\", \"size\": 10, \"modified\": 5}}, \"configs\": {}}");
+
+        assertEquals(1, new StateStore(file).load().mods().size());
+        assertEquals(LocalState.empty(), new StateStore(file).load("any-pack"));
     }
 
     @Test

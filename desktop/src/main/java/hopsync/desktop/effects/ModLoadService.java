@@ -1,5 +1,6 @@
 package hopsync.desktop.effects;
 
+import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackPaths;
 import hopsync.core.sync.FileRecord;
 import hopsync.core.sync.LocalState;
@@ -21,7 +22,8 @@ public class ModLoadService {
      * @return jars sorted alphabetically with their sizes, plus the managed files and their versions; nothing
      *         when the folder does not exist
      */
-    public InstalledMods load(PackPaths paths) {
+    public InstalledMods load(Pack pack) {
+        PackPaths paths = pack.paths();
         File[] jarFiles = paths.mods().toFile().listFiles((dir, name) -> name.endsWith(".jar"));
         if (jarFiles == null) {
             return InstalledMods.NONE;
@@ -32,7 +34,8 @@ public class ModLoadService {
         for (File jar : jarFiles) {
             sizes.put(jar.getName(), jar.length());
         }
-        LocalState state = new StateStore(paths.stateFile()).load();
+        // Only what this pack installed is managed; another pack's leftovers are the player's mods
+        LocalState state = new StateStore(paths.stateFile()).load(pack.id());
         Map<String, String> versions = new HashMap<>();
         for (Map.Entry<String, FileRecord> entry : state.mods().entrySet()) {
             if (entry.getValue().version() != null) {
