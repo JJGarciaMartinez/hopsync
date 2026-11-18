@@ -234,8 +234,17 @@ public sealed interface UiAction {
     /** Whether a published created pack changed since its last publish. */
     record PublishStateChecked(String packId, boolean unpublished) implements UiAction {}
 
+    /** A HopSync release newer than this copy, found once at start. */
+    record AppUpdateFound(String version, String url) implements UiAction {}
+
+    /** Opens the page of the newer release. */
+    record OpenAppUpdate() implements UiAction {}
+
     /** Copies version, system and paths for a bug report. */
     record CopyDiagnostics() implements UiAction {}
+
+    /** Opens the folder with the log files, to attach them to a bug report. */
+    record OpenLogsFolder() implements UiAction {}
 
     /** Closes HopSync: stops whatever is running (safe: the state always matches the disk) and exits. */
     record Quit() implements UiAction {}

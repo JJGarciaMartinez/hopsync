@@ -6,6 +6,7 @@ import hopsync.desktop.config.AppVersion;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.HopSyncDark;
 import hopsync.desktop.logging.Logging;
+import hopsync.desktop.logging.UnexpectedErrors;
 import hopsync.desktop.ui.DisplayScaling;
 import hopsync.platform.settings.SettingsStore;
 import hopsync.platform.system.InstanceLock;
@@ -14,6 +15,7 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.util.Optional;
 
 /**
@@ -45,11 +47,13 @@ public class Main {
             return;
         }
 
-        Logging.configure(dataDir.resolve("logs"));
+        Logging.configure(Logging.folderFor(settings.getFile()));
+        UnexpectedErrors errors = new UnexpectedErrors(Clock.systemUTC());
+        Thread.setDefaultUncaughtExceptionHandler(errors);
         LOG.log(System.Logger.Level.INFO, "Starting HopSync " + AppVersion.VERSION_APP + " on Java "
             + System.getProperty("java.version") + ", " + System.getProperty("os.name"));
         AppContainer container = AppContainer.forCurrentUser();
-        SwingUtilities.invokeLater(() -> UiStartup.start(container));
+        SwingUtilities.invokeLater(() -> UiStartup.start(container, errors));
     }
 
     /**

@@ -23,10 +23,11 @@ import java.util.Optional;
  * @param preferences    app-wide preferences, as saved
  * @param modVersions    the versions asked for with "Cambiar versión" on a row, or {@code null}
  * @param account        the player's GitHub account
+ * @param appUpdate      a newer HopSync release to offer, or {@code null}
  */
 public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab tab, Filter filter,
                       Map<Tab, String> queries, String packQuery, String expandedRow, Sheet sheet, Toast toast,
-                      Preferences preferences, ModVersions modVersions, Account account) {
+                      Preferences preferences, ModVersions modVersions, Account account, AppUpdate appUpdate) {
 
     /** The library offers a search from this many packs: with fewer, the list is short enough to scan. */
     public static final int PACK_SEARCH_FROM = 6;
@@ -39,8 +40,12 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
     public record Toast(String text, long id) {
     }
 
+    /** @param version the release's tag, e.g. 26.2.1; {@code url} is its page */
+    public record AppUpdate(String version, String url) {
+    }
+
     public static final UiState INITIAL = new UiState(Map.of(), null, Tab.PACK, Filter.CHANGES, Map.of(), "",
-        null, null, null, Preferences.DEFAULT, null, Account.UNKNOWN);
+        null, null, null, Preferences.DEFAULT, null, Account.UNKNOWN, null);
 
     public UiState {
         packs = Collections.unmodifiableMap(new LinkedHashMap<>(packs));
@@ -82,7 +87,7 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
 
     UiState withPacks(Map<String, PackUiState> newPacks, String newSelected) {
         return new UiState(newPacks, newSelected, tab, filter, queries, packQuery, expandedRow, sheet,
-            toast, preferences, modVersions, account);
+            toast, preferences, modVersions, account, appUpdate);
     }
 
     UiState withPack(PackUiState pack) {
@@ -93,17 +98,17 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
 
     UiState withSelected(String packId) {
         return new UiState(packs, packId, tab, filter, queries, packQuery, null, sheet,
-            toast, preferences, modVersions, account);
+            toast, preferences, modVersions, account, appUpdate);
     }
 
     UiState withTab(Tab newTab) {
         return new UiState(packs, selectedPackId, newTab, filter, queries, packQuery, expandedRow, sheet,
-            toast, preferences, modVersions, account);
+            toast, preferences, modVersions, account, appUpdate);
     }
 
     UiState withFilter(Filter newFilter) {
         return new UiState(packs, selectedPackId, tab, newFilter, queries, packQuery, expandedRow, sheet,
-            toast, preferences, modVersions, account);
+            toast, preferences, modVersions, account, appUpdate);
     }
 
     UiState withQuery(String newQuery) {
@@ -111,22 +116,22 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
         next.putAll(queries);
         next.put(tab, newQuery == null ? "" : newQuery);
         return new UiState(packs, selectedPackId, tab, filter, next, packQuery, expandedRow, sheet,
-            toast, preferences, modVersions, account);
+            toast, preferences, modVersions, account, appUpdate);
     }
 
     UiState withPackQuery(String newQuery) {
         return new UiState(packs, selectedPackId, tab, filter, queries, newQuery, expandedRow, sheet,
-            toast, preferences, modVersions, account);
+            toast, preferences, modVersions, account, appUpdate);
     }
 
     UiState withExpandedRow(String file) {
         return new UiState(packs, selectedPackId, tab, filter, queries, packQuery, file, sheet,
-            toast, preferences, modVersions, account);
+            toast, preferences, modVersions, account, appUpdate);
     }
 
     UiState withToast(String text) {
         return new UiState(packs, selectedPackId, tab, filter, queries, packQuery, expandedRow, sheet,
-            new Toast(text, toast == null ? 1 : toast.id() + 1), preferences, modVersions, account);
+            new Toast(text, toast == null ? 1 : toast.id() + 1), preferences, modVersions, account, appUpdate);
     }
 
     /** True while any pack other than {@code packId} is writing files. */
@@ -140,22 +145,27 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
 
     UiState withPreferences(Preferences newPreferences) {
         return new UiState(packs, selectedPackId, tab, filter, queries, packQuery, expandedRow, sheet,
-            toast, newPreferences, modVersions, account);
+            toast, newPreferences, modVersions, account, appUpdate);
     }
 
     UiState withModVersions(ModVersions versions) {
         return new UiState(packs, selectedPackId, tab, filter, queries, packQuery, expandedRow, sheet, toast, preferences,
-            versions, account);
+            versions, account, appUpdate);
     }
 
     UiState withAccount(Account newAccount) {
         return new UiState(packs, selectedPackId, tab, filter, queries, packQuery, expandedRow, sheet, toast, preferences,
-            modVersions, newAccount);
+            modVersions, newAccount, appUpdate);
+    }
+
+    UiState withAppUpdate(AppUpdate update) {
+        return new UiState(packs, selectedPackId, tab, filter, queries, packQuery, expandedRow, sheet, toast, preferences,
+            modVersions, account, update);
     }
 
     UiState withSheet(Sheet newSheet) {
         if (Objects.equals(sheet, newSheet)) return this;
         return new UiState(packs, selectedPackId, tab, filter, queries, packQuery, expandedRow, newSheet,
-            toast, preferences, modVersions, account);
+            toast, preferences, modVersions, account, appUpdate);
     }
 }

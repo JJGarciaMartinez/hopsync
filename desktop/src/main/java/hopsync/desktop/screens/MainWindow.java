@@ -68,7 +68,7 @@ public final class MainWindow extends JFrame {
         library = new PackLibrary(dispatch);
         hero = new PackHero(dispatch, zone);
         mods = new ModsPanel(dispatch);
-        statusBar = new StatusBar(zone);
+        statusBar = new StatusBar(zone, dispatch);
         sheets = new SheetLayer(getLayeredPane(), dispatch, demoUrl, settingsFile);
 
         JPanel packArea = new JPanel(new BorderLayout());
@@ -135,7 +135,7 @@ public final class MainWindow extends JFrame {
             hero.render(pack, state);
             mods.render(pack, state);
         }
-        statusBar.render(pack);
+        statusBar.render(pack, state.appUpdate());
         toast.render(state.toast());
         sheets.render(state);
     }

@@ -18,9 +18,11 @@ class AppConfigTest {
         props.setProperty("network.user.agent", "HopSync-Test");
         props.setProperty("manifest.url", "https://example.org/manifest.json");
         props.setProperty("github.client.id", " Iv1.test ");
+        props.setProperty("update.repo", "owner/hopsync");
 
         AppConfig config = AppConfig.fromProperties(props, "b26.2.0");
         assertEquals("Iv1.test", config.githubClientId());
+        assertEquals("owner/hopsync", config.updateRepo());
 
         assertEquals(new NetworkConfig(5000, 7000, "HopSync-Test"), config.network());
         assertEquals("https://example.org/manifest.json", config.presetManifestUrl());
@@ -36,6 +38,7 @@ class AppConfigTest {
         assertEquals(NetworkConfig.DEFAULT, config.network());
         assertEquals(AppConfig.DEFAULT_MANIFEST_URL, config.presetManifestUrl());
         assertEquals(AppConfig.DEFAULT_GITHUB_CLIENT_ID, config.githubClientId());
+        assertEquals(AppConfig.DEFAULT_UPDATE_REPO, config.updateRepo());
     }
 
     @Test

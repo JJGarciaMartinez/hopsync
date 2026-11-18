@@ -11,14 +11,18 @@ import hopsync.desktop.kit.Fonts;
 import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.SegmentedControl;
+import hopsync.desktop.logging.Logging;
 import hopsync.desktop.store.Account;
 import hopsync.desktop.store.Preferences;
 import hopsync.desktop.store.Sheet.AppSettings.Section;
 import hopsync.desktop.store.Sheet;
 import hopsync.desktop.store.UiAction;
+import hopsync.desktop.store.UiState;
 import hopsync.platform.system.SystemInfoService;
 
 import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
@@ -36,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
@@ -55,6 +60,8 @@ public final class AppSettingsView extends JPanel {
     private final JPanel about = SheetParts.column();
     private final JPanel account = SheetParts.column();
     private Account shownAccount;
+    private final Path settingsFile;
+    private UiState.AppUpdate shownUpdate;
     private final JPanel body = new JPanel(new BorderLayout());
     private final JPanel bottom = new JPanel(new BorderLayout());
     private boolean rendering;
@@ -63,6 +70,7 @@ public final class AppSettingsView extends JPanel {
     public AppSettingsView(Consumer<UiAction> dispatch, Path settingsFile) {
         super(new BorderLayout(0, UIScale.scale(16)));
         this.dispatch = dispatch;
+        this.settingsFile = settingsFile;
         setOpaque(false);
         body.setOpaque(false);
         bottom.setOpaque(false);
@@ -96,10 +104,7 @@ public final class AppSettingsView extends JPanel {
         SheetParts.stack(general, 8, language);
         SheetParts.stack(general, 4, SheetParts.hint(Messages.get("sheet.app.languageHint")));
 
-        JButton copy = SheetParts.button("sheet.app.copyDiagnostics", ButtonStyle.SECONDARY, dispatch,
-            new UiAction.CopyDiagnostics());
-        copy.setIcon(Icons.get(Icons.Glyph.COPY));
-        SheetParts.stack(about, 14, facts(settingsFile), copy);
+        renderAbout(null);
 
         JPanel header = SheetParts.column();
         SheetParts.stack(header, 12, SheetParts.title(Messages.get("sheet.app.title")), sections);
@@ -108,10 +113,15 @@ public final class AppSettingsView extends JPanel {
         add(bottom, BorderLayout.SOUTH);
     }
 
-    public void render(Sheet.AppSettings sheet, Account gitHub) {
+    /** @param appUpdate a newer release, shown on top of "Acerca de", or {@code null} */
+    public void render(Sheet.AppSettings sheet, Account gitHub, UiState.AppUpdate appUpdate) {
         if (!gitHub.equals(shownAccount)) {
             shownAccount = gitHub;
             renderAccount(gitHub);
+        }
+        if (!Objects.equals(appUpdate, shownUpdate)) {
+            shownUpdate = appUpdate;
+            renderAbout(appUpdate);
         }
         if (sheet.equals(shown)) return;
         boolean sectionChanged = shown == null || shown.section() != sheet.section();
@@ -198,6 +208,36 @@ public final class AppSettingsView extends JPanel {
         account.repaint();
     }
 
+    /** A newer release first, with "Descargar", then what a bug report needs and the button that copies it. */
+    private void renderAbout(UiState.AppUpdate appUpdate) {
+        about.removeAll();
+        if (appUpdate != null) {
+            SheetParts.stack(about, 0, SheetParts.notice(Messages.get("sheet.app.update", appUpdate.version()),
+                Palette.action()));
+            JButton download = SheetParts.button("sheet.app.download", ButtonStyle.PRIMARY, dispatch,
+                new UiAction.OpenAppUpdate());
+            download.setIcon(Icons.get(Icons.Glyph.EXTERNAL));
+            download.setHorizontalTextPosition(JButton.LEFT);
+            SheetParts.stack(about, 10, download);
+        }
+        JButton copy = SheetParts.button("sheet.app.copyDiagnostics", ButtonStyle.SECONDARY, dispatch,
+            new UiAction.CopyDiagnostics());
+        copy.setIcon(Icons.get(Icons.Glyph.COPY));
+        JButton logs = SheetParts.button("sheet.app.openLogs", ButtonStyle.SECONDARY, dispatch,
+            new UiAction.OpenLogsFolder());
+        logs.setIcon(Icons.get(Icons.Glyph.FOLDER));
+        JPanel buttons = new JPanel();
+        buttons.setLayout(new BoxLayout(buttons, BoxLayout.X_AXIS));
+        buttons.setOpaque(false);
+        buttons.add(copy);
+        buttons.add(Box.createHorizontalStrut(UIScale.scale(8)));
+        buttons.add(logs);
+        SheetParts.stack(about, 18, facts(settingsFile), buttons);
+        SheetParts.stack(about, 8, SheetParts.hint(Messages.get("sheet.app.reportHint")));
+        about.revalidate();
+        about.repaint();
+    }
+
     private String shownLanguage() {
         return shown == null ? "" : shown.draft().language();
     }
@@ -228,6 +268,7 @@ public final class AppSettingsView extends JPanel {
             {"sheet.app.scale", String.format(Locale.ROOT, "%.2f×", UIScale.getUserScaleFactor())
                 + " · sun.java2d.uiScale=" + System.getProperty("sun.java2d.uiScale", "auto")},
             {"sheet.app.settingsFile", settingsFile.toString()},
+            {"sheet.app.logs", Logging.folderFor(settingsFile).toString()},
         };
         JPanel grid = new JPanel(new GridBagLayout());
         grid.setOpaque(false);

@@ -106,7 +106,7 @@ public final class SheetLayer extends JPanel {
                 yield pack == null ? null : packSettingsCard;
             }
             case Sheet.AppSettings settings -> {
-                appSettings.render(settings, state.account());
+                appSettings.render(settings, state.account(), state.appUpdate());
                 yield appSettingsCard;
             }
             case Sheet.Publish publishing -> {
