@@ -113,11 +113,14 @@ Tres papeles: **tinta** es la caja (la marca y el fondo), **turquesa** es lo tuy
 | Color | Valor | Papel |
 | --- | --- | --- |
 | Tinta | `#141317` | Fondo de la app |
-| Caja | `#E9E6EF` | La marca, títulos de marca, aviso flotante |
+| Caja | `#E9E6EF` | La marca, títulos de marca |
 | Turquesa | `#2EC4B6` | Lo tuyo: progreso, Todo listo, foco, enlace válido |
 | Coral | `#FF6B4A` | Lo que llega: acción principal, mods nuevos |
 | Ámbar | `#F2B24A` | Mods que cambian de versión |
 | Rosa | `#F2668B` | Quitar y errores, para no confundirse con el coral |
+
+El aviso flotante ("7 cambios aplicados") es cristal oscuro: la superficie elevada `#25232B` al 70 % sobre lo de
+debajo difuminado, con texto principal y un borde de texto al 12 %.
 
 Sobre papel: papel `#F5F4F7`, caja `#2A2733`, turquesa `#0E7A71`, coral `#C23A1C`. La lista completa, con los
 neutros y el relieve, está en `tokens.json`.

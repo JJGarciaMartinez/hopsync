@@ -7,6 +7,7 @@ import hopsync.core.publish.PublishStep;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.pack.Pack;
 import hopsync.desktop.kit.HopSyncDark;
+import hopsync.desktop.kit.Palette;
 import hopsync.desktop.screens.library.PackLibrary;
 import hopsync.desktop.screens.mods.ModsPanel;
 import hopsync.desktop.screens.pack.PackHero;
@@ -26,9 +27,11 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JLayeredPane;
+import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Graphics2D;
@@ -395,6 +398,29 @@ class ScreensTest {
         sheets.render(reduce(add, new UiAction.SetLinkUrl("https://example.org/b.json")));
         assertEquals("https://example.org/b.json", field.getText());
         assertTrue(dispatched.isEmpty(), "rendering never dispatches: " + dispatched);
+    }
+
+    @Test
+    void toastIsDarkGlassOverABlurOfWhatIsUnderIt() {
+        JLayeredPane layer = new JLayeredPane();
+        layer.setSize(400, 200);
+        JPanel content = new JPanel();
+        content.setBackground(Palette.brand());
+        content.setBounds(0, 0, 400, 200);
+        layer.add(content, JLayeredPane.DEFAULT_LAYER);
+        Toast toast = new Toast(layer);
+        toast.render(reduce(loaded(), new UiAction.ShowToast("IP copiada")).toast());
+
+        BufferedImage image = new BufferedImage(400, 200, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = image.createGraphics();
+        layer.paint(g);
+        g.dispose();
+
+        assertEquals(Palette.text(), toast.getForeground());
+        // Inside the pill, past the text: the raised glass, lightened by the light panel showing through
+        int red = new Color(image.getRGB(toast.getX() + toast.getWidth() - 8, toast.getY() + toast.getHeight() / 2))
+            .getRed();
+        assertTrue(red > Palette.raised().getRed() + 20 && red < Palette.brand().getRed() - 40, "glass red " + red);
     }
 
     @Test
