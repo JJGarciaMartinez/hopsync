@@ -157,8 +157,8 @@ public sealed interface UiAction {
     /** Back from a new pack to adding one by its link. */
     record UseLink() implements UiAction {}
 
-    /** Name, Minecraft version and loader of the new pack, as typed and picked. */
-    record EditNewPack(String name, String minecraft, String loader) implements UiAction {}
+    /** Name, Minecraft version, loader and server of the new pack, as typed and picked. */
+    record EditNewPack(String name, String minecraft, String loader, String server) implements UiAction {}
 
     record GameVersionsLoaded(List<String> versions) implements UiAction {}
 
@@ -176,6 +176,9 @@ public sealed interface UiAction {
     record FinishAddPack() implements UiAction {}
 
     record SelectPackSection(Sheet.PackSettings.Section section) implements UiAction {}
+
+    /** The server address typed in the settings of a pack the player created. */
+    record SetServerAddress(String address) implements UiAction {}
 
     record SavePackSettings() implements UiAction {}
 

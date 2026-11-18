@@ -109,7 +109,7 @@ public final class Reducer {
             case UiAction.UseLink a -> state.sheet() instanceof Sheet.AddPack wizard
                 ? state.withSheet(wizard.withCreation(null)) : state;
             case UiAction.EditNewPack a -> updateCreation(state,
-                creation -> creation.withDetails(a.name(), a.minecraft(), a.loader()));
+                creation -> creation.withDetails(a.name(), a.minecraft(), a.loader(), a.server()));
             case UiAction.GameVersionsLoaded a -> updateCreation(state, creation -> creation.withVersions(a.versions()));
             case UiAction.GameVersionsFailed a -> updateCreation(state, creation -> creation.withVersionsError(a.failure()));
             case UiAction.WizardBack a -> state.sheet() instanceof Sheet.AddPack wizard
@@ -120,6 +120,8 @@ public final class Reducer {
             case UiAction.FolderChecked a -> folderChecked(state, a.folder());
             case UiAction.SelectPackSection a -> state.sheet() instanceof Sheet.PackSettings settings
                 ? state.withSheet(settings.withSection(a.section())) : state;
+            case UiAction.SetServerAddress a -> state.sheet() instanceof Sheet.PackSettings settings
+                && !a.address().equals(settings.server()) ? state.withSheet(settings.withServer(a.address())) : state;
             case UiAction.SetPreferences a -> state.sheet() instanceof Sheet.AppSettings settings
                 ? state.withSheet(new Sheet.AppSettings(settings.section(), a.preferences())) : state;
             // Saved by Effects, which answers with SheetSaved or SheetFailed
@@ -247,7 +249,13 @@ public final class Reducer {
         GameFolder folder = new GameFolder(GameFolder.Kind.OTHER, null, pack.gameDir(), pack.installed().jars().size(),
             null);
         return state.withSheet(new Sheet.PackSettings(pack.packId(), section, pack.manifestUrl(),
-            new LinkCheck.Unchecked(), folder, null));
+            new LinkCheck.Unchecked(), folder, serverOf(pack), null));
+    }
+
+    /** {@code null} until the pack's details are known, so saving other settings keeps its server. */
+    private static String serverOf(PackUiState pack) {
+        if (pack.packInfo() == null) return null;
+        return pack.packInfo().serverIp() == null ? "" : pack.packInfo().serverIp();
     }
 
     /**

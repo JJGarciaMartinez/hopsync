@@ -231,7 +231,7 @@ class ScreensTest {
         UiState packSettings = reduce(loaded(), new UiAction.OpenSettings());
         UiState scratch = reduce(empty, new UiAction.StartFromScratch());
         UiState described = reduce(scratch, new UiAction.GameVersionsLoaded(List.of("1.21.2", "1.21.1")),
-            new UiAction.EditNewPack("Aventura con amigos", "1.21.1", "neoforge"));
+            new UiAction.EditNewPack("Aventura con amigos", "1.21.1", "neoforge", ""));
         return List.of(
             empty,
             scratch,
@@ -259,6 +259,12 @@ class ScreensTest {
                 new UiAction.ChooseFolder(OTHER.gameDir()),
                 new UiAction.FolderChecked(new GameFolder(GameFolder.Kind.OTHER, null, OTHER.gameDir(), 2, "Other"))),
             reduce(packSettings, new UiAction.SelectPackSection(Sheet.PackSettings.Section.REMOVE)),
+            reduce(created(), new UiAction.OpenSettings(),
+                new UiAction.SelectPackSection(Sheet.PackSettings.Section.SERVER)),
+            reduce(created(), new UiAction.OpenSettings(),
+                new UiAction.SelectPackSection(Sheet.PackSettings.Section.SERVER),
+                new UiAction.SetServerAddress("https://play.example.net")),
+            reduce(described, new UiAction.EditNewPack("Aventura con amigos", "1.21.1", "neoforge", "play example")),
             reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.GENERAL),
                 new UiAction.SetPreferences(new Preferences(false, true, 6, true))),
             reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ABOUT)),

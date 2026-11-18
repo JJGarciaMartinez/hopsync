@@ -26,7 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Changes the mods of a pack the player created. Every change is saved to the pack's definition at once; the
+ * Changes the mods and details of a pack the player created. Every change is saved to the pack's definition at once; the
  * files reach the game folder through the usual check, review and apply.
  */
 public final class PackEditor {
@@ -170,6 +170,20 @@ public final class PackEditor {
         if (ownJar && SafePaths.isSafeFileName(slugOrFile)) {
             Files.deleteIfExists(definitions.folder(packId).resolve(DefinitionResolver.OWN_MODS).resolve(slugOrFile));
         }
+    }
+
+    /**
+     * Sets the address of the server the pack is played on, shown to the players who follow it.
+     *
+     * @param address a {@link PackInfo#isServerAddress server address}, or blank for none
+     */
+    public void changeServer(String packId, String address) throws IOException {
+        String server = address == null || address.isBlank() ? null : address.strip();
+        if (server != null && !PackInfo.isServerAddress(server)) {
+            throw new IllegalArgumentException("Not a server address: " + server);
+        }
+        PackDefinition definition = definition(packId);
+        registry.saveDefinition(packId, definition.withPack(definition.pack().withServerIp(server)));
     }
 
     /** The catalog projects a created pack already lists, so the search can mark them as added. */
