@@ -1,5 +1,6 @@
 package hopsync.desktop.kit;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.ui.FlatUIUtils;
 import com.formdev.flatlaf.util.UIScale;
 import org.junit.jupiter.api.BeforeAll;
@@ -10,6 +11,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JTextField;
 import javax.swing.UIManager;
 import java.awt.Color;
@@ -29,6 +31,18 @@ class HopSyncDarkTest {
     @BeforeAll
     static void installTheme() {
         HopSyncDark.setup();
+    }
+
+    @Test
+    void aPaletteColorSurvivesAStyle() {
+        // The notices set dark text on a light pill, then a font style: the text must stay dark
+        JLabel label = new JLabel("IP copiada");
+        label.setForeground(Palette.background());
+        label.setBackground(Palette.brand());
+        label.putClientProperty(FlatClientProperties.STYLE, "font: semibold");
+
+        assertEquals(Palette.background(), label.getForeground());
+        assertEquals(Palette.brand(), label.getBackground());
     }
 
     @Test
