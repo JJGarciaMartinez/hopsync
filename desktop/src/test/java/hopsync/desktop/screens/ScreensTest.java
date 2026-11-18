@@ -103,7 +103,8 @@ class ScreensTest {
     void heroAndLibraryRenderEveryPhase() {
         PackHero hero = new PackHero(dispatched::add, ZoneOffset.UTC);
         PackLibrary library = new PackLibrary(dispatched::add);
-        StatusBar statusBar = new StatusBar(ZoneOffset.UTC);
+        StatusBar statusBar = new StatusBar(ZoneOffset.UTC, dispatched::add);
+        UiState.AppUpdate update = new UiState.AppUpdate("26.2.1", "https://github.com/o/h/releases/tag/26.2.1");
         ModsPanel mods = new ModsPanel(dispatched::add);
         for (UiState phase : everyPhaseAndCreated()) {
             for (UiState state : List.of(phase, reduce(phase, new UiAction.SetFilter(UiState.Filter.ALL),
@@ -112,7 +113,7 @@ class ScreensTest {
                 PackUiState pack = state.selected().orElseThrow();
                 hero.render(pack, state);
                 library.render(state);
-                statusBar.render(pack);
+                statusBar.render(pack, update);
                 mods.render(pack, state);
                 paint(hero, 746, 134);
                 paint(library, 214, 560);
@@ -237,7 +238,9 @@ class ScreensTest {
 
     @Test
     void emptyStateRenders() {
-        new StatusBar(ZoneOffset.UTC).render(null);
+        StatusBar statusBar = new StatusBar(ZoneOffset.UTC, dispatched::add);
+        statusBar.render(null, null);
+        paint(statusBar, 960, 28);
         PackLibrary library = new PackLibrary(dispatched::add);
         library.render(UiState.INITIAL);
         paint(library, 214, 560);
@@ -329,6 +332,8 @@ class ScreensTest {
             reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.GENERAL),
                 new UiAction.SetPreferences(new Preferences(false, true, 6, true))),
             reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ABOUT)),
+            reduce(loaded(), new UiAction.AppUpdateFound("26.2.1", "https://github.com/o/h/releases/tag/26.2.1"),
+                new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ABOUT)),
             reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ACCOUNT)),
             reduce(loaded(), new UiAction.AccountLoaded(null, false, true),
                 new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ACCOUNT),

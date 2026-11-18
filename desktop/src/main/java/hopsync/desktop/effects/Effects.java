@@ -14,6 +14,8 @@ import hopsync.core.session.UpdateState;
 import hopsync.core.usecase.DefinitionResolver;
 import hopsync.core.usecase.PackEditor;
 import hopsync.core.usecase.PackPublishing;
+import hopsync.desktop.config.AppVersion;
+import hopsync.desktop.config.ReleaseVersion;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.store.ModVersions;
 import hopsync.desktop.store.Preferences;
@@ -23,6 +25,7 @@ import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
 import hopsync.platform.fs.InstanceFinder;
 import hopsync.platform.github.GitHubAuth;
+import hopsync.platform.github.ReleaseFeed;
 import hopsync.platform.manifest.ManifestService;
 
 import java.awt.Desktop;
@@ -59,6 +62,7 @@ public final class Effects {
     private final PackEditor editor;
     private final AccountEffects accounts;
     private final PublishEffects publishes;
+    private final ReleaseFeed releases;
 
     /**
      * @param catalog      the mod catalog created packs pick from
@@ -67,14 +71,16 @@ public final class Effects {
      * @param secrets      the system keychain, holding the GitHub token
      * @param gitHub       signs the player in to GitHub
      * @param publishing   publishes created packs
+     * @param releases     HopSync's own releases, to offer a newer version
      */
     public Effects(Store store, PackRegistry registry, PackSessions sessions, ManifestService manifests,
                    ModCatalog catalog, DefinitionResolver createdPacks, PackEditor editor, SecretStore secrets,
-                   GitHubAuth gitHub, PackPublishing publishing, ModLoadService modLoadService,
+                   GitHubAuth gitHub, PackPublishing publishing, ReleaseFeed releases, ModLoadService modLoadService,
                    InstanceFinder instances, Executor background, Path settingsFile, Clock clock, Runnable exit) {
         this.store = store;
         this.createdPacks = createdPacks;
         this.editor = editor;
+        this.releases = releases;
         this.accounts = new AccountEffects(store, secrets, gitHub, background);
         this.publishes = new PublishEffects(store, registry, publishing, background, this::reloadPacks);
         this.registry = registry;
@@ -96,6 +102,7 @@ public final class Effects {
         store.addEffect(this::run);
         reloadPacks();
         accounts.load();
+        checkForAppUpdate();
         if (registry.settings().checkOnStart()) {
             store.dispatch(new UiAction.CheckAll());
         }
@@ -120,6 +127,8 @@ public final class Effects {
                 loadManifest(a.packId());
             }
             case UiAction.OpenFolder a -> openFolder(a.packId());
+            case UiAction.OpenAppUpdate a -> Optional.ofNullable(state.appUpdate())
+                .ifPresent(update -> openLink(update.url()));
             case UiAction.CopyServerIp a -> Optional.ofNullable(state.packs().get(a.packId()))
                 .map(PackUiState::packInfo)
                 .filter(info -> info.serverIp() != null && !info.serverIp().isBlank())
@@ -127,7 +136,7 @@ public final class Effects {
             case UiAction.CopyPackLink a -> registry.find(a.packId()).flatMap(Pack::link)
                 .ifPresent(link -> copy(link, Messages.get("toast.linkCopied")));
             case UiAction.RemovePack a -> removePack(a.packId(), state);
-            case UiAction.OpenModPage a -> openModPage(a.url());
+            case UiAction.OpenModPage a -> openLink(a.url());
             case UiAction.SyncEventReceived a when finishesUpdate(a.event()) -> {
                 // Back to what is on disk once the worker has stopped
                 loadInstalled(a.event().packId());
@@ -219,6 +228,19 @@ public final class Effects {
             store.dispatch(new UiAction.ShowToast(Messages.failure(SyncFailures.from(e, ""))));
         }
         reloadPacks();
+    }
+
+    /** Once per start; a failure is only logged, the player loses nothing but the notice. */
+    private void checkForAppUpdate() {
+        if (!releases.configured()) return;
+        background.execute(() -> {
+            try {
+                ReleaseVersion.newerThan(AppVersion.VERSION, releases.releases())
+                    .ifPresent(release -> store.dispatch(new UiAction.AppUpdateFound(release.tag(), release.url())));
+            } catch (Exception e) {
+                LOG.log(System.Logger.Level.INFO, "Could not check for a newer HopSync release", e);
+            }
+        });
     }
 
     private void openFolder(String packId) {
@@ -313,7 +335,7 @@ public final class Effects {
         });
     }
 
-    private void openModPage(String url) {
+    private void openLink(String url) {
         if (url == null || !url.startsWith("https://")) return;
         background.execute(() -> {
             try {

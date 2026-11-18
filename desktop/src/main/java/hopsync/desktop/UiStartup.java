@@ -30,7 +30,7 @@ public final class UiStartup {
         window.setVisible(true);
         new Effects(store, container.packRegistry(), container.packSessions(), container.manifestService(),
             container.modCatalog(), container.definitionResolver(), container.packEditor(), container.secrets(),
-            container.gitHubAuth(), container.publishing(),
+            container.gitHubAuth(), container.publishing(), container.releaseFeed(),
             new ModLoadService(), InstanceFinder.forCurrentUser(), container.backgroundExecutor(),
             container.settingsFile(), Clock.systemUTC(), () -> System.exit(0))
             .start(container.eventBus());

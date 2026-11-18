@@ -129,6 +129,8 @@ public final class Reducer {
             case UiAction.SavePackSettings a -> state;
             case UiAction.SaveAppSettings a -> state;
             case UiAction.CopyDiagnostics a -> state;
+            case UiAction.AppUpdateFound a -> state.withAppUpdate(new UiState.AppUpdate(a.version(), a.url()));
+            case UiAction.OpenAppUpdate a -> state;
             case UiAction.OpenPublish a -> openPublish(state, a.packId());
             case UiAction.PublishFilesLoaded a -> updatePublish(state, a.packId(), sheet -> sheet.with(sheet.repoName(),
                 a.ownFiles(), sheet.confirmed(), sheet.stage(), sheet.step(), sheet.link(), sheet.error()));

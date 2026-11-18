@@ -15,6 +15,7 @@ import hopsync.desktop.config.AppConfig;
 import hopsync.platform.github.GitHubApi;
 import hopsync.platform.github.GitHubAuth;
 import hopsync.platform.github.GitHubPublisher;
+import hopsync.platform.github.ReleaseFeed;
 import hopsync.platform.http.DownloadService;
 import hopsync.platform.manifest.ManifestService;
 import hopsync.platform.modrinth.ModrinthClient;
@@ -45,6 +46,7 @@ public final class AppContainer {
     private final SecretStore secrets = SystemKeychain.forCurrentOs();
     private final GitHubAuth gitHubAuth;
     private final PackPublishing publishing;
+    private final ReleaseFeed releaseFeed;
     private final PackSessions packSessions;
     private final ExecutorService backgroundExecutor =
         Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("hopsync-update-", 0).factory());
@@ -57,6 +59,7 @@ public final class AppContainer {
         DownloadService downloadService = new DownloadService(config.network());
         manifestService = new ManifestService(downloadService, settingsStore.getFile().resolveSibling("manifests"));
         modCatalog = new ModrinthClient(downloadService::getUrlString);
+        releaseFeed = new ReleaseFeed(downloadService::getUrlString, config.updateRepo());
         definitionResolver = new DefinitionResolver(modCatalog, definitions);
         packEditor = new PackEditor(modCatalog, packRegistry, definitions);
         gitHubAuth = new GitHubAuth(config.githubClientId(), config.network());
@@ -117,6 +120,10 @@ public final class AppContainer {
 
     public PackPublishing publishing() {
         return publishing;
+    }
+
+    public ReleaseFeed releaseFeed() {
+        return releaseFeed;
     }
 
     /** Virtual threads for background work: checks, applies, listing files, fetching manifests. */

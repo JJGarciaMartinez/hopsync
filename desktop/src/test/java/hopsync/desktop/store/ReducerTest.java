@@ -812,4 +812,12 @@ class ReducerTest {
         assertEquals("pack-de-ninos-2", Reducer.repoNameFor("  Pack de Niños #2! "));
         assertEquals("mi-pack", Reducer.repoNameFor("¡¿!"));
     }
+
+    @Test
+    void aNewerReleaseIsKeptToOfferIt() {
+        UiState state = reduce(loaded(), new UiAction.AppUpdateFound("26.2.1", "https://github.com/o/h/releases/tag/26.2.1"));
+
+        assertEquals(new UiState.AppUpdate("26.2.1", "https://github.com/o/h/releases/tag/26.2.1"), state.appUpdate());
+        assertEquals(state, reduce(state, new UiAction.OpenAppUpdate()));
+    }
 }
