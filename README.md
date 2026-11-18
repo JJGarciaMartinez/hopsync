@@ -5,7 +5,8 @@ mods and configs. Playing it with friends means everyone needs the same files, i
 right game folder. HopSync does that for you, and lets you build and share your own pack without touching a
 server or a command line.
 
-The interface is in Spanish.
+The interface is in English and Latin American Spanish. It follows the system language, and the player can
+pick another one in HopSync settings.
 
 ## What it is for
 
@@ -25,7 +26,7 @@ HopSync only touches the files it installed. Mods you added yourself and configs
 
 ### Following a pack
 
-1. **Add the pack.** Choose "Añadir pack", paste the link and pick the game folder. HopSync finds the
+1. **Add the pack.** Choose "Add pack", paste the link and pick the game folder. HopSync finds the
    official launcher's `.minecraft` and the instances of Prism Launcher, CurseForge and Modrinth App, or you
    can choose any other folder.
 2. **Review.** HopSync compares the pack with what is in the folder. The pack header lists what will be added,
@@ -135,7 +136,8 @@ flowchart LR
    calls the core. Results come back as new actions.
 
 The core reports progress as `SyncEvent`s, for example "plan ready", "progress" or "update failed". Errors are
-typed (`SyncFailure`), and only the desktop module turns them into Spanish text with a suggested action.
+typed (`SyncFailure`), and only the desktop module turns them into text in the player's language with a
+suggested action.
 
 ### Life of an update
 

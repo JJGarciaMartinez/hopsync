@@ -98,7 +98,7 @@ public sealed interface UiAction {
 
     // Sheets
 
-    /** "Añadir mods" of a pack the player created; Effects loads what it has and the most downloaded mods. */
+    /** "Agregar mods" of a pack the player created; Effects loads what it has and the most downloaded mods. */
     record OpenAddMods(String packId) implements UiAction {}
 
     /** Search text of the add-mods sheet, dispatched once the player stops typing. */

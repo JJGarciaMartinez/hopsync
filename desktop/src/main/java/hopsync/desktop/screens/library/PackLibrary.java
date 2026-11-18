@@ -46,7 +46,7 @@ import java.util.function.Consumer;
 
 /**
  * The pack library on the left: every pack with its status, a search once there are
- * {@value UiState#PACK_SEARCH_FROM} packs, "Añadir pack" and the app settings. Selecting a pack (mouse, arrows)
+ * {@value UiState#PACK_SEARCH_FROM} packs, "Agregar pack" and the app settings. Selecting a pack (mouse, arrows)
  * dispatches {@link UiAction.SelectPack}; typing in the search dispatches {@link UiAction.SetPackQuery}. Its right
  * edge drags it between {@value Preferences#MIN_LIBRARY_WIDTH} and {@value Preferences#MAX_LIBRARY_WIDTH} px
  * (double click: back to {@value Preferences#DEFAULT_LIBRARY_WIDTH}); the width is dispatched when the drag ends.
@@ -349,7 +349,7 @@ public final class PackLibrary extends JPanel {
         }
     }
 
-    /** "Añadir pack": a dashed outline that turns coral on hover, so it reads as a place to add more. */
+    /** "Agregar pack": a dashed outline that turns coral on hover, so it reads as a place to add more. */
     private static final class DashedButton extends JButton {
         private boolean hover;
 
