@@ -223,7 +223,8 @@ final class SheetEffects {
         background.execute(() -> {
             try {
                 checkWritable(folder);
-                PackInfo info = new PackInfo(creation.name().strip(), NEW_PACK_VERSION, "", null, creation.minecraft(),
+                String server = creation.server().isBlank() ? null : creation.server().strip();
+                PackInfo info = new PackInfo(creation.name().strip(), NEW_PACK_VERSION, "", server, creation.minecraft(),
                     creation.loader());
                 Pack added = registry.addLocal(PackDefinition.empty(info), folder);
                 registry.select(added.id());
@@ -271,6 +272,7 @@ final class SheetEffects {
         boolean newLink = !pack.link().map(url::equals).orElse(false);
         // A different link must have been checked: it may be another pack altogether
         if (newLink && !(settings.link() instanceof LinkCheck.Valid valid && valid.url().equals(url))) return;
+        if (!settings.serverValid()) return;
         Path folder = settings.folder().path();
         boolean moved = newLink || !folder.equals(pack.gameDir());
         background.execute(() -> {
@@ -284,15 +286,27 @@ final class SheetEffects {
                 if (moved) {
                     dropUpdate.accept(pack.id());
                 }
+                boolean newServer = pack.isLocal() && settings.server() != null
+                    && !serverOf(pack.id()).equals(settings.server().strip());
+                if (newServer) {
+                    editor.changeServer(pack.id(), settings.server());
+                }
                 Pack changed = newLink ? pack.withSource(new PackSource.Link(url)).withName("") : pack;
                 registry.update(changed.withGameDir(folder));
                 store.dispatch(new UiAction.SheetSaved());
                 reloadPacks.run();
+                // A published pack then offers to publish the new address
+                if (newServer) checkPack.accept(pack.id());
             } catch (IOException | RuntimeException e) {
                 LOG.log(System.Logger.Level.WARNING, "Could not save the settings of pack " + pack.id(), e);
                 store.dispatch(new UiAction.SheetFailed(SyncFailures.from(e, folder.toString())));
             }
         });
+    }
+
+    /** The server address saved in a created pack's definition, blank for none. */
+    private String serverOf(String packId) {
+        return registry.definition(packId).map(definition -> definition.pack().serverIp()).orElse("");
     }
 
     private void saveAppSettings(Preferences draft) {

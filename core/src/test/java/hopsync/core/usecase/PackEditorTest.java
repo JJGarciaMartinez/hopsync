@@ -199,6 +199,16 @@ class PackEditorTest {
     }
 
     @Test
+    void theServerAddressCanBeSetChangedAndCleared() throws IOException {
+        editor.changeServer(pack.id(), " play.example.net:25565 ");
+        assertEquals("play.example.net:25565", registry.definition(pack.id()).orElseThrow().pack().serverIp());
+
+        editor.changeServer(pack.id(), "  ");
+        assertEquals(INFO, registry.definition(pack.id()).orElseThrow().pack());
+        assertThrows(IllegalArgumentException.class, () -> editor.changeServer(pack.id(), "play example"));
+    }
+
+    @Test
     void aModNamedByItsSlugIsNotItsOwnDependency() throws IOException {
         // The catalog answers for a slug with versions that carry the project's id
         versions.put("sodium-slug", List.of(version("s1", "sodium", "0.6", true)));

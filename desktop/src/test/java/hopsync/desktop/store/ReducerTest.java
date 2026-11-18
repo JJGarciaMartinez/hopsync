@@ -349,6 +349,28 @@ class ReducerTest {
     }
 
     @Test
+    void theServerOfACreatedPackIsEditedInItsSettings() {
+        Sheet.PackSettings settings = assertInstanceOf(Sheet.PackSettings.class,
+            reduce(created(), new UiAction.OpenSettings(), new UiAction.SelectPackSection(Sheet.PackSettings.Section.SERVER),
+                new UiAction.SetServerAddress("play example")).sheet());
+
+        assertEquals(Sheet.PackSettings.Section.SERVER, settings.section());
+        assertEquals("play example", settings.server());
+        assertFalse(settings.serverValid());
+        assertEquals("play.example.org", assertInstanceOf(Sheet.PackSettings.class,
+            reduce(loaded(), new UiAction.ManifestLoaded(D, manifest()), new UiAction.OpenSettings()).sheet()).server(),
+            "taken from the manifest");
+    }
+
+    @Test
+    void theServerIsUnknownUntilThePackDetailsArrive() {
+        UiState noManifest = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(DEMO, MINE), MINE.id()));
+
+        assertNull(assertInstanceOf(Sheet.PackSettings.class,
+            reduce(noManifest, new UiAction.OpenSettings()).sheet()).server(), "saving keeps the server it has");
+    }
+
+    @Test
     void aPackNotYetInstalledCanStillBeEditedOrRemoved() {
         UiState checking = reduce(loaded(), new SyncEvent.UpdateStarted(D));
         UiState review = reduce(checking, new SyncEvent.PlanReady(D, plan()));
@@ -657,10 +679,15 @@ class ReducerTest {
         assertEquals(1, ((Sheet.AddPack) reduce(wizard, new UiAction.WizardNext()).sheet()).step());
 
         UiState loaded = reduce(wizard, new UiAction.GameVersionsLoaded(List.of("1.21.2", "1.21.1")),
-            new UiAction.EditNewPack("Aventura", "1.21.2", "neoforge"));
+            new UiAction.EditNewPack("Aventura", "1.21.2", "neoforge", ""));
         Sheet.Creation creation = ((Sheet.AddPack) loaded.sheet()).creation();
-        assertEquals(new Sheet.Creation("Aventura", "1.21.2", "neoforge", List.of("1.21.2", "1.21.1"), null), creation);
+        assertEquals(new Sheet.Creation("Aventura", "1.21.2", "neoforge", "", List.of("1.21.2", "1.21.1"), null), creation);
         assertEquals(2, ((Sheet.AddPack) reduce(loaded, new UiAction.WizardNext()).sheet()).step());
+
+        UiState badServer = reduce(loaded, new UiAction.EditNewPack("Aventura", "1.21.2", "neoforge", "play example"));
+        assertFalse(((Sheet.AddPack) badServer.sheet()).canContinue(), "the server is not an address");
+        UiState withServer = reduce(loaded, new UiAction.EditNewPack("Aventura", "1.21.2", "neoforge", "play.example.net"));
+        assertEquals(2, ((Sheet.AddPack) reduce(withServer, new UiAction.WizardNext()).sheet()).step());
 
         Sheet.AddPack back = (Sheet.AddPack) reduce(loaded, new UiAction.UseLink()).sheet();
         assertNull(back.creation());
@@ -677,7 +704,7 @@ class ReducerTest {
         UiState failed = reduce(wizard, new UiAction.GameVersionsFailed(offline));
         assertEquals(offline, ((Sheet.AddPack) failed.sheet()).creation().versionsError());
         assertNull(((Sheet.AddPack) reduce(failed, new UiAction.StartFromScratch()).sheet()).creation().versionsError());
-        assertEquals("", ((Sheet.AddPack) reduce(failed, new UiAction.EditNewPack("  ", null, "fabric")).sheet())
+        assertEquals("", ((Sheet.AddPack) reduce(failed, new UiAction.EditNewPack("  ", null, "fabric", "")).sheet())
             .creation().name().strip());
     }
 

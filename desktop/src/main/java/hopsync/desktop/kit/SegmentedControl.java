@@ -54,6 +54,14 @@ public final class SegmentedControl<T> extends JPanel {
         }
     }
 
+    /** Hides a segment that does not apply right now; it keeps its place for when it shows again. */
+    public void setShown(T value, boolean shown) {
+        JToggleButton segment = segments.get(value);
+        if (segment.isVisible() != shown) {
+            segment.setVisible(shown);
+        }
+    }
+
     /** Shows the selection without notifying, so rendering a state never dispatches. */
     public void setSelected(T value) {
         updating = true;

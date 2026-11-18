@@ -2,6 +2,7 @@ package hopsync.desktop.store;
 
 import hopsync.core.catalog.CatalogProject;
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.manifest.PackInfo;
 import hopsync.core.publish.PublishStep;
 
 import java.util.List;
@@ -72,71 +73,95 @@ public sealed interface Sheet {
      * Settings of the selected pack.
      *
      * @param folder the folder picked, or the pack's own
+     * @param server the server address of a pack the player created, as typed; blank for none, {@code null} while
+     *               the pack's details are not known, which keeps the saved one
      * @param error  why saving failed, or {@code null}
      */
-    record PackSettings(String packId, Section section, String url, LinkCheck link, GameFolder folder,
+    record PackSettings(String packId, Section section, String url, LinkCheck link, GameFolder folder, String server,
                         SyncFailure error) implements Sheet {
 
-        public enum Section { LINK, FOLDER, REMOVE }
+        /** {@link #SERVER} is only offered for a pack the player created: the others take it from their link. */
+        public enum Section { LINK, SERVER, FOLDER, REMOVE }
+
+        /** Blank, or an address players could type into Minecraft. */
+        public boolean serverValid() {
+            return validServer(server);
+        }
 
         PackSettings withSection(Section newSection) {
-            return new PackSettings(packId, newSection, url, link, folder, null);
+            return new PackSettings(packId, newSection, url, link, folder, server, null);
         }
 
         PackSettings withUrl(String newUrl, LinkCheck newLink) {
-            return new PackSettings(packId, section, newUrl, newLink, folder, null);
+            return new PackSettings(packId, section, newUrl, newLink, folder, server, null);
         }
 
         PackSettings withLink(LinkCheck newLink) {
-            return new PackSettings(packId, section, url, newLink, folder, error);
+            return new PackSettings(packId, section, url, newLink, folder, server, error);
         }
 
         PackSettings withFolder(GameFolder newFolder) {
-            return new PackSettings(packId, section, url, link, newFolder, null);
+            return new PackSettings(packId, section, url, link, newFolder, server, null);
+        }
+
+        PackSettings withServer(String newServer) {
+            return new PackSettings(packId, section, url, link, folder, newServer, null);
         }
 
         PackSettings withError(SyncFailure failure) {
-            return new PackSettings(packId, section, url, link, folder, failure);
+            return new PackSettings(packId, section, url, link, folder, server, failure);
         }
+    }
+
+    /** Blank for no server, or a {@link PackInfo#isServerAddress server address} once trimmed. */
+    static boolean validServer(String server) {
+        return server == null || server.isBlank() || PackInfo.isServerAddress(server.strip());
     }
 
     /**
      * A pack the player starts from scratch, as step 1 of the wizard describes it.
      *
      * @param minecraft     the Minecraft version, or {@code null} until the versions arrive
+     * @param server        the address of the server it is played on, optional; blank for none
      * @param versions      Minecraft release versions to offer, newest first; {@code null} while loading
      * @param versionsError why the versions could not be loaded, or {@code null}
      */
-    record Creation(String name, String minecraft, String loader, List<String> versions, SyncFailure versionsError) {
+    record Creation(String name, String minecraft, String loader, String server, List<String> versions,
+                    SyncFailure versionsError) {
         /** The loaders a new pack can use, as Modrinth names them; the first is preselected. */
         public static final List<String> LOADERS = List.of("fabric", "neoforge", "forge", "quilt");
 
         public static Creation start() {
-            return new Creation("", null, LOADERS.getFirst(), null, null);
+            return new Creation("", null, LOADERS.getFirst(), "", null, null);
         }
 
         public Creation {
             name = name == null ? "" : name;
+            server = server == null ? "" : server;
             versions = versions == null ? null : List.copyOf(versions);
         }
 
         public boolean ready() {
-            return !name.isBlank() && minecraft != null && LOADERS.contains(loader);
+            return !name.isBlank() && minecraft != null && LOADERS.contains(loader) && serverValid();
         }
 
-        Creation withDetails(String newName, String newMinecraft, String newLoader) {
-            return new Creation(newName, newMinecraft, newLoader, versions, versionsError);
+        public boolean serverValid() {
+            return validServer(server);
+        }
+
+        Creation withDetails(String newName, String newMinecraft, String newLoader, String newServer) {
+            return new Creation(newName, newMinecraft, newLoader, newServer, versions, versionsError);
         }
 
         /** The newest version is picked until the player picks another. */
         Creation withVersions(List<String> found) {
             String picked = minecraft != null && found.contains(minecraft) ? minecraft
                 : found.isEmpty() ? null : found.getFirst();
-            return new Creation(name, picked, loader, found, null);
+            return new Creation(name, picked, loader, server, found, null);
         }
 
         Creation withVersionsError(SyncFailure failure) {
-            return new Creation(name, minecraft, loader, versions, failure);
+            return new Creation(name, minecraft, loader, server, versions, failure);
         }
     }
 
