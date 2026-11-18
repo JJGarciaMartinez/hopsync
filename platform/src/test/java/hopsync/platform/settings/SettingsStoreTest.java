@@ -30,7 +30,7 @@ class SettingsStoreTest {
         Pack published = new Pack("d4", new PackSource.Local(new PackSource.Publication("player/pack",
             "https://github.com/player/pack/releases/download/hopsync/manifest.json", "f".repeat(64))), dir.resolve("pub"), "Pub");
         PackSettings settings = new PackSettings(List.of(first, second, created, published), "b2", false, false, 6, true, 300,
-            "en");
+            "en", false);
 
         store.save(settings);
 
@@ -79,6 +79,7 @@ class SettingsStoreTest {
         assertEquals(PackSettings.DEFAULT_LIBRARY_WIDTH, settings.libraryWidth());
         assertTrue(settings.checkOnStart());
         assertFalse(settings.reduceMotion(), "files saved before the preference existed keep the animation");
+        assertTrue(settings.checkAppUpdates(), "files saved before the preference existed keep checking");
     }
 
     private static String jsonPath(Path path) {

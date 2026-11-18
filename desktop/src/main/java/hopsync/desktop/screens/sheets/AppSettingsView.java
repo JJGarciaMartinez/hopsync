@@ -53,6 +53,7 @@ public final class AppSettingsView extends JPanel {
     private final JCheckBox checkOnStart = new JCheckBox(Messages.get("sheet.app.checkOnStart"));
     private final JCheckBox chainQueue = new JCheckBox(Messages.get("sheet.app.chainQueue"));
     private final JCheckBox reduceMotion = new JCheckBox(Messages.get("sheet.app.reduceMotion"));
+    private final JCheckBox checkAppUpdates = new JCheckBox(Messages.get("sheet.app.checkAppUpdates"));
     private final SegmentedControl<String> language;
     private final JSpinner parallel = new JSpinner(new SpinnerNumberModel(Preferences.DEFAULT.parallelDownloads(),
         PackSettings.MIN_PARALLEL_DOWNLOADS, PackSettings.MAX_PARALLEL_DOWNLOADS, 1));
@@ -83,6 +84,7 @@ public final class AppSettingsView extends JPanel {
         checkOnStart.addActionListener(e -> changed(shownLanguage()));
         chainQueue.addActionListener(e -> changed(shownLanguage()));
         reduceMotion.addActionListener(e -> changed(shownLanguage()));
+        checkAppUpdates.addActionListener(e -> changed(shownLanguage()));
         parallel.addChangeListener(e -> changed(shownLanguage()));
         // Blank follows the system
         List<String> languages = new ArrayList<>(List.of(""));
@@ -100,6 +102,7 @@ public final class AppSettingsView extends JPanel {
         SheetParts.stack(general, 14, parallelRow);
         SheetParts.stack(general, 4, SheetParts.hint(Messages.get("sheet.app.parallelHint")));
         SheetParts.stack(general, 14, option(reduceMotion, "sheet.app.reduceMotionHint"));
+        SheetParts.stack(general, 14, option(checkAppUpdates, "sheet.app.checkAppUpdatesHint"));
         SheetParts.stack(general, 14, SheetParts.label(Messages.get("sheet.app.language")));
         SheetParts.stack(general, 8, language);
         SheetParts.stack(general, 4, SheetParts.hint(Messages.get("sheet.app.languageHint")));
@@ -132,6 +135,7 @@ public final class AppSettingsView extends JPanel {
             checkOnStart.setSelected(sheet.draft().checkOnStart());
             chainQueue.setSelected(sheet.draft().chainQueue());
             reduceMotion.setSelected(sheet.draft().reduceMotion());
+            checkAppUpdates.setSelected(sheet.draft().checkAppUpdates());
             parallel.setValue(sheet.draft().parallelDownloads());
             language.setSelected(sheet.draft().language());
         } finally {
@@ -246,7 +250,7 @@ public final class AppSettingsView extends JPanel {
         if (rendering || shown == null) return;
         dispatch.accept(new UiAction.SetPreferences(new Preferences(checkOnStart.isSelected(),
             chainQueue.isSelected(), (Integer) parallel.getValue(), reduceMotion.isSelected(),
-            shown.draft().libraryWidth(), pickedLanguage)));
+            shown.draft().libraryWidth(), pickedLanguage, checkAppUpdates.isSelected())));
     }
 
     private static JComponent option(JCheckBox box, String hintKey) {

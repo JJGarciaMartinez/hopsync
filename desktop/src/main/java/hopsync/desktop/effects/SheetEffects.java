@@ -316,7 +316,7 @@ final class SheetEffects {
         background.execute(() -> {
             try {
                 registry.updatePreferences(draft.checkOnStart(), draft.chainQueue(), draft.parallelDownloads(),
-                    draft.reduceMotion(), draft.language());
+                    draft.reduceMotion(), draft.language(), draft.checkAppUpdates());
                 store.dispatch(new UiAction.SheetSaved());
                 reloadPacks.run();
             } catch (IOException e) {
