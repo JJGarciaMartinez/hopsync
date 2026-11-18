@@ -94,9 +94,9 @@ class PackRegistryTest {
 
     @Test
     void preferencesAreSavedAndClamped() throws IOException {
-        registry.updatePreferences(false, false, 40, true, "en");
+        registry.updatePreferences(false, false, 40, true, "en", false);
 
-        assertEquals(new PackSettings(List.of(), null, false, false, 8, true, PackSettings.DEFAULT_LIBRARY_WIDTH, "en"),
+        assertEquals(new PackSettings(List.of(), null, false, false, 8, true, PackSettings.DEFAULT_LIBRARY_WIDTH, "en", false),
             repository.saved);
     }
 
@@ -104,7 +104,7 @@ class PackRegistryTest {
     void libraryWidthIsKeptWithinItsLimitsAndSurvivesPreferenceChanges() throws IOException {
         registry.rememberLibraryWidth(500);
         assertEquals(PackSettings.MAX_LIBRARY_WIDTH, repository.saved.libraryWidth());
-        registry.updatePreferences(true, true, 4, false, "");
+        registry.updatePreferences(true, true, 4, false, "", true);
         assertEquals(PackSettings.MAX_LIBRARY_WIDTH, repository.saved.libraryWidth());
         registry.rememberLibraryWidth(10);
         assertEquals(PackSettings.MIN_LIBRARY_WIDTH, registry.settings().libraryWidth());

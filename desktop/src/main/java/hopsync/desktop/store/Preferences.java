@@ -8,9 +8,10 @@ package hopsync.desktop.store;
  * @param libraryWidth      width of the pack library in unscaled pixels, as the player last dragged it
  * @param language          language of the texts, one of {@code Messages.LANGUAGES}, or blank to follow the system;
  *                          it takes effect the next time HopSync opens
+ * @param checkAppUpdates   ask for a newer HopSync release when the app starts
  */
 public record Preferences(boolean checkOnStart, boolean chainQueue, int parallelDownloads, boolean reduceMotion,
-                          int libraryWidth, String language) {
+                          int libraryWidth, String language, boolean checkAppUpdates) {
     public static final int MIN_PARALLEL = 1;
     public static final int MAX_PARALLEL = 8;
     public static final int MIN_LIBRARY_WIDTH = 200;
@@ -24,12 +25,13 @@ public record Preferences(boolean checkOnStart, boolean chainQueue, int parallel
         language = language == null ? "" : language;
     }
 
-    /** Preferences with the library at its default width and the system's language. */
+    /** Preferences with the library at its default width, the system's language and the check for releases on. */
     public Preferences(boolean checkOnStart, boolean chainQueue, int parallelDownloads, boolean reduceMotion) {
-        this(checkOnStart, chainQueue, parallelDownloads, reduceMotion, DEFAULT_LIBRARY_WIDTH, "");
+        this(checkOnStart, chainQueue, parallelDownloads, reduceMotion, DEFAULT_LIBRARY_WIDTH, "", true);
     }
 
     Preferences withLibraryWidth(int width) {
-        return new Preferences(checkOnStart, chainQueue, parallelDownloads, reduceMotion, width, language);
+        return new Preferences(checkOnStart, chainQueue, parallelDownloads, reduceMotion, width, language,
+            checkAppUpdates);
     }
 }

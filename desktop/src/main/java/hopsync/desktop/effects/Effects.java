@@ -168,7 +168,7 @@ public final class Effects {
         var settings = registry.settings();
         store.dispatch(new UiAction.PacksLoaded(registry.packs(), active.map(Pack::id).orElse(null),
             new Preferences(settings.checkOnStart(), settings.chainQueue(), settings.parallelDownloads(),
-                settings.reduceMotion(), settings.libraryWidth(), settings.language())));
+                settings.reduceMotion(), settings.libraryWidth(), settings.language(), settings.checkAppUpdates())));
         active.ifPresent(pack -> {
             loadInstalled(pack.id());
             loadManifest(pack.id());
@@ -230,9 +230,12 @@ public final class Effects {
         reloadPacks();
     }
 
-    /** Once per start; a failure is only logged, the player loses nothing but the notice. */
+    /**
+     * Once per start, unless the player turned it off; a failure is only logged, the player loses nothing but the
+     * notice.
+     */
     private void checkForAppUpdate() {
-        if (!releases.configured()) return;
+        if (!releases.configured() || !registry.settings().checkAppUpdates()) return;
         background.execute(() -> {
             try {
                 ReleaseVersion.newerThan(AppVersion.VERSION, releases.releases())
