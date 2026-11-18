@@ -37,3 +37,7 @@ For computers where you cannot or prefer not to install anything, or that the ot
 
 Unzip it anywhere and open the launcher for your system: `HopSync.bat` on Windows, `HopSync.command` on macOS or `HopSync.sh` on Linux.
 
+
+## Code signing policy and privacy
+
+See the [code signing policy](https://github.com/JJGarciaMartinez/hopsync#code-signing-policy) and the [privacy policy](https://github.com/JJGarciaMartinez/hopsync/blob/main/PRIVACY.md). HopSync collects no personal data.
