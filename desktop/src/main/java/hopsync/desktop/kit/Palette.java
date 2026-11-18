@@ -86,7 +86,10 @@ public final class Palette {
 
     private static Color color(String key, int fallback) {
         Color color = UIManager.getColor(key);
+        // A plain Color, not the theme's ColorUIResource: FlatLaf treats that as a default and puts the
+        // component's own default back when a style is applied, so a label set to a dark text turned light
+        if (color != null) return new Color(color.getRGB(), true);
         // Fallbacks written as 0xAARRGGBB keep their alpha; plain 0xRRGGBB ones are opaque
-        return color != null ? color : new Color(fallback, (fallback >>> 24) != 0);
+        return new Color(fallback, (fallback >>> 24) != 0);
     }
 }
