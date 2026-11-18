@@ -76,7 +76,7 @@ tasks.register<Exec>("jpackage") {
         "--dest", dest.path, "--java-options", "-Xmx1024m", "--java-options", "-Dfile.encoding=UTF-8")
     when {
         osName.startsWith("windows") -> args("--type", "msi", "--icon", packagingDir.file("icon.ico").asFile.path,
-            // Keeps upgrades in place, also from the TCraftClient installers
+            // Keeps upgrades in place: every HopSync installer shares this id
             "--win-upgrade-uuid", winUpgradeUuid,
             "--win-menu", "--win-menu-group", appName, "--win-shortcut", "--win-dir-chooser")
         osName.contains("mac") -> args("--type", "dmg", "--icon", packagingDir.file("icon.icns").asFile.path,
