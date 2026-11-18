@@ -36,6 +36,8 @@ tasks.jar {
     }
     // Self-contained JAR: java -jar and jpackage only ship this file
     from(configurations.runtimeClasspath.map { files -> files.map { if (it.isDirectory) it else zipTree(it) } })
+    // At the root: the dependencies already bring their own META-INF/LICENSE
+    from(rootProject.files("LICENSE", "THIRD-PARTY-NOTICES.md"))
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     exclude("module-info.class", "META-INF/versions/*/module-info.class", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
@@ -54,9 +56,10 @@ val osName = System.getProperty("os.name").lowercase()
 val jpackageTool = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
     .map { it.metadata.installationPath.file(if (osName.startsWith("windows")) "bin/jpackage.exe" else "bin/jpackage") }
 
-// jpackage bundles everything in --input, so it gets a folder with the JAR alone
+// jpackage bundles everything in --input, so it gets a folder with the JAR and the license files alone
 val jpackageInputJar by tasks.registering(Sync::class) {
     from(tasks.jar)
+    from(rootProject.files("LICENSE", "THIRD-PARTY-NOTICES.md"))
     into(jpackageInput)
 }
 
@@ -121,6 +124,7 @@ tasks.register<Zip>("portableZip") {
     description = "Packs the JAR with double-click launchers into desktop/build/distributions, for Java 21 users."
     archiveFileName = "$appName-${project.version}-portable.zip"
     from(tasks.jar)
+    from(rootProject.files("LICENSE", "THIRD-PARTY-NOTICES.md"))
     from(packagingDir.dir("portable")) {
         filesMatching(listOf("*.sh", "*.command")) {
             permissions { unix("rwxr-xr-x") }

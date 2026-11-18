@@ -200,3 +200,8 @@ drawing code (`./gradlew brandAssets`), so the app and the brand sheet never dri
 - **Portable ZIP**: Java 21 or newer, for example from [adoptium.net](https://adoptium.net/).
 - An internet connection, and Minecraft installed with the pack's mod loader.
 - To publish packs: a GitHub account.
+
+## License
+
+HopSync is released under the [MIT License](LICENSE). The libraries, fonts and Java runtime it ships keep their
+own licenses, listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
