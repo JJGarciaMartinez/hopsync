@@ -201,6 +201,21 @@ drawing code (`./gradlew brandAssets`), so the app and the brand sheet never dri
 - An internet connection, and Minecraft installed with the pack's mod loader.
 - To publish packs: a GitHub account.
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+- Committers and reviewers: [JJGarciaMartinez](https://github.com/JJGarciaMartinez)
+- Approvers: [JJGarciaMartinez](https://github.com/JJGarciaMartinez)
+
+Every signed release is built from this repository by the [release workflow](.github/workflows/release.yml) and
+approved by hand before it is signed.
+
+## Privacy
+
+HopSync collects no personal data and sends nothing about you anywhere. It only connects to the services it needs,
+listed in the [privacy policy](PRIVACY.md), and its check for newer versions can be turned off in Settings › General.
+
 ## License
 
 HopSync is released under the [MIT License](LICENSE). The libraries, fonts and Java runtime it ships keep their
