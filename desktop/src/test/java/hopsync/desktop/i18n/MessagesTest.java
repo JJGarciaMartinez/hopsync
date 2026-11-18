@@ -3,9 +3,18 @@ package hopsync.desktop.i18n;
 import hopsync.core.failure.SyncFailure;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
+import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -81,5 +90,54 @@ class MessagesTest {
         assertEquals("1 se quita", Messages.get("hero.chip.remove", 1));
         assertEquals("7 cambios aplicados", Messages.get("toast.applied", 7));
         assertEquals("Comparando con el pack…", Messages.get("hero.state.checking"));
+    }
+
+    private static Properties bundle(String file) throws IOException {
+        Properties texts = new Properties();
+        try (InputStream in = Messages.class.getResourceAsStream(file)) {
+            texts.load(new InputStreamReader(in, StandardCharsets.UTF_8));
+        }
+        return texts;
+    }
+
+    private static Set<String> placeholders(String text) {
+        Set<String> found = new TreeSet<>();
+        Matcher matcher = Pattern.compile("\\{(\\d)").matcher(text);
+        while (matcher.find()) found.add(matcher.group(1));
+        return found;
+    }
+
+    @Test
+    void everyTextExistsInBothLanguagesWithTheSamePlaceholders() throws IOException {
+        Properties english = bundle("messages.properties");
+        Properties spanish = bundle("messages_es.properties");
+        assertEquals(english.stringPropertyNames(), spanish.stringPropertyNames());
+        for (String key : english.stringPropertyNames()) {
+            assertEquals(placeholders(english.getProperty(key)), placeholders(spanish.getProperty(key)), key);
+            // MessageFormat drops a plain apostrophe; the texts use the typographic one
+            assertFalse(english.getProperty(key).contains("'"), key);
+            assertFalse(spanish.getProperty(key).contains("'"), key);
+        }
+    }
+
+    @Test
+    void englishIsPickedOrFollowsANonSpanishSystem() {
+        Locale system = Locale.getDefault();
+        try {
+            Messages.use("en");
+            assertEquals("Applied with 3 errors", Messages.get("hero.state.doneWithErrors", 3));
+            assertEquals("1 change applied", Messages.get("toast.applied", 1));
+            assertTrue(Messages.failure(new SyncFailure.HttpStatus(404, "u")).contains("Settings"));
+
+            Locale.setDefault(Locale.FRANCE);
+            Messages.use("");
+            assertEquals(Locale.ENGLISH, Messages.locale());
+            Locale.setDefault(Locale.forLanguageTag("es-AR"));
+            Messages.use("");
+            assertEquals("Agregar pack", Messages.get("library.add"));
+        } finally {
+            Locale.setDefault(system);
+            Messages.use("es");
+        }
     }
 }

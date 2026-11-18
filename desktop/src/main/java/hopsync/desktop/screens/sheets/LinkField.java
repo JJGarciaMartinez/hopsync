@@ -31,7 +31,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * The pack link: text field, "Comprobar enlace" and, under them, what HopSync knows about the link (the
+ * The pack link: text field, "Verificar enlace" and, under them, what HopSync knows about the link (the
  * pack preview when it works, or what is wrong in plain words). Typing dispatches the text; rendering never
  * does, so the caret is not disturbed.
  */

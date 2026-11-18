@@ -109,6 +109,7 @@ public class SettingsStore implements PackSettingsRepository {
         root.put("parallel_downloads", settings.parallelDownloads());
         root.put("reduce_motion", settings.reduceMotion());
         root.put("library_width", settings.libraryWidth());
+        root.put("language", settings.language());
 
         AtomicFiles.writeString(file, Json.write(root));
     }
@@ -133,7 +134,8 @@ public class SettingsStore implements PackSettingsRepository {
             root.get("chain_queue") instanceof Boolean chain ? chain : defaults.chainQueue(),
             root.get("parallel_downloads") instanceof Long parallel ? parallel.intValue() : defaults.parallelDownloads(),
             root.get("reduce_motion") instanceof Boolean reduce ? reduce : defaults.reduceMotion(),
-            root.get("library_width") instanceof Long width ? width.intValue() : defaults.libraryWidth());
+            root.get("library_width") instanceof Long width ? width.intValue() : defaults.libraryWidth(),
+            root.get("language") instanceof String language ? language : defaults.language());
     }
 
     private static Map<String, Object> writeSource(PackSource source) {

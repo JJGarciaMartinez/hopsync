@@ -32,13 +32,15 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
- * Preferences for every pack (check on start, chain the queue, parallel downloads), the GitHub account used to
- * publish created packs, and what a bug report needs to know about this copy of HopSync.
+ * Preferences for every pack (check on start, chain the queue, parallel downloads) and the language, the GitHub
+ * account used to publish created packs, and what a bug report needs to know about this copy of HopSync.
  */
 public final class AppSettingsView extends JPanel {
     private final Consumer<UiAction> dispatch;
@@ -46,6 +48,7 @@ public final class AppSettingsView extends JPanel {
     private final JCheckBox checkOnStart = new JCheckBox(Messages.get("sheet.app.checkOnStart"));
     private final JCheckBox chainQueue = new JCheckBox(Messages.get("sheet.app.chainQueue"));
     private final JCheckBox reduceMotion = new JCheckBox(Messages.get("sheet.app.reduceMotion"));
+    private final SegmentedControl<String> language;
     private final JSpinner parallel = new JSpinner(new SpinnerNumberModel(Preferences.DEFAULT.parallelDownloads(),
         PackSettings.MIN_PARALLEL_DOWNLOADS, PackSettings.MAX_PARALLEL_DOWNLOADS, 1));
     private final JPanel general = SheetParts.column();
@@ -69,10 +72,16 @@ public final class AppSettingsView extends JPanel {
             sections.setLabel(section, Messages.get("sheet.app.section." + section.name()));
         }
 
-        checkOnStart.addActionListener(e -> changed());
-        chainQueue.addActionListener(e -> changed());
-        reduceMotion.addActionListener(e -> changed());
-        parallel.addChangeListener(e -> changed());
+        checkOnStart.addActionListener(e -> changed(shownLanguage()));
+        chainQueue.addActionListener(e -> changed(shownLanguage()));
+        reduceMotion.addActionListener(e -> changed(shownLanguage()));
+        parallel.addChangeListener(e -> changed(shownLanguage()));
+        // Blank follows the system
+        List<String> languages = new ArrayList<>(List.of(""));
+        languages.addAll(Messages.LANGUAGES);
+        language = new SegmentedControl<>(languages, this::changed);
+        languages.forEach(tag -> language.setLabel(tag,
+            Messages.get(tag.isEmpty() ? "language.system" : "language." + tag)));
         parallel.getAccessibleContext().setAccessibleName(Messages.get("sheet.app.parallel"));
         JPanel parallelRow = new JPanel(new BorderLayout(UIScale.scale(12), 0));
         parallelRow.setOpaque(false);
@@ -83,6 +92,9 @@ public final class AppSettingsView extends JPanel {
         SheetParts.stack(general, 14, parallelRow);
         SheetParts.stack(general, 4, SheetParts.hint(Messages.get("sheet.app.parallelHint")));
         SheetParts.stack(general, 14, option(reduceMotion, "sheet.app.reduceMotionHint"));
+        SheetParts.stack(general, 14, SheetParts.label(Messages.get("sheet.app.language")));
+        SheetParts.stack(general, 8, language);
+        SheetParts.stack(general, 4, SheetParts.hint(Messages.get("sheet.app.languageHint")));
 
         JButton copy = SheetParts.button("sheet.app.copyDiagnostics", ButtonStyle.SECONDARY, dispatch,
             new UiAction.CopyDiagnostics());
@@ -111,6 +123,7 @@ public final class AppSettingsView extends JPanel {
             chainQueue.setSelected(sheet.draft().chainQueue());
             reduceMotion.setSelected(sheet.draft().reduceMotion());
             parallel.setValue(sheet.draft().parallelDownloads());
+            language.setSelected(sheet.draft().language());
         } finally {
             rendering = false;
         }
@@ -185,10 +198,15 @@ public final class AppSettingsView extends JPanel {
         account.repaint();
     }
 
-    private void changed() {
-        if (rendering) return;
+    private String shownLanguage() {
+        return shown == null ? "" : shown.draft().language();
+    }
+
+    private void changed(String pickedLanguage) {
+        if (rendering || shown == null) return;
         dispatch.accept(new UiAction.SetPreferences(new Preferences(checkOnStart.isSelected(),
-            chainQueue.isSelected(), (Integer) parallel.getValue(), reduceMotion.isSelected())));
+            chainQueue.isSelected(), (Integer) parallel.getValue(), reduceMotion.isSelected(),
+            shown.draft().libraryWidth(), pickedLanguage)));
     }
 
     private static JComponent option(JCheckBox box, String hintKey) {

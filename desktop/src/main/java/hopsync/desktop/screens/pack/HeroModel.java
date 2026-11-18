@@ -55,8 +55,8 @@ public record HeroModel(StatusMark.Kind mark, String title, String detail, List<
     }
 
     /**
-     * A created pack with no mods yet says so and offers "Añadir mods" as its main action; once it has mods,
-     * "Añadir mods" sits before the phase's actions whenever the pack is not checking, queued or writing, followed
+     * A created pack with no mods yet says so and offers "Agregar mods" as its main action; once it has mods,
+     * "Agregar mods" sits before the phase's actions whenever the pack is not checking, queued or writing, followed
      * by "Publicar" until it is published and "Publicar cambios" when it changed since.
      */
     private static HeroModel forCreated(PackUiState pack, HeroModel model) {

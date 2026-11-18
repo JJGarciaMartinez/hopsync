@@ -27,7 +27,10 @@ public class Main {
     private static InstanceLock instanceLock;
 
     public static void main(String[] args) {
-        Path dataDir = SettingsStore.forCurrentUser().getFile().getParent();
+        SettingsStore settings = SettingsStore.forCurrentUser();
+        Path dataDir = settings.getFile().getParent();
+        // Before any text is read, so even the "already open" notice uses the player's language
+        Messages.use(settings.load().language());
         // Before any AWT class loads, or the scale is ignored
         DisplayScaling.configure();
 
