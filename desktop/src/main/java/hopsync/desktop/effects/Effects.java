@@ -243,7 +243,7 @@ public final class Effects {
     private void loadInstalled(String packId) {
         registry.find(packId).ifPresent(pack -> background.execute(() -> {
             try {
-                store.dispatch(new UiAction.InstalledModsLoaded(packId, modLoadService.load(pack.paths())));
+                store.dispatch(new UiAction.InstalledModsLoaded(packId, modLoadService.load(pack)));
             } catch (RuntimeException e) {
                 LOG.log(System.Logger.Level.WARNING, "Could not list installed mods of pack " + packId, e);
             }

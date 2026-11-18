@@ -27,6 +27,22 @@ public class StateStore {
         this.file = file;
     }
 
+    /**
+     * The state as a pack sees it: what another pack installed in this folder (one the player removed, whose
+     * record stayed behind) is not this pack's to update or remove, so it reads as empty and those files are
+     * the player's.
+     */
+    public LocalState load(String packId) {
+        LocalState state = load();
+        if (state.ownedBy(packId) || state.equals(LocalState.empty())) {
+            return state;
+        }
+        LOG.log(System.Logger.Level.INFO, "Ignoring " + file + ", written by "
+            + (state.packId() == null ? "an unknown pack" : "pack " + state.packId()) + "; its files stay as they are");
+        return LocalState.empty();
+    }
+
+    /** The state as written, whichever pack wrote it. */
     public LocalState load() {
         String json;
         try {
@@ -46,7 +62,8 @@ public class StateStore {
             return new LocalState(
                 (String) root.get("content_hash"),
                 readRecords(root.get("mods")),
-                readRecords(root.get("configs"))
+                readRecords(root.get("configs")),
+                root.get("pack_id") instanceof String packId ? packId : null
             );
         } catch (IOException | ClassCastException | NullPointerException e) {
             LOG.log(System.Logger.Level.WARNING, "Corrupt state file " + file + ", starting fresh", e);
@@ -60,6 +77,7 @@ public class StateStore {
     public void save(LocalState state) throws IOException {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("format", FORMAT);
+        root.put("pack_id", state.packId());
         root.put("content_hash", state.contentHash());
         root.put("mods", writeRecords(state.mods()));
         root.put("configs", writeRecords(state.configs()));
