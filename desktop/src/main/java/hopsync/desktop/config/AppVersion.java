@@ -13,7 +13,9 @@ public final class AppVersion {
     // Test builds are tagged a26.x.y, b26.x.y or rc26.x.y (see VERSION_GUIDE.md)
     private static final Pattern TEST_BUILD = Pattern.compile("^(a|b|rc)\\d");
 
-    public static final String VERSION_APP = displayVersion(loadVersion());
+    /** The version as written in version.properties, e.g. b26.2.0. */
+    public static final String VERSION = loadVersion();
+    public static final String VERSION_APP = displayVersion(VERSION);
 
     private AppVersion() {
     }

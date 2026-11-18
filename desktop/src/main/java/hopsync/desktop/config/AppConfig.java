@@ -19,6 +19,9 @@ public record AppConfig(NetworkConfig network, String presetManifestUrl, String 
     static final String DEFAULT_MANIFEST_URL =
         "https://github.com/JJGarciaMartinez/hopsync-demo/releases/download/hopsync/manifest.json";
 
+    /** Replaced in network.user.agent by the app version. */
+    static final String VERSION_PLACEHOLDER = "{version}";
+
     public static AppConfig load() {
         Properties props = new Properties();
         try (InputStream input = AppConfig.class.getClassLoader().getResourceAsStream("app.properties")) {
@@ -26,15 +29,15 @@ public record AppConfig(NetworkConfig network, String presetManifestUrl, String 
         } catch (IOException e) {
             LOG.log(System.Logger.Level.WARNING, "Could not load app.properties, using defaults", e);
         }
-        return fromProperties(props);
+        return fromProperties(props, AppVersion.VERSION);
     }
 
-    static AppConfig fromProperties(Properties props) {
+    static AppConfig fromProperties(Properties props, String version) {
         NetworkConfig defaults = NetworkConfig.DEFAULT;
         NetworkConfig network = new NetworkConfig(
             intOr(props, "network.connect.timeout", defaults.connectTimeoutMillis()),
             intOr(props, "network.read.timeout", defaults.readTimeoutMillis()),
-            props.getProperty("network.user.agent", defaults.userAgent()));
+            props.getProperty("network.user.agent", defaults.userAgent()).strip().replace(VERSION_PLACEHOLDER, version));
         return new AppConfig(network, props.getProperty("manifest.url", DEFAULT_MANIFEST_URL),
             props.getProperty("github.client.id", DEFAULT_GITHUB_CLIENT_ID).strip());
     }
