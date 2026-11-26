@@ -1,6 +1,7 @@
 package hopsync.desktop.store;
 
 import hopsync.core.catalog.CatalogProject;
+import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.publish.PublishStep;
 import hopsync.core.failure.SyncFailure;
@@ -26,6 +27,7 @@ import static hopsync.desktop.store.StoreFixtures.upToDatePlan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -742,6 +744,106 @@ class ReducerTest {
             new UiAction.ModAddFailed("iris", gone)).sheet();
         assertEquals(gone, failed.error());
         assertEquals(Set.of(), failed.adding());
+    }
+
+    private static final CatalogProject SODIUM = new CatalogProject("AANobbMI", "sodium", "Sodium", "", "jelly", null, 9);
+    private static final CatalogProject IRIS = new CatalogProject("YL57xq9U", "iris", "Iris", "", "coderbot", null, 5);
+
+    private static ProjectDetails detailsOf(CatalogProject project) {
+        return new ProjectDetails(project.id(), project.slug(), project.title(), "", "",
+            List.of(new ProjectDetails.Image("https://a/1.png", "", true), new ProjectDetails.Image("https://a/2.png", "", false)));
+    }
+
+    private static UiState addModsOpen() {
+        return reduce(created(), new UiAction.OpenAddMods(MINE.id()), new UiAction.PackModsLoaded(MINE.id(), Set.of()),
+            new UiAction.SearchMods("s"), new UiAction.ModsFound("s", List.of(SODIUM, IRIS)));
+    }
+
+    private static Sheet.AddMods addMods(UiState state) {
+        return (Sheet.AddMods) state.sheet();
+    }
+
+    @Test
+    void openingADetailShowsItLoading() {
+        Sheet.ModDetail detail = addMods(reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM))).detail();
+        assertEquals(SODIUM, detail.project());
+        assertNull(detail.details());
+    }
+
+    @Test
+    void loadedDetailIsKept() {
+        UiState state = reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM),
+            new UiAction.ModDetailLoaded(SODIUM.id(), detailsOf(SODIUM), null, List.of("Fabric API"), true));
+        Sheet.ModDetail detail = addMods(state).detail();
+        assertEquals(detailsOf(SODIUM), detail.details());
+        assertEquals(List.of("Fabric API"), detail.needs());
+        assertTrue(detail.noVersion());
+    }
+
+    @Test
+    void staleDetailAnswerIsIgnored() {
+        UiState state = reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM), new UiAction.OpenModDetail(IRIS),
+            new UiAction.ModDetailLoaded(SODIUM.id(), detailsOf(SODIUM), null, List.of(), false),
+            new UiAction.ModDetailFailed(SODIUM.id(), new SyncFailure.ModUnavailable("Sodium")));
+        Sheet.ModDetail detail = addMods(state).detail();
+        assertEquals(IRIS, detail.project());
+        assertNull(detail.details());
+        assertNull(detail.failure());
+    }
+
+    @Test
+    void failureIsKept() {
+        SyncFailure offline = new SyncFailure.Network("api.modrinth.com", "timeout");
+        Sheet.ModDetail detail = addMods(reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM),
+            new UiAction.ModDetailFailed(SODIUM.id(), offline))).detail();
+        assertEquals(offline, detail.failure());
+        assertEquals(SODIUM, detail.project());
+    }
+
+    @Test
+    void selectShotChangesIndexWithinGallery() {
+        UiState loaded = reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM),
+            new UiAction.ModDetailLoaded(SODIUM.id(), detailsOf(SODIUM), null, List.of(), false));
+        assertEquals(1, addMods(reduce(loaded, new UiAction.SelectShot(1))).detail().shot());
+        assertEquals(0, addMods(reduce(loaded, new UiAction.SelectShot(2))).detail().shot());
+        assertEquals(0, addMods(reduce(loaded, new UiAction.SelectShot(-1))).detail().shot());
+    }
+
+    @Test
+    void backToResultsKeepsQueryAndResults() {
+        Sheet.AddMods back = addMods(reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM), new UiAction.BackToResults()));
+        assertNull(back.detail());
+        assertEquals("s", back.query());
+        assertEquals(List.of(SODIUM, IRIS), back.results());
+    }
+
+    @Test
+    void closeSheetInDetailGoesBackInsteadOfClosing() {
+        UiState detail = reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM));
+        UiState back = reduce(detail, new UiAction.CloseSheet());
+        assertNull(addMods(back).detail());
+        assertNull(reduce(back, new UiAction.CloseSheet()).sheet());
+    }
+
+    @Test
+    void addingFromDetailReturnsToList() {
+        UiState state = reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM), new UiAction.AddCatalogMod(SODIUM.id()),
+            new UiAction.ModAdded(SODIUM.id(), new Sheet.Added("Sodium", List.of()), Set.of(SODIUM.id())));
+        assertNull(addMods(state).detail());
+        assertEquals("Sodium", addMods(state).lastAdded().title());
+    }
+
+    @Test
+    void addFailureKeepsDetail() {
+        UiState state = reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM), new UiAction.AddCatalogMod(SODIUM.id()),
+            new UiAction.ModAddFailed(SODIUM.id(), new SyncFailure.ModUnavailable("Sodium")));
+        assertEquals(SODIUM, addMods(state).detail().project());
+        assertNotNull(addMods(state).error());
+    }
+
+    @Test
+    void newSearchClearsTheDetail() {
+        assertNull(addMods(reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM), new UiAction.SearchMods("x"))).detail());
     }
 
     @Test

@@ -1,6 +1,8 @@
 package hopsync.desktop.store;
 
 import hopsync.core.catalog.CatalogProject;
+import hopsync.core.catalog.CatalogVersion;
+import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.Manifest;
@@ -110,6 +112,19 @@ public sealed interface UiAction {
 
     /** The catalog projects the pack already lists. */
     record PackModsLoaded(String packId, Set<String> projects) implements UiAction {}
+
+    /** Opens a mod's page in the add-mods sheet; Effects loads it. */
+    record OpenModDetail(CatalogProject project) implements UiAction {}
+
+    /** @param details the catalog page; {@code version} is the one that would be added, or {@code null} */
+    record ModDetailLoaded(String projectId, ProjectDetails details, CatalogVersion version, List<String> needs,
+                           boolean noVersion) implements UiAction {}
+
+    record ModDetailFailed(String projectId, SyncFailure failure) implements UiAction {}
+
+    record SelectShot(int index) implements UiAction {}
+
+    record BackToResults() implements UiAction {}
 
     record AddCatalogMod(String projectId) implements UiAction {}
 
