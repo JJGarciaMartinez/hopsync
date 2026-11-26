@@ -147,8 +147,11 @@ public sealed interface UiAction {
 
     record OpenAppSettings(Sheet.AppSettings.Section section) implements UiAction {}
 
-    /** Esc or "Cancelar"; the first-run wizard cannot be closed. */
+    /** The close X, "Listo" or "Cancelar"; the first-run wizard cannot be closed. */
     record CloseSheet() implements UiAction {}
+
+    /** Esc: back to the results from a mod's detail, otherwise like {@link CloseSheet}. */
+    record Escape() implements UiAction {}
 
     /** A sheet saved; the packs are reloaded by Effects. */
     record SheetSaved() implements UiAction {}

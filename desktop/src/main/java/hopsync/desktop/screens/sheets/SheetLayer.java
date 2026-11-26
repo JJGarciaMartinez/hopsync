@@ -73,7 +73,7 @@ public final class SheetLayer extends JPanel {
         getActionMap().put("closeSheet", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (isVisible()) dispatch.accept(new UiAction.CloseSheet());
+                if (isVisible()) dispatch.accept(new UiAction.Escape());
             }
         });
 

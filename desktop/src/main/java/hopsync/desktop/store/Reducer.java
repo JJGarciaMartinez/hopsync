@@ -95,8 +95,9 @@ public final class Reducer {
             case UiAction.ModAdded a -> updateAddMods(state, sheet -> sheet.withAdded(a.projectId(), a.result(), a.projects()));
             case UiAction.ModAddFailed a -> updateAddMods(state, sheet -> sheet.withFailure(a.projectId(), a.failure()));
             case UiAction.OpenAppSettings a -> state.withSheet(new Sheet.AppSettings(a.section(), state.preferences()));
-            case UiAction.CloseSheet a when state.sheet() instanceof Sheet.AddMods sheet && sheet.detail() != null ->
+            case UiAction.Escape a when state.sheet() instanceof Sheet.AddMods sheet && sheet.detail() != null ->
                 state.withSheet(sheet.withoutDetail());
+            case UiAction.Escape a -> reduce(state, new UiAction.CloseSheet());
             case UiAction.CloseSheet a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.firstRun() ? state
                 : state.withSheet(null);
             case UiAction.SheetSaved a -> state.withSheet(null);

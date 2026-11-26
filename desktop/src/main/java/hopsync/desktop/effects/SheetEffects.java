@@ -109,6 +109,8 @@ final class SheetEffects {
             // What was added reaches the game folder through the usual check and review
             case UiAction.CloseSheet a when previous instanceof Sheet.AddMods closed && state.sheet() == null
                 && closed.added() > 0 -> checkPack.accept(closed.packId());
+            case UiAction.Escape a when previous instanceof Sheet.AddMods closed && state.sheet() == null
+                && closed.added() > 0 -> checkPack.accept(closed.packId());
             case UiAction.CheckLink a -> fetchLink(state.sheet());
             case UiAction.StartFromScratch a when state.sheet() instanceof Sheet.AddPack wizard
                 && wizard.creation() != null && wizard.creation().versions() == null -> loadGameVersions();

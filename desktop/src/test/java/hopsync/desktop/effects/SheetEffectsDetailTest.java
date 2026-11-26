@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -48,6 +49,7 @@ class SheetEffectsDetailTest {
 
     private final Map<String, List<CatalogVersion>> versions = new HashMap<>();
     private final List<UiAction> dispatched = new ArrayList<>();
+    private final List<String> checked = new ArrayList<>();
     private Optional<ProjectDetails> details = Optional.of(DETAILS);
     private IOException detailsError;
     private SheetEffects effects;
@@ -136,13 +138,17 @@ class SheetEffectsDetailTest {
         Store store = new Store(UiState.INITIAL);
         store.addEffect((action, state) -> dispatched.add(action));
         effects = new SheetEffects(store, registry, null, catalog, editor, new InstanceFinder("Linux", Map.of(), dir),
-            Runnable::run, dir.resolve("settings.json"), () -> { }, id -> { }, id -> { }, id -> false);
+            Runnable::run, dir.resolve("settings.json"), () -> { }, checked::add, id -> { }, id -> false);
+    }
+
+    private static UiState withSheet(Sheet open) {
+        UiState i = UiState.INITIAL;
+        return new UiState(i.packs(), i.selectedPackId(), i.tab(), i.filter(), i.queries(), i.packQuery(),
+            i.expandedRow(), open, i.toast(), i.preferences(), i.modVersions(), i.account(), i.appUpdate());
     }
 
     private List<UiAction> open() throws Exception {
-        UiState i = UiState.INITIAL;
-        UiState state = new UiState(i.packs(), i.selectedPackId(), i.tab(), i.filter(), i.queries(), i.packQuery(),
-            i.expandedRow(), sheet, i.toast(), i.preferences(), i.modVersions(), i.account(), i.appUpdate());
+        UiState state = withSheet(sheet);
         SwingUtilities.invokeAndWait(() -> effects.run(new UiAction.OpenModDetail(PROJECT), state));
         SwingUtilities.invokeAndWait(() -> { });
         return dispatched.stream().filter(a -> !(a instanceof UiAction.OpenModDetail)).toList();
@@ -181,5 +187,22 @@ class SheetEffectsDetailTest {
         detailsError = new IOException("offline");
         UiAction.ModDetailFailed failed = assertInstanceOf(UiAction.ModDetailFailed.class, open().getFirst());
         assertEquals("sodium", failed.projectId());
+    }
+
+    @Test
+    void closingWithEscapeChecksThePackOnlyWhenModsWereAdded() throws Exception {
+        Sheet.AddMods withMods = new Sheet.AddMods(sheet.packId(), "1.21.1", "fabric", "", null, null, null,
+            Set.of(), 1, null, null, null);
+        SwingUtilities.invokeAndWait(() -> {
+            effects.run(new UiAction.OpenModDetail(PROJECT), withSheet(withMods));
+            effects.run(new UiAction.Escape(), withSheet(null));
+        });
+        assertEquals(List.of(sheet.packId()), checked);
+
+        SwingUtilities.invokeAndWait(() -> {
+            effects.run(new UiAction.OpenModDetail(PROJECT), withSheet(sheet));
+            effects.run(new UiAction.Escape(), withSheet(null));
+        });
+        assertEquals(List.of(sheet.packId()), checked);
     }
 }

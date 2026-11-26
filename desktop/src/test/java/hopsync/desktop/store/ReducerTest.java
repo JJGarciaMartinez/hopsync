@@ -818,11 +818,23 @@ class ReducerTest {
     }
 
     @Test
-    void closeSheetInDetailGoesBackInsteadOfClosing() {
+    void escapeInDetailGoesBackThenCloses() {
         UiState detail = reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM));
-        UiState back = reduce(detail, new UiAction.CloseSheet());
+        UiState back = reduce(detail, new UiAction.Escape());
         assertNull(addMods(back).detail());
-        assertNull(reduce(back, new UiAction.CloseSheet()).sheet());
+        assertNull(reduce(back, new UiAction.Escape()).sheet());
+    }
+
+    @Test
+    void closeSheetInDetailClosesTheSheet() {
+        assertNull(reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM), new UiAction.CloseSheet()).sheet());
+    }
+
+    @Test
+    void escapeClosesOtherSheetsButNotTheFirstRunWizard() {
+        UiState firstRun = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(), null));
+        assertEquals(firstRun, reduce(firstRun, new UiAction.Escape()));
+        assertNull(reduce(loaded(), new UiAction.OpenSettings(), new UiAction.Escape()).sheet());
     }
 
     @Test
