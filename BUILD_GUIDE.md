@@ -28,8 +28,8 @@ so a release builds on Windows, macOS and Linux (the release workflow does it fo
 - **Windows (`.msi`)**: `app.win.upgrade.uuid` (never change it: it lets a new installer replace the old one,
   including the TCraftClient installers), Start menu entry, desktop shortcut and folder chooser.
   Needs the [WiX Toolset](https://wixtoolset.org/) on the PATH when building locally.
-- **macOS (`.dmg`)**: identifier `app.hopsync.client`. Unsigned: the first time, players open it with
-  right-click → Open, or System Settings → Privacy & Security → Open Anyway. If it does not open on another Mac,
+- **macOS (`.dmg`)**: identifier `app.hopsync.client`. Unsigned: the first time, players open it from
+  System Settings → Privacy & Security → Open Anyway (macOS 15 dropped right-click → Open). If it does not open on another Mac,
   `./scripts/bash/diagnose-app.sh` inspects the built `.dmg`.
 - **Linux (`.deb`)**: package `hopsync`, with a menu entry. Needs `dpkg-deb` and `fakeroot`.
 
@@ -46,7 +46,8 @@ Running `jpackage` again replaces the previous installer.
    ```
 3. The **Release** workflow (`.github/workflows/release.yml`) checks that the tag matches `app.version`, builds
    and tests on the three OSes, runs `jpackage` on each and `portableZip` on Linux, and drafts a GitHub Release
-   with the `.msi`, `.dmg`, `.deb` and the portable ZIP. Test builds (`-a.N`, `-b.N`, `-rc.N`) are marked as prereleases.
+   with the `.msi`, `.dmg`, `.deb`, the portable ZIP and `SHA256SUMS.txt` (the installers are not signed, so
+   players can check the hashes). Test builds (`-a.N`, `-b.N`, `-rc.N`) are marked as prereleases.
    Its notes start with the guide to each file from `.github/release-downloads.md` (`{version}` is filled
    in), followed by the changelog GitHub generates.
 4. Review the draft on GitHub, add a short intro and what's new above the guide, and publish it.

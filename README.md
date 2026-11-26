@@ -201,15 +201,15 @@ drawing code (`./gradlew brandAssets`), so the app and the brand sheet never dri
 - An internet connection, and Minecraft installed with the pack's mod loader.
 - To publish packs: a GitHub account.
 
-## Code signing policy
+## Verifying downloads
 
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+The installers are not code signed yet, so Windows SmartScreen and macOS Gatekeeper warn the first time they open.
+Every release is built from this repository by the [release workflow](.github/workflows/release.yml) and ships a
+`SHA256SUMS.txt` with the SHA-256 of each file. To check a download, compare its hash with the one in that file:
 
-- Committers and reviewers: [JJGarciaMartinez](https://github.com/JJGarciaMartinez)
-- Approvers: [JJGarciaMartinez](https://github.com/JJGarciaMartinez)
-
-Every signed release is built from this repository by the [release workflow](.github/workflows/release.yml) and
-approved by hand before it is signed.
+- Windows (PowerShell): `Get-FileHash .\HopSync-<version>.msi`
+- macOS: `shasum -a 256 HopSync-<version>.dmg`
+- Linux: `sha256sum -c SHA256SUMS.txt --ignore-missing` in the folder with the downloads
 
 ## Privacy
 

@@ -19,7 +19,7 @@ The installer is not signed yet, so Windows may show "Windows protected your PC"
 
 Open it and drag **HopSync** into **Applications**. It runs on Macs with an Apple chip (M1 or newer); on an Intel Mac, use the portable ZIP.
 
-The app is not signed yet. The first time, right-click HopSync in Applications and choose **Open**, or go to **System Settings › Privacy & Security** and choose **Open Anyway**.
+The app is not signed yet, so the first time macOS says it cannot check it for malicious software. Choose **Done**, then go to **System Settings › Privacy & Security**, scroll down to HopSync and choose **Open Anyway**. You only do this once.
 
 ### Linux: `hopsync_{version}_amd64.deb`
 
@@ -38,6 +38,6 @@ For computers where you cannot or prefer not to install anything, or that the ot
 Unzip it anywhere and open the launcher for your system: `HopSync.bat` on Windows, `HopSync.command` on macOS or `HopSync.sh` on Linux.
 
 
-## Code signing policy and privacy
+## Checking the files and privacy
 
-See the [code signing policy](https://github.com/JJGarciaMartinez/hopsync#code-signing-policy) and the [privacy policy](https://github.com/JJGarciaMartinez/hopsync/blob/main/PRIVACY.md). HopSync collects no personal data.
+`SHA256SUMS.txt` lists the SHA-256 of every file in this release, so you can [check that a download is intact](https://github.com/JJGarciaMartinez/hopsync#verifying-downloads). HopSync collects no personal data: see the [privacy policy](https://github.com/JJGarciaMartinez/hopsync/blob/main/PRIVACY.md).

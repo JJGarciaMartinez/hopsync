@@ -76,5 +76,8 @@ jobs:
           sed -e "s/{version}/$GITHUB_REF_NAME/g" .github/release-downloads.md > notes.md
           # Each artifact keeps its folders (installer/, distributions/): upload the files, not the folders
           mapfile -t files < <(find artifacts -type f)
+          # The installers are unsigned: the hashes let players check a download (README: Verifying downloads)
+          (for f in "${files[@]}"; do (cd "$(dirname "$f")" && sha256sum "$(basename "$f")"); done) > SHA256SUMS.txt
+          files+=(SHA256SUMS.txt)
           gh release create "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" --draft $prerelease \
             --title "HopSync $GITHUB_REF_NAME" --notes-file notes.md --generate-notes
