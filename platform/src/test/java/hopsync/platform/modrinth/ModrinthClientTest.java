@@ -2,6 +2,7 @@ package hopsync.platform.modrinth;
 
 import hopsync.core.catalog.CatalogProject;
 import hopsync.core.catalog.CatalogVersion;
+import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.Manifest;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -141,5 +143,40 @@ class ModrinthClientTest {
         client.versionsById(IntStream.range(0, ModrinthClient.BATCH + 1).mapToObj(i -> "v" + i).toList());
 
         assertEquals(2, asked.size());
+    }
+
+    @Test
+    void detailsReadsGalleryAndBody() throws IOException {
+        ModrinthClient client = new ModrinthClient(url -> {
+            assertEquals(ModrinthClient.API + "/project/sodium", url);
+            return """
+                {"id":"AANobbMI","slug":"sodium","title":"Sodium","description":"Fast","body":"# Hi",
+                 "gallery":[{"url":"https://cdn/a.png","title":"A","featured":false},
+                            {"url":"https://cdn/b.png","title":"B","featured":true},
+                            {"title":"no url"}]}""";
+        });
+        ProjectDetails details = client.details("sodium").orElseThrow();
+
+        assertEquals("Fast", details.summary());
+        assertEquals("# Hi", details.body());
+        assertEquals(2, details.gallery().size());
+        assertTrue(details.gallery().getFirst().featured());
+    }
+
+    @Test
+    void detailsTolerateMissingGalleryAndBody() throws IOException {
+        ProjectDetails details = new ModrinthClient(url -> "{\"id\":\"x\",\"slug\":\"x\",\"title\":\"X\"}")
+            .details("x").orElseThrow();
+
+        assertEquals(List.of(), details.gallery());
+        assertEquals("", details.body());
+    }
+
+    @Test
+    void detailsOfUnknownProjectIsEmpty() throws IOException {
+        ModrinthClient client = new ModrinthClient(url -> {
+            throw new SyncException(new SyncFailure.HttpStatus(404, url));
+        });
+        assertEquals(Optional.empty(), client.details("no-such-mod"));
     }
 }
