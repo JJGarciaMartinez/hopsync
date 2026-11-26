@@ -1,6 +1,7 @@
 package hopsync.core.usecase;
 
 import hopsync.core.catalog.CatalogProject;
+import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.catalog.CatalogVersion;
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
@@ -110,6 +111,11 @@ class PackEditorTest {
             @Override
             public List<CatalogVersion> versionsById(Collection<String> ids) {
                 return versions.values().stream().flatMap(List::stream).filter(v -> ids.contains(v.id())).toList();
+            }
+
+            @Override
+            public Optional<ProjectDetails> details(String id) {
+                return Optional.empty();
             }
 
             @Override
