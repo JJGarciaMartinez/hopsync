@@ -3,6 +3,7 @@ package hopsync.desktop.kit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.image.BufferedImage;
@@ -91,6 +92,49 @@ class RemoteImagesTest {
         drain();
         assertTrue(delivered.isEmpty());
         assertNull(images.peek("u", 64));
+    }
+
+    @Test
+    void oversizedImageIsRejectedBeforeDecoding() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(new BufferedImage(10_000, 10_000, BufferedImage.TYPE_BYTE_BINARY), "png", out);
+        byte[] bomb = out.toByteArray();
+        AtomicInteger calls = new AtomicInteger();
+        RemoteImages images = new RemoteImages(url -> {
+            calls.incrementAndGet();
+            return bomb;
+        }, Runnable::run);
+        images.load("u", 64, delivered::add);
+        images.load("u", 64, delivered::add);
+        drain();
+        assertTrue(delivered.isEmpty());
+        assertNull(images.peek("u", 64));
+        assertEquals(1, calls.get());
+    }
+
+    @Test
+    void outOfMemoryIsAFailure() throws Exception {
+        RemoteImages images = new RemoteImages(url -> {
+            throw new OutOfMemoryError("test");
+        }, Runnable::run);
+        images.load("u", 64, delivered::add);
+        drain();
+        assertTrue(delivered.isEmpty());
+        assertNull(images.peek("u", 64));
+    }
+
+    @Test
+    void anErrorNeverLeavesTheImageLoading() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        RemoteImages images = new RemoteImages(url -> {
+            calls.incrementAndGet();
+            throw new LinkageError("test");
+        }, Runnable::run);
+        assertThrows(LinkageError.class, () -> images.load("u", 64, delivered::add));
+        images.load("u", 64, delivered::add);
+        drain();
+        assertEquals(1, calls.get());
+        assertTrue(delivered.isEmpty());
     }
 
     @Test

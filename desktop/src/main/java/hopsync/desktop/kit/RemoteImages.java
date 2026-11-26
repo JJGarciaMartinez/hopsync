@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,12 +16,17 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReadParam;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import javax.swing.SwingUtilities;
 
 /** Remote images for the UI: fetched and decoded off the EDT, downscaled, kept in a small memory LRU. */
 public final class RemoteImages {
     private static final System.Logger LOG = System.getLogger(RemoteImages.class.getName());
     private static final int MAX_ENTRIES = 64;
+    private static final int MAX_SIDE = 8192;
+    private static final long MAX_PIXELS = 16_000_000;
 
     @FunctionalInterface
     public interface Source {
@@ -80,18 +86,19 @@ public final class RemoteImages {
 
     private void finish(Key key) {
         BufferedImage image = null;
+        List<Consumer<BufferedImage>> waiting;
         try {
             image = fetch(key);
-        } catch (IOException | RuntimeException e) {
+        } catch (IOException | RuntimeException | OutOfMemoryError e) {
             LOG.log(System.Logger.Level.WARNING, "Could not load image " + key.url() + ": " + e);
-        }
-        List<Consumer<BufferedImage>> waiting;
-        synchronized (this) {
-            waiting = loading.remove(key);
-            if (image == null) {
-                failed.add(key.url());
-            } else {
-                memory.put(key, image);
+        } finally {
+            synchronized (this) {
+                waiting = loading.remove(key);
+                if (image == null) {
+                    failed.add(key.url());
+                } else {
+                    memory.put(key, image);
+                }
             }
         }
         if (image != null && waiting != null) {
@@ -100,12 +107,30 @@ public final class RemoteImages {
         }
     }
 
+    // Reads the size first: a small file can declare a picture of gigabytes, which must never be decoded
     private BufferedImage fetch(Key key) throws IOException {
-        BufferedImage decoded = ImageIO.read(new ByteArrayInputStream(source.get(key.url())));
-        if (decoded == null) {
-            throw new IOException("not an image");
+        try (ImageInputStream in = ImageIO.createImageInputStream(new ByteArrayInputStream(source.get(key.url())))) {
+            Iterator<ImageReader> readers = in == null ? null : ImageIO.getImageReaders(in);
+            if (readers == null || !readers.hasNext()) {
+                throw new IOException("not an image");
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(in, true, true);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                if (width > MAX_SIDE || height > MAX_SIDE || (long) width * height > MAX_PIXELS) {
+                    throw new IOException("image too large: " + width + "x" + height);
+                }
+                ImageReadParam param = reader.getDefaultReadParam();
+                // Skips whole rows and columns while staying at twice the edge, so the bicubic downscale keeps quality
+                int step = Math.max(1, Math.max(width, height) / (2 * key.edgePx()));
+                param.setSourceSubsampling(step, step, 0, 0);
+                return scaled(reader.read(0, param), key.edgePx());
+            } finally {
+                reader.dispose();
+            }
         }
-        return scaled(decoded, key.edgePx());
     }
 
     private static BufferedImage scaled(BufferedImage image, int edgePx) {
