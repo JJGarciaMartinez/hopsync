@@ -41,6 +41,20 @@ class RemoteImagesTest {
     }
 
     @Test
+    void decodesWebp() throws Exception {
+        byte[] webp;
+        try (var in = RemoteImagesTest.class.getResourceAsStream("sample.webp")) {
+            webp = in.readAllBytes();
+        }
+        RemoteImages images = new RemoteImages(url -> webp, Runnable::run);
+        images.load("u.webp", 60, delivered::add);
+        drain();
+        assertEquals(1, delivered.size());
+        assertEquals(60, delivered.get(0).getWidth());
+        assertEquals(20, delivered.get(0).getHeight());
+    }
+
+    @Test
     void secondLoadHitsMemory() throws Exception {
         AtomicInteger calls = new AtomicInteger();
         byte[] small = png(10, 10);
