@@ -171,6 +171,45 @@ class PackEditorTest {
     }
 
     @Test
+    void previewNamesNewestVersionAndMissingDependencies() throws IOException {
+        versions.put("a", List.of(version("a1", "a", "1.0", true)));
+        versions.put("b", List.of(version("b2", "b", "2.0", true, needs("a")), version("b1", "b", "1.0", true)));
+
+        PackEditor.Preview preview = editor.preview(pack.id(), "b");
+
+        assertEquals("2.0", preview.version().versionNumber());
+        assertEquals(List.of("Title a"), preview.needs());
+    }
+
+    @Test
+    void previewSkipsDependenciesAlreadyInPack() throws IOException {
+        versions.put("a", List.of(version("a1", "a", "1.0", true)));
+        versions.put("b", List.of(version("b1", "b", "1.0", true, needs("a"))));
+        editor.addFromCatalog(pack.id(), "a");
+
+        assertEquals(List.of(), editor.preview(pack.id(), "b").needs());
+    }
+
+    @Test
+    void previewThrowsWhenNoVersionFitsThePack() {
+        versions.put("b", List.of(version("b1", "b", "1.0", true, needs("gone"))));
+
+        SyncException e = assertThrows(SyncException.class, () -> editor.preview(pack.id(), "b"));
+
+        assertEquals(new SyncFailure.ModUnavailable("Title gone"), e.failure());
+    }
+
+    @Test
+    void previewDoesNotSave() throws IOException {
+        versions.put("a", List.of(version("a1", "a", "1.0", true)));
+        versions.put("b", List.of(version("b1", "b", "1.0", true, needs("a"))));
+
+        editor.preview(pack.id(), "b");
+
+        assertEquals(List.of(), mods());
+    }
+
+    @Test
     void ownJarsAreCopiedIntoThePackAndListedOnce() throws IOException {
         Path jar = Files.writeString(dir.resolve("mine.jar"), "v1");
 
