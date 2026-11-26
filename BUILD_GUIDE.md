@@ -11,14 +11,15 @@ version come from `version.properties` (see [VERSION_GUIDE.md](VERSION_GUIDE.md)
 | `./gradlew run` | | Launches the app from the sources. |
 | `./gradlew jpackage` | `desktop/build/installer/` | Native installer of the OS it runs on: `.msi` on Windows, `.dmg` on macOS, `.deb` on Linux. Bundles a Java runtime. |
 | `./gradlew portableZip` | `desktop/build/distributions/HopSync-<version>-portable.zip` | The JAR plus `HopSync.bat`, `HopSync.sh`, `HopSync.command` and a README, for players who already have Java 21. |
-| `./gradlew updateVersion -PnewVersion=<v> [-Pnumeric=<n>]` | `version.properties` | Sets `app.version` and `app.version.numeric`. |
+| `./gradlew updateVersion -PnewVersion=<v>` | `version.properties` | Sets `app.version` (e.g. `26.2.0-b.1`) and prints the installer version derived from it. |
 
 ## Installers (`jpackage`)
 
 `jpackage` comes with the JDK 21 that Gradle uses to compile, and only builds installers for the OS it runs on,
 so a release builds on Windows, macOS and Linux (the release workflow does it for you). What each one gets:
 
-- **Common**: name and vendor `HopSync`, `--app-version` from `app.version.numeric`, `-Xmx1024m`,
+- **Common**: name and vendor `HopSync`, `--app-version` derived from `app.version` (see [VERSION_GUIDE.md](VERSION_GUIDE.md#installer-version)), files named
+  with `app.version` (`HopSync-26.2.0-b.1.msi`), `-Xmx1024m`,
   `-Dfile.encoding=UTF-8`, icons from `packaging/`. Those icons (`icon.png` 512 px, `icon.ico` with 16 to 256 px,
   `icon.icns` with the 1x and 2x sizes) are written by `./gradlew brandIcons` from `kit/LogoIcon`, each size drawn
   at its exact pixels; run it after changing the mark and commit the result, never edit them by hand.
@@ -45,9 +46,9 @@ Running `jpackage` again replaces the previous installer.
    ```
 3. The **Release** workflow (`.github/workflows/release.yml`) checks that the tag matches `app.version`, builds
    and tests on the three OSes, runs `jpackage` on each and `portableZip` on Linux, and drafts a GitHub Release
-   with the `.msi`, `.dmg`, `.deb` and the portable ZIP. `a`, `b` and `rc` tags are marked as prereleases.
-   Its notes start with the guide to each file from `.github/release-downloads.md` (`{version}` and `{numeric}`
-   are filled in), followed by the changelog GitHub generates.
+   with the `.msi`, `.dmg`, `.deb` and the portable ZIP. Test builds (`-a.N`, `-b.N`, `-rc.N`) are marked as prereleases.
+   Its notes start with the guide to each file from `.github/release-downloads.md` (`{version}` is filled
+   in), followed by the changelog GitHub generates.
 4. Review the draft on GitHub, add a short intro and what's new above the guide, and publish it.
 
 ## Before publishing
@@ -57,7 +58,7 @@ Running `jpackage` again replaces the previous installer.
 
 ## Troubleshooting
 
-- **"app.version.numeric=…: jpackage needs one to three numbers"**: fix it with `updateVersion`; the numeric
-  version cannot carry the `a`/`b`/`rc` prefix.
+- **"Version …: expected YY.MAJOR.FIXES or YY.MAJOR.FIXES-(a|b|rc).N"**: fix `app.version` with `updateVersion`;
+  old tags such as `b26.2.0` are no longer valid.
 - **Windows: jpackage cannot find WiX**: install WiX and open a new terminal so the PATH is reloaded.
 - **The version shown in the app is old**: `./gradlew clean build`.

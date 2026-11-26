@@ -1,113 +1,72 @@
 # Versioning System - HopSync
 
-## Technical Overview
+## Version format
 
-This document describes the dual-version scheme implemented to resolve jpackage compatibility constraints while maintaining a year-based versioning system with phase identifiers.
+Every HopSync version is `YY.MAJOR.FIXES`, with an optional test stage at the end:
 
-## Versioning Scheme
+- **YY** (Year): last two digits of the **planned** release year (work in December 2025 for a 2026 release is
+  `26.1.0`).
+- **MAJOR**: version number within that year (starts at 1, never 0).
+- **FIXES**: fix number of that version (0 for its first release).
+- **Stage** (test builds only): `-a.N` (alpha), `-b.N` (beta) or `-rc.N` (release candidate), where `N` counts
+  the builds of that stage from 1 to 29.
 
-HopSync uses a **year-based versioning scheme** with the following format:
+A test build always names the version it is heading to, and the release drops the stage:
 
-### Version Format: `YY.MAJOR.FIXES`
-
-- **YY** (Year): Last two digits of the planned release year
-- **MAJOR**: Version number within that year (starts at 1, never 0)
-- **FIXES**: Patch/fix number for minor corrections (0 for initial release)
-
-### Examples:
-- `26.1.0` - First release of 2026, no fixes
-- `26.1.1` - First release of 2026, first fix
-- `26.2.0` - Second release of 2026
-- `27.1.0` - First release of 2027
-
-### Phase Identifiers (Alpha, Beta, RC)
-
-Pre-release versions use a single-letter prefix:
-
-| Prefix | Meaning | Example | Description |
-|--------|---------|---------|-------------|
-| `a` | Alpha | `a26.1.0` | Early development, unstable |
-| `b` | Beta | `b26.1.0` | Feature-complete, testing phase |
-| `rc` | Release Candidate | `rc26.1.0` | Pre-release, final testing |
-| *(none)* | Stable | `26.1.0` | Production-ready release |
-
-### Third Component: Iterations vs Fixes
-
-The third component (`FIXES`) has different meanings depending on the phase:
-
-| Phase | Third Component Meaning | Example |
-|-------|------------------------|---------|
-| Alpha/Beta/RC | **Iteration number** | `b26.1.4` = 4th beta iteration |
-| Stable | **Fix/patch number** | `26.1.4` = 4th fix of stable release |
-
-**Key distinction:**
-- `b26.1.4` = Fourth **beta iteration** of version 26.1
-- `26.1.4` = Fourth **bug fix** of stable release 26.1
-
-**Development progression:**
 ```
-b26.1.1 → b26.1.2 → b26.1.3 → b26.1.4  (beta iterations)
-                                   ↓
-                                26.1.0  (stable release, resets to 0)
-                                   ↓
-                       26.1.1 → 26.1.2  (bug fixes)
+26.2.0-a.1 → 26.2.0-b.1 → 26.2.0-b.2 → 26.2.0-rc.1 → 26.2.0  (release)
+                                                         ↓
+                              26.2.1-b.1 → 26.2.1  (first fix, with an optional beta)
+                                                         ↓
+                                         26.3.0-b.1 → 26.3.0  (next version)
 ```
-
-The phase prefix (`b`, `a`, `rc`, or none) distinguishes iterations from fixes.
-
-### Important: Year vs Development Timeline
-
-The year component (**YY**) represents the **planned release year**, not the current development year.
-
-**Example:**
-- Current date: December 2025
-- Target release: Early 2026
-- Version: `b26.1.0` (beta for 2026 release)
-
-This allows development in late 2025 for a 2026 release while maintaining clear version semantics.
-
-### Quick Reference
 
 | Version | Meaning |
 |---------|---------|
-| `a26.1.0` | Alpha - 1st iteration for version 26.1 |
-| `a26.1.1` | Alpha - 2nd iteration for version 26.1 |
-| `b26.1.0` | Beta - 1st iteration for version 26.1 |
-| `b26.1.4` | Beta - 5th iteration for version 26.1 |
-| `rc26.1.0` | Release Candidate - 1st RC for version 26.1 |
-| `26.1.0` | **Stable release** of version 26.1 |
-| `26.1.1` | Stable - 1st bug fix for version 26.1 |
-| `26.1.2` | Stable - 2nd bug fix for version 26.1 |
-| `26.2.0` | **Stable release** of version 26.2 |
-| `b27.1.0` | Beta - 1st iteration for version 27.1 |
+| `26.2.0-a.1` | First alpha of 26.2.0: early development, unstable |
+| `26.2.0-b.1` | First beta of 26.2.0: feature-complete, testing |
+| `26.2.0-b.2` | Second beta of 26.2.0 |
+| `26.2.0-rc.1` | First release candidate of 26.2.0: final testing |
+| `26.2.0` | **Release** of 26.2.0 |
+| `26.2.1` | First fix of 26.2.0 |
+| `27.1.0` | First release of 2027 |
 
-**Progression example:**
+Test builds show "(test build)" next to the version in the app, and their GitHub Releases are prereleases. A
+test build is offered newer test builds and releases; a release copy is only offered releases.
+
+Tags from before this scheme (`b26.2.0`, `beta-v26.1.4`) are ignored by the app's check for newer versions.
+
+## Installer version
+
+`jpackage --app-version` only takes one to three numbers, and a Windows installer replaces the installed one only
+when its number is higher. So Gradle derives the installers' number from `app.version`:
+
 ```
-December 2025: a26.1.0 (alpha development)
-       ↓
-January 2026:  b26.1.0 (beta testing)
-       ↓
-February 2026: rc26.1.0 (release candidate)
-       ↓
-March 2026:    26.1.0 (stable release)
-       ↓
-April 2026:    26.1.1 (bug fix)
-       ↓
-June 2026:     26.2.0 (second major release)
+YY.MAJOR.(FIXES × 100 + stage + N)      a = 0, b = 30, rc = 60, release = 90 (N = 0)
 ```
 
-## Two versions in `version.properties`
+| `app.version` | Installer version |
+|---------------|-------------------|
+| `26.2.0-a.1` | `26.2.1` |
+| `26.2.0-b.1` | `26.2.31` |
+| `26.2.0-b.2` | `26.2.32` |
+| `26.2.0-rc.1` | `26.2.61` |
+| `26.2.0` | `26.2.90` |
+| `26.2.1-b.1` | `26.2.131` |
+| `26.2.1` | `26.2.190` |
 
-`jpackage` only accepts one to three numbers (`26.1.4`; `b26.1.4` fails with
-`Version [b26.1.4] contains invalid component [b26]`), so the file keeps two:
+Each version sorts above the one before it, on every platform. The limits come from Windows (at most
+`255.255.65535`) and from the formula: N up to 29 and FIXES up to 654. The installer version shows in Windows'
+installed apps and in the macOS app info; everything players download or see in HopSync uses `app.version`
+(`HopSync-26.2.0-b.1.msi`), because `jpackage` renames its output after building.
 
-| Property | Used for | Example |
-|----------|----------|---------|
-| `app.version` | What the app shows (status bar, About), the JAR and ZIP names, the release tag | `b26.1.4` |
-| `app.version.numeric` | `jpackage --app-version`: installer metadata and upgrades | `26.1.4` |
+## `version.properties`
 
-`a`, `b` and `rc` versions show "(test build)" next to the version in the app. `app.name`, `app.vendor` and
-`app.win.upgrade.uuid` live in the same file; the UUID never changes.
+| Property | Used for |
+|----------|----------|
+| `app.version` | What the app shows (status bar, About), the JAR, ZIP and installer names, the release tag, and the installer version derived from it |
+| `app.name`, `app.vendor` | Name and vendor of the app and its installers |
+| `app.win.upgrade.uuid` | Lets a new `.msi` replace the installed one. Never change it |
 
 Gradle reads the file when it configures the build and copies it into the JAR, where `AppVersion` reads it at
 runtime.
@@ -115,15 +74,14 @@ runtime.
 ## Changing the version
 
 ```bash
-./gradlew updateVersion -PnewVersion=b26.2.0              # numeric 26.2.0, taken from the display version
-./gradlew updateVersion -PnewVersion=rc26.2.0 -Pnumeric=26.2.0
-./gradlew updateVersion -PnewVersion=26.2.0               # stable: both the same
+./gradlew updateVersion -PnewVersion=26.2.0-b.1
+./gradlew updateVersion -PnewVersion=26.2.0
 ```
 
-The task only rewrites `app.version` and `app.version.numeric`, and refuses a numeric version that `jpackage`
-would reject. Editing the file by hand works too.
+The task rewrites `app.version`, prints the installer version, and refuses a version outside the scheme or the
+limits above. Editing the file by hand works too; `jpackage` then refuses a bad version.
 
 ## Releases
 
-A release is a tag equal to `app.version` (`b26.2.0`, `26.2.0`) pushed to GitHub; the Release workflow builds
+A release is a tag equal to `app.version` (`26.2.0-b.1`, `26.2.0`) pushed to GitHub; the Release workflow builds
 the installers and drafts the GitHub Release. See [BUILD_GUIDE.md](BUILD_GUIDE.md#releasing).

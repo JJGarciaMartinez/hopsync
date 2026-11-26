@@ -1,13 +1,10 @@
 name: Release
 
 # Pushing a version tag builds the installers on the three OSes and drafts a GitHub Release with them.
-# a/b/rc tags are test builds and are marked as prereleases. The draft is published by hand.
+# Test builds (26.2.0-a.1, -b.1, -rc.1) are marked as prereleases. The draft is published by hand.
 on:
   push:
     tags:
-      - "a[0-9]*.*.*"
-      - "b[0-9]*.*.*"
-      - "rc[0-9]*.*.*"
       - "[0-9]*.*.*"
 
 permissions:
@@ -75,9 +72,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           prerelease=""
-          case "$GITHUB_REF_NAME" in a*|b*|rc*) prerelease="--prerelease" ;; esac
-          numeric=$(grep '^app.version.numeric=' version.properties | cut -d= -f2 | tr -d '\r')
-          sed -e "s/{version}/$GITHUB_REF_NAME/g" -e "s/{numeric}/$numeric/g" .github/release-downloads.md > notes.md
+          case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease" ;; esac
+          sed -e "s/{version}/$GITHUB_REF_NAME/g" .github/release-downloads.md > notes.md
           # Each artifact keeps its folders (installer/, distributions/): upload the files, not the folders
           mapfile -t files < <(find artifacts -type f)
           gh release create "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" --draft $prerelease \

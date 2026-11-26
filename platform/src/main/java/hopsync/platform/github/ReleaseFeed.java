@@ -26,7 +26,7 @@ public class ReleaseFeed {
     }
 
     /**
-     * @param tag        the version tag, e.g. {@code 26.2.1} or {@code b26.2.1}
+     * @param tag        the version tag, e.g. {@code 26.2.1} or {@code 26.2.1-b.1}
      * @param url        the release page
      * @param prerelease marked as a test build on GitHub
      */

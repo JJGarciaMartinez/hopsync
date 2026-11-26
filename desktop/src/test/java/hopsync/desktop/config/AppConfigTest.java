@@ -20,7 +20,7 @@ class AppConfigTest {
         props.setProperty("github.client.id", " Iv1.test ");
         props.setProperty("update.repo", "owner/hopsync");
 
-        AppConfig config = AppConfig.fromProperties(props, "b26.2.0");
+        AppConfig config = AppConfig.fromProperties(props, "26.2.0-b.1");
         assertEquals("Iv1.test", config.githubClientId());
         assertEquals("owner/hopsync", config.updateRepo());
 
@@ -33,7 +33,7 @@ class AppConfigTest {
         Properties props = new Properties();
         props.setProperty("network.connect.timeout", "soon");
 
-        AppConfig config = AppConfig.fromProperties(props, "b26.2.0");
+        AppConfig config = AppConfig.fromProperties(props, "26.2.0-b.1");
 
         assertEquals(NetworkConfig.DEFAULT, config.network());
         assertEquals(AppConfig.DEFAULT_MANIFEST_URL, config.presetManifestUrl());
