@@ -5,7 +5,8 @@ mods and configs. Playing it with friends means everyone needs the same files, i
 right game folder. HopSync does that for you, and lets you build and share your own pack without touching a
 server or a command line.
 
-The interface is in Spanish.
+The interface is in English and Latin American Spanish. It follows the system language, and the player can
+pick another one in HopSync settings.
 
 ## What it is for
 
@@ -25,7 +26,7 @@ HopSync only touches the files it installed. Mods you added yourself and configs
 
 ### Following a pack
 
-1. **Add the pack.** Choose "Añadir pack", paste the link and pick the game folder. HopSync finds the
+1. **Add the pack.** Choose "Add pack", paste the link and pick the game folder. HopSync finds the
    official launcher's `.minecraft` and the instances of Prism Launcher, CurseForge and Modrinth App, or you
    can choose any other folder.
 2. **Review.** HopSync compares the pack with what is in the folder. The pack header lists what will be added,
@@ -135,7 +136,8 @@ flowchart LR
    calls the core. Results come back as new actions.
 
 The core reports progress as `SyncEvent`s, for example "plan ready", "progress" or "update failed". Errors are
-typed (`SyncFailure`), and only the desktop module turns them into Spanish text with a suggested action.
+typed (`SyncFailure`), and only the desktop module turns them into text in the player's language with a
+suggested action.
 
 ### Life of an update
 
@@ -199,15 +201,15 @@ drawing code (`./gradlew brandAssets`), so the app and the brand sheet never dri
 - An internet connection, and Minecraft installed with the pack's mod loader.
 - To publish packs: a GitHub account.
 
-## Code signing policy
+## Verifying downloads
 
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+The installers are not code signed yet, so Windows SmartScreen and macOS Gatekeeper warn the first time they open.
+Every release is built from this repository by the [release workflow](.github/workflows/release.yml) and ships a
+`SHA256SUMS.txt` with the SHA-256 of each file. To check a download, compare its hash with the one in that file:
 
-- Committers and reviewers: [JJGarciaMartinez](https://github.com/JJGarciaMartinez)
-- Approvers: [JJGarciaMartinez](https://github.com/JJGarciaMartinez)
-
-Every signed release is built from this repository by the [release workflow](.github/workflows/release.yml) and
-approved by hand before it is signed.
+- Windows (PowerShell): `Get-FileHash .\HopSync-<version>.msi`
+- macOS: `shasum -a 256 HopSync-<version>.dmg`
+- Linux: `sha256sum -c SHA256SUMS.txt --ignore-missing` in the folder with the downloads
 
 ## Privacy
 

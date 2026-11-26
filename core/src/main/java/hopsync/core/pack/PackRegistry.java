@@ -197,11 +197,17 @@ public class PackRegistry {
         return Optional.empty();
     }
 
-    /** Saves the app-wide preferences; the number of parallel downloads is kept within 1–8. */
+    /**
+     * Saves the app-wide preferences; the number of parallel downloads is kept within 1–8.
+     *
+     * @param language        language tag of the app's texts, or blank to follow the system
+     * @param checkAppUpdates ask for a newer HopSync release when the app starts
+     */
     public synchronized void updatePreferences(boolean checkOnStart, boolean chainQueue, int parallelDownloads,
-                                               boolean reduceMotion) throws IOException {
+                                               boolean reduceMotion, String language, boolean checkAppUpdates)
+            throws IOException {
         save(new PackSettings(settings.packs(), settings.activeId(), checkOnStart, chainQueue, parallelDownloads,
-            reduceMotion, settings.libraryWidth()));
+            reduceMotion, settings.libraryWidth(), language, checkAppUpdates));
     }
 
     /**
@@ -212,7 +218,8 @@ public class PackRegistry {
         if (settings.libraryWidth() == width) return;
         try {
             save(new PackSettings(settings.packs(), settings.activeId(), settings.checkOnStart(), settings.chainQueue(),
-                settings.parallelDownloads(), settings.reduceMotion(), width));
+                settings.parallelDownloads(), settings.reduceMotion(), width, settings.language(),
+                settings.checkAppUpdates()));
         } catch (IOException e) {
             LOG.log(System.Logger.Level.WARNING, "Could not save the library width", e);
         }

@@ -98,7 +98,7 @@ public sealed interface UiAction {
 
     // Sheets
 
-    /** "Añadir mods" of a pack the player created; Effects loads what it has and the most downloaded mods. */
+    /** "Agregar mods" of a pack the player created; Effects loads what it has and the most downloaded mods. */
     record OpenAddMods(String packId) implements UiAction {}
 
     /** Search text of the add-mods sheet, dispatched once the player stops typing. */
@@ -157,8 +157,8 @@ public sealed interface UiAction {
     /** Back from a new pack to adding one by its link. */
     record UseLink() implements UiAction {}
 
-    /** Name, Minecraft version and loader of the new pack, as typed and picked. */
-    record EditNewPack(String name, String minecraft, String loader) implements UiAction {}
+    /** Name, Minecraft version, loader and server of the new pack, as typed and picked. */
+    record EditNewPack(String name, String minecraft, String loader, String server) implements UiAction {}
 
     record GameVersionsLoaded(List<String> versions) implements UiAction {}
 
@@ -176,6 +176,9 @@ public sealed interface UiAction {
     record FinishAddPack() implements UiAction {}
 
     record SelectPackSection(Sheet.PackSettings.Section section) implements UiAction {}
+
+    /** The server address typed in the settings of a pack the player created. */
+    record SetServerAddress(String address) implements UiAction {}
 
     record SavePackSettings() implements UiAction {}
 
@@ -231,8 +234,17 @@ public sealed interface UiAction {
     /** Whether a published created pack changed since its last publish. */
     record PublishStateChecked(String packId, boolean unpublished) implements UiAction {}
 
+    /** A HopSync release newer than this copy, found once at start. */
+    record AppUpdateFound(String version, String url) implements UiAction {}
+
+    /** Opens the page of the newer release. */
+    record OpenAppUpdate() implements UiAction {}
+
     /** Copies version, system and paths for a bug report. */
     record CopyDiagnostics() implements UiAction {}
+
+    /** Opens the folder with the log files, to attach them to a bug report. */
+    record OpenLogsFolder() implements UiAction {}
 
     /** Closes HopSync: stops whatever is running (safe: the state always matches the disk) and exits. */
     record Quit() implements UiAction {}

@@ -28,5 +28,8 @@ subprojects {
         useJUnitPlatform()
         // Lets "./gradlew test --tests <pattern>" run from the root without failing in the other modules
         filter.isFailOnNoMatchingTests = false
+        // Texts follow the system language; tests read them in Spanish on every machine
+        systemProperty("user.language", "es")
+        systemProperty("user.country", "MX")
     }
 }

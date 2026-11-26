@@ -47,6 +47,8 @@ public final class AddPackView extends JPanel {
     private final JComboBox<String> minecraft = new JComboBox<>();
     private final SegmentedControl<String> loader;
     private final JPanel versionsNote = SheetParts.column();
+    private final JTextField newServer = new JTextField();
+    private final JPanel serverNote = SheetParts.column();
     private boolean rendering;
     private final JPanel folderStep = SheetParts.column();
     private final JPanel body = new JPanel(new BorderLayout());
@@ -71,7 +73,7 @@ public final class AddPackView extends JPanel {
         });
         SheetParts.stack(linkStep, 8, SheetParts.label(Messages.get("sheet.link.label")), link, demo);
 
-        loader = new SegmentedControl<>(Sheet.Creation.LOADERS, picked -> edit(newName.getText(), selectedVersion(), picked));
+        loader = new SegmentedControl<>(Sheet.Creation.LOADERS, picked -> edit(selectedVersion(), picked));
         Sheet.Creation.LOADERS.forEach(id -> loader.setLabel(id, Messages.get("loader." + id)));
         buildCreateStep();
 
@@ -85,11 +87,14 @@ public final class AddPackView extends JPanel {
         add(bottom, BorderLayout.SOUTH);
     }
 
-    /** Name, then Minecraft version beside the loader, then a hint; the versions come from the mod catalog. */
+    /**
+     * Name, then Minecraft version beside the loader, then a hint, then the optional server; the versions come from
+     * the mod catalog.
+     */
     private void buildCreateStep() {
         newName.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, Messages.get("sheet.create.namePlaceholder"));
         newName.getAccessibleContext().setAccessibleName(Messages.get("sheet.create.name"));
-        newName.getDocument().addDocumentListener(new DocumentListener() {
+        DocumentListener typed = new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
                 changed();
@@ -106,12 +111,17 @@ public final class AddPackView extends JPanel {
             }
 
             private void changed() {
-                edit(newName.getText(), selectedVersion(), shownLoader());
+                edit(selectedVersion(), shownLoader());
             }
-        });
+        };
+        newName.getDocument().addDocumentListener(typed);
         newName.addActionListener(e -> dispatch.accept(new UiAction.WizardNext()));
         minecraft.getAccessibleContext().setAccessibleName(Messages.get("sheet.create.minecraft"));
-        minecraft.addActionListener(e -> edit(newName.getText(), selectedVersion(), shownLoader()));
+        minecraft.addActionListener(e -> edit(selectedVersion(), shownLoader()));
+        newServer.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, Messages.get("sheet.server.placeholder"));
+        newServer.getAccessibleContext().setAccessibleName(Messages.get("sheet.create.server"));
+        newServer.getDocument().addDocumentListener(typed);
+        newServer.addActionListener(e -> dispatch.accept(new UiAction.WizardNext()));
         minecraft.setPrototypeDisplayValue("1.21.10 ");
 
         JPanel versionColumn = SheetParts.column();
@@ -128,6 +138,8 @@ public final class AddPackView extends JPanel {
         SheetParts.stack(createStep, 8, SheetParts.label(Messages.get("sheet.create.name")), newName);
         SheetParts.stack(createStep, 16, choices);
         SheetParts.stack(createStep, 8, versionsNote);
+        SheetParts.stack(createStep, 16, SheetParts.label(Messages.get("sheet.create.server")));
+        SheetParts.stack(createStep, 8, newServer, serverNote);
     }
 
     private String selectedVersion() {
@@ -138,8 +150,10 @@ public final class AddPackView extends JPanel {
         return shown == null || shown.creation() == null ? Sheet.Creation.LOADERS.getFirst() : shown.creation().loader();
     }
 
-    private void edit(String name, String version, String pickedLoader) {
-        if (!rendering) dispatch.accept(new UiAction.EditNewPack(name, version, pickedLoader));
+    private void edit(String version, String pickedLoader) {
+        if (!rendering) {
+            dispatch.accept(new UiAction.EditNewPack(newName.getText(), version, pickedLoader, newServer.getText()));
+        }
     }
 
     public void render(Sheet.AddPack sheet) {
@@ -209,6 +223,11 @@ public final class AddPackView extends JPanel {
         }
         minecraft.setEnabled(!versions.isEmpty());
         loader.setSelected(creation.loader());
+        if (!newServer.getText().equals(creation.server())) {
+            newServer.setText(creation.server());
+        }
+        serverNote.removeAll();
+        SheetParts.stack(serverNote, 0, SheetParts.serverNote(creation.serverValid(), "sheet.create.serverHint"));
 
         versionsNote.removeAll();
         if (creation.versionsError() != null) {

@@ -12,6 +12,7 @@ import hopsync.core.port.ModCatalog;
 import hopsync.core.usecase.PackEditor;
 import hopsync.desktop.config.AppVersion;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.logging.Logging;
 import hopsync.desktop.store.GameFolder;
 import hopsync.desktop.store.LinkCheck;
 import hopsync.desktop.store.Preferences;
@@ -23,6 +24,7 @@ import hopsync.platform.fs.InstanceFinder;
 import hopsync.platform.manifest.ManifestService;
 import hopsync.platform.system.SystemInfoService;
 
+import java.awt.Desktop;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.io.IOException;
@@ -115,6 +117,7 @@ final class SheetEffects {
             case UiAction.SaveAppSettings a when state.sheet() instanceof Sheet.AppSettings settings ->
                 saveAppSettings(settings.draft());
             case UiAction.CopyDiagnostics a -> copyDiagnostics();
+            case UiAction.OpenLogsFolder a -> openLogsFolder();
             default -> { }
         }
     }
@@ -223,7 +226,8 @@ final class SheetEffects {
         background.execute(() -> {
             try {
                 checkWritable(folder);
-                PackInfo info = new PackInfo(creation.name().strip(), NEW_PACK_VERSION, "", null, creation.minecraft(),
+                String server = creation.server().isBlank() ? null : creation.server().strip();
+                PackInfo info = new PackInfo(creation.name().strip(), NEW_PACK_VERSION, "", server, creation.minecraft(),
                     creation.loader());
                 Pack added = registry.addLocal(PackDefinition.empty(info), folder);
                 registry.select(added.id());
@@ -271,6 +275,7 @@ final class SheetEffects {
         boolean newLink = !pack.link().map(url::equals).orElse(false);
         // A different link must have been checked: it may be another pack altogether
         if (newLink && !(settings.link() instanceof LinkCheck.Valid valid && valid.url().equals(url))) return;
+        if (!settings.serverValid()) return;
         Path folder = settings.folder().path();
         boolean moved = newLink || !folder.equals(pack.gameDir());
         background.execute(() -> {
@@ -284,10 +289,17 @@ final class SheetEffects {
                 if (moved) {
                     dropUpdate.accept(pack.id());
                 }
+                boolean newServer = pack.isLocal() && settings.server() != null
+                    && !serverOf(pack.id()).equals(settings.server().strip());
+                if (newServer) {
+                    editor.changeServer(pack.id(), settings.server());
+                }
                 Pack changed = newLink ? pack.withSource(new PackSource.Link(url)).withName("") : pack;
                 registry.update(changed.withGameDir(folder));
                 store.dispatch(new UiAction.SheetSaved());
                 reloadPacks.run();
+                // A published pack then offers to publish the new address
+                if (newServer) checkPack.accept(pack.id());
             } catch (IOException | RuntimeException e) {
                 LOG.log(System.Logger.Level.WARNING, "Could not save the settings of pack " + pack.id(), e);
                 store.dispatch(new UiAction.SheetFailed(SyncFailures.from(e, folder.toString())));
@@ -295,11 +307,16 @@ final class SheetEffects {
         });
     }
 
+    /** The server address saved in a created pack's definition, blank for none. */
+    private String serverOf(String packId) {
+        return registry.definition(packId).map(definition -> definition.pack().serverIp()).orElse("");
+    }
+
     private void saveAppSettings(Preferences draft) {
         background.execute(() -> {
             try {
                 registry.updatePreferences(draft.checkOnStart(), draft.chainQueue(), draft.parallelDownloads(),
-                    draft.reduceMotion());
+                    draft.reduceMotion(), draft.language(), draft.checkAppUpdates());
                 store.dispatch(new UiAction.SheetSaved());
                 reloadPacks.run();
             } catch (IOException e) {
@@ -326,6 +343,22 @@ final class SheetEffects {
         store.dispatch(new UiAction.ShowToast(Messages.get("toast.diagnosticsCopied")));
     }
 
+    private void openLogsFolder() {
+        Path logs = Logging.folderFor(settingsFile);
+        background.execute(() -> {
+            try {
+                if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
+                    throw new IOException("opening folders is not supported here");
+                }
+                Files.createDirectories(logs);
+                Desktop.getDesktop().open(logs.toFile());
+            } catch (IOException | RuntimeException e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not open " + logs, e);
+                store.dispatch(new UiAction.ShowToast(Messages.get("toast.folderFailed")));
+            }
+        });
+    }
+
     /** What a bug report needs: versions, system, scale, paths and packs, without personal data beyond paths. */
     String diagnostics() {
         StringBuilder text = new StringBuilder();
@@ -336,6 +369,7 @@ final class SheetEffects {
             .append(System.getProperty("java.vendor")).append('\n');
         text.append("UI scale: ").append(System.getProperty("sun.java2d.uiScale", "auto")).append('\n');
         text.append("Settings: ").append(settingsFile).append('\n');
+        text.append("Logs: ").append(Logging.folderFor(settingsFile)).append('\n');
         text.append("Packs: ").append(registry.packs().size()).append('\n');
         for (Pack pack : registry.packs()) {
             text.append("- ").append(pack.name().isEmpty() ? "?" : pack.name()).append(" | ").append(pack.link().orElse("created here"))

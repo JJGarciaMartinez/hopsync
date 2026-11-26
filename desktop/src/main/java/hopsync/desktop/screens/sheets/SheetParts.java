@@ -159,6 +159,11 @@ final class SheetParts {
         return hint;
     }
 
+    /** Under a server address field: what it is for, or how to write it once it is not an address. */
+    static JComponent serverNote(boolean valid, String hintKey) {
+        return valid ? hint(Messages.get(hintKey)) : notice(Messages.get("sheet.server.invalid"), Palette.error());
+    }
+
     /** A boxed message with a colored edge: a warning, an error, or neutral information. */
     static JComponent notice(String text, Color tone) {
         JLabel body = paragraph(text, Palette.text(), CONTENT_WIDTH - 24);

@@ -72,7 +72,7 @@ public class ModUpdateService {
 
         log(pack, eventPublisher, "Comparing with the installed files");
         SyncPlanner planner = new SyncPlanner(paths.mods(), paths.config());
-        return planner.plan(manifest, new StateStore(paths.stateFile()).load());
+        return planner.plan(manifest, new StateStore(paths.stateFile()).load(pack.id()));
     }
 
     /**
@@ -87,7 +87,7 @@ public class ModUpdateService {
         FolderLock lock = FolderLock.acquire(paths.applyLock(), paths.gameDir());
         try {
             StateStore store = new StateStore(paths.stateFile());
-            LocalState previous = store.load();
+            LocalState previous = store.load(id);
             SyncExecutor executor = new SyncExecutor(downloader, paths.mods(), paths.config(),
                 parallelDownloads.getAsInt());
 
@@ -125,7 +125,8 @@ public class ModUpdateService {
                 }
             }, cancel);
 
-            store.save(result.state());
+            // From now on the folder's files are this pack's, even those it found there already up to date
+            store.save(result.state().withPackId(id));
             return result;
         } finally {
             lock.close();

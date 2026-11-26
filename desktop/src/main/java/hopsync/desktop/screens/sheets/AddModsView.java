@@ -41,9 +41,9 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * "Añadir mods" for a pack the player created: a search in the mod catalog limited to the pack's Minecraft
- * version and loader, one row per mod with "Añadir" (or "Añadido" once in the pack), a note on the mods that came
- * along as dependencies, "Añadir un jar" for a mod that is not in the catalog, and "Listo". The search waits for
+ * "Agregar mods" for a pack the player created: a search in the mod catalog limited to the pack's Minecraft
+ * version and loader, one row per mod with "Agregar" (or "Agregado" once in the pack), a note on the mods that came
+ * along as dependencies, "Agregar un jar" for a mod that is not in the catalog, and "Listo". The search waits for
  * the player to stop typing before it is dispatched.
  */
 public final class AddModsView extends JPanel {
@@ -247,7 +247,7 @@ public final class AddModsView extends JPanel {
         }
     }
 
-    /** One mod: its initial on a tile, name and author, one line of description, and "Añadir" or "Añadido". */
+    /** One mod: its initial on a tile, name and author, one line of description, and "Agregar" or "Agregado". */
     private final class Hit extends JPanel {
         Hit(CatalogProject project, Sheet.AddMods sheet) {
             super(new BorderLayout(UIScale.scale(12), 0));

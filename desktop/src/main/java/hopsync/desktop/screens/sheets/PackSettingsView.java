@@ -1,6 +1,7 @@
 package hopsync.desktop.screens.sheets;
 
 import com.formdev.flatlaf.util.UIScale;
+import com.formdev.flatlaf.FlatClientProperties;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.ButtonStyle;
 import hopsync.desktop.kit.Icons;
@@ -15,13 +16,16 @@ import hopsync.desktop.store.UiAction;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.util.Arrays;
 import java.util.function.Consumer;
 
 /**
- * Settings of one pack: its link, its game folder, and removing it from HopSync. Saving a new link needs it
- * checked first, because it may point to another pack.
+ * Settings of one pack: its link, the server of a pack the player created, its game folder, and removing it from
+ * HopSync. Saving a new link needs it checked first, because it may point to another pack.
  */
 public final class PackSettingsView extends JPanel {
     private final Consumer<UiAction> dispatch;
@@ -30,6 +34,10 @@ public final class PackSettingsView extends JPanel {
     private final LinkField link;
     private final JPanel linkPane = SheetParts.column();
     private final JPanel linkNotes = SheetParts.column();
+    private final JPanel serverPane = SheetParts.column();
+    private final JTextField server = new JTextField();
+    private final JPanel serverNote = SheetParts.column();
+    private boolean rendering;
     private final JPanel folderPane = SheetParts.column();
     private final JPanel removePane = SheetParts.column();
     private final JPanel body = new JPanel(new BorderLayout());
@@ -50,6 +58,7 @@ public final class PackSettingsView extends JPanel {
         link = new LinkField(dispatch, new UiAction.SavePackSettings());
         // Built once, so typing in the field keeps the focus
         SheetParts.stack(linkPane, 8, SheetParts.label(Messages.get("sheet.link.label")), link, linkNotes);
+        buildServerPane();
 
         JPanel header = SheetParts.column();
         SheetParts.stack(header, 12, title, sections);
@@ -58,14 +67,46 @@ public final class PackSettingsView extends JPanel {
         add(bottom, BorderLayout.SOUTH);
     }
 
+    /** Built once, so typing in the field keeps the focus. */
+    private void buildServerPane() {
+        server.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, Messages.get("sheet.server.placeholder"));
+        server.getAccessibleContext().setAccessibleName(Messages.get("sheet.server.label"));
+        server.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                changed();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                changed();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                changed();
+            }
+
+            private void changed() {
+                if (!rendering) dispatch.accept(new UiAction.SetServerAddress(server.getText()));
+            }
+        });
+        server.addActionListener(e -> {
+            if (shown != null && shown.serverValid()) dispatch.accept(new UiAction.SavePackSettings());
+        });
+        SheetParts.stack(serverPane, 8, SheetParts.label(Messages.get("sheet.server.label")), server, serverNote);
+    }
+
     public void render(Sheet.PackSettings sheet, PackUiState pack) {
         if (sheet.equals(shown) || pack == null) return;
         shown = sheet;
         title.setText(Messages.get("sheet.pack.title", pack.displayName()));
+        sections.setShown(Section.SERVER, pack.created());
         sections.setSelected(sheet.section());
 
         switch (sheet.section()) {
             case LINK -> renderLink(sheet, pack);
+            case SERVER -> renderServer(sheet, pack);
             case FOLDER -> renderFolder(sheet, pack);
             case REMOVE -> renderRemove(sheet, pack);
         }
@@ -74,6 +115,7 @@ public final class PackSettingsView extends JPanel {
             body.removeAll();
             body.add(switch (sheet.section()) {
                 case LINK -> linkPane;
+                case SERVER -> serverPane;
                 case FOLDER -> folderPane;
                 case REMOVE -> removePane;
             }, BorderLayout.NORTH);
@@ -96,6 +138,23 @@ public final class PackSettingsView extends JPanel {
             SheetParts.stack(linkNotes, 0, SheetParts.notice(
                 Messages.get("sheet.pack.linkChanged", pack.displayName()), Palette.update()));
         }
+    }
+
+    /** The field keeps what the player typed; only a different value from the state is written back. */
+    private void renderServer(Sheet.PackSettings sheet, PackUiState pack) {
+        String typed = sheet.server() == null ? "" : sheet.server();
+        if (!server.getText().equals(typed)) {
+            rendering = true;
+            try {
+                server.setText(typed);
+            } finally {
+                rendering = false;
+            }
+        }
+        server.setEnabled(!pack.phase().isWriting());
+        serverNote.removeAll();
+        SheetParts.stack(serverNote, 0, SheetParts.serverNote(sheet.serverValid(),
+            pack.manifestUrl().isEmpty() ? "sheet.server.hint" : "sheet.server.publishedHint"));
     }
 
     private void renderFolder(Sheet.PackSettings sheet, PackUiState pack) {
@@ -139,11 +198,11 @@ public final class PackSettingsView extends JPanel {
         return SheetParts.footer(cancel, save);
     }
 
-    /** A new link must have been checked; the folder must not belong to another pack. */
+    /** A new link must have been checked and the server be an address; the folder must not belong to another pack. */
     static boolean canSave(Sheet.PackSettings sheet, PackUiState pack) {
         boolean linkOk = !newLink(sheet, pack)
             || sheet.link() instanceof LinkCheck.Valid valid && valid.url().equals(sheet.url().trim());
-        return linkOk && sheet.folder().isFree() && !pack.phase().isWriting();
+        return linkOk && sheet.serverValid() && sheet.folder().isFree() && !pack.phase().isWriting();
     }
 
     private static boolean newLink(Sheet.PackSettings sheet, PackUiState pack) {

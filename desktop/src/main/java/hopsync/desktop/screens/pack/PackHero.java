@@ -48,6 +48,9 @@ import java.util.function.Function;
 public final class PackHero extends JPanel {
     private static final int MIN_HEIGHT = 148;
     private static final int ACTIONS_MIN_WIDTH = 250;
+    /** Below this, the name and details would be cut to a stub: the phase's buttons move to a row of their own. */
+    private static final int INFO_MIN_WIDTH = 240;
+    private static final int GAP = 20;
     private static final int PROGRESS_WIDTH = 300;
 
     private final Consumer<UiAction> dispatch;
@@ -76,7 +79,17 @@ public final class PackHero extends JPanel {
             return new Dimension(0, getPreferredSize().height);
         }
     };
-    private final JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, UIScale.scale(10), 0));
+    private final WrapLayout buttonsLayout = new WrapLayout(FlowLayout.RIGHT, UIScale.scale(10), 0);
+    // One line beside the details; in the row of their own they wrap when even that is too narrow
+    private final JPanel buttons = new JPanel(buttonsLayout) {
+        @Override
+        public Dimension getPreferredSize() {
+            // The row spans the header: its lines are counted at that width before it is laid out
+            if (!stacked) return super.getPreferredSize();
+            Insets insets = PackHero.this.getInsets();
+            return buttonsLayout.preferredLayoutSize(this, PackHero.this.getWidth() - insets.left - insets.right);
+        }
+    };
     // Fixed width: the file name changes many times while applying and must not resize the bar
     private final JPanel progress = new JPanel(new BorderLayout(0, 4)) {
         @Override
@@ -93,6 +106,10 @@ public final class PackHero extends JPanel {
     private final JLabel files = new JLabel();
     private final JLabel speed = new JLabel();
     private final JLabel currentFile = new JLabel();
+    /** The progress and the phase's buttons: under the tools on the right, or in a row under everything. */
+    private final JPanel stack = new JPanel();
+    private final JPanel actions;
+    private boolean stacked;
     private String packId;
     private HeroModel shown;
     private PackUiState lastPack;
@@ -103,7 +120,7 @@ public final class PackHero extends JPanel {
     });
 
     public PackHero(Consumer<UiAction> dispatch, ZoneId zone) {
-        super(new BorderLayout(UIScale.scale(20), 0));
+        super(new BorderLayout(UIScale.scale(GAP), 0));
         this.dispatch = dispatch;
         this.zone = zone;
         this.menu = new PackMenu(dispatch);
@@ -114,9 +131,10 @@ public final class PackHero extends JPanel {
         buttons.setOpaque(false);
         tags.setOpaque(false);
 
+        actions = actions();
         add(tile, BorderLayout.WEST);
         add(info(), BorderLayout.CENTER);
-        add(actions(), BorderLayout.EAST);
+        add(actions, BorderLayout.EAST);
     }
 
     private JPanel info() {
@@ -208,7 +226,6 @@ public final class PackHero extends JPanel {
         progress.add(counts, BorderLayout.CENTER);
         progress.add(currentFile, BorderLayout.SOUTH);
 
-        JPanel stack = new JPanel();
         stack.setOpaque(false);
         stack.setLayout(new BoxLayout(stack, BoxLayout.Y_AXIS));
         for (JPanel part : new JPanel[] {progress, buttons}) {
@@ -221,13 +238,56 @@ public final class PackHero extends JPanel {
             @Override
             public Dimension getPreferredSize() {
                 Dimension size = super.getPreferredSize();
-                return new Dimension(Math.max(size.width, UIScale.scale(ACTIONS_MIN_WIDTH)), size.height);
+                // With the buttons in their own row only the tools are left here
+                return stacked ? size
+                    : new Dimension(Math.max(size.width, UIScale.scale(ACTIONS_MIN_WIDTH)), size.height);
             }
         };
         actions.setOpaque(false);
         actions.add(tools, BorderLayout.NORTH);
         actions.add(stack, BorderLayout.SOUTH);
         return actions;
+    }
+
+    /** Places the buttons before laying out, so a narrow header keeps room for the pack's name and details. */
+    @Override
+    public void doLayout() {
+        placeStack();
+        super.doLayout();
+    }
+
+    private void placeStack() {
+        if (getWidth() <= 0) return;
+        Insets insets = getInsets();
+        int room = getWidth() - insets.left - insets.right - tile.getPreferredSize().width - UIScale.scale(GAP) * 2;
+        boolean narrow = room - besideWidth() < UIScale.scale(INFO_MIN_WIDTH);
+        if (narrow == stacked) return;
+        stacked = narrow;
+        if (narrow) {
+            actions.remove(stack);
+            // The wrap gap also pads the row, so 6 + 8 leaves 14 px under the details
+            stack.setBorder(BorderFactory.createEmptyBorder(UIScale.scale(6), 0, 0, 0));
+            buttonsLayout.setVgap(UIScale.scale(8));
+            add(stack, BorderLayout.SOUTH);
+        } else {
+            remove(stack);
+            stack.setBorder(null);
+            buttonsLayout.setVgap(0);
+            actions.add(stack, BorderLayout.SOUTH);
+        }
+        // The header's height changes with the row: the window lays it out again
+        revalidate();
+    }
+
+    /** The width the actions need on the right with every button on one line, whatever the current layout. */
+    private int besideWidth() {
+        int hgap = buttonsLayout.getHgap();
+        int width = hgap;
+        for (Component button : buttons.getComponents()) {
+            if (button.isVisible()) width += button.getPreferredSize().width + hgap;
+        }
+        if (progress.isVisible()) width = Math.max(width, progress.getPreferredSize().width);
+        return Math.max(width, UIScale.scale(ACTIONS_MIN_WIDTH));
     }
 
     @Override

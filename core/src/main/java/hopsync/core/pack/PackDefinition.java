@@ -28,6 +28,10 @@ public record PackDefinition(PackInfo pack, List<Mod> mods, List<String> overwri
         return new PackDefinition(pack, List.of(), List.of());
     }
 
+    public PackDefinition withPack(PackInfo newPack) {
+        return new PackDefinition(newPack, mods, overwriteConfigs);
+    }
+
     public PackDefinition withMods(List<Mod> newMods) {
         return new PackDefinition(pack, newMods, overwriteConfigs);
     }

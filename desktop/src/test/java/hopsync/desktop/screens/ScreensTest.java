@@ -7,6 +7,7 @@ import hopsync.core.publish.PublishStep;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.pack.Pack;
 import hopsync.desktop.kit.HopSyncDark;
+import hopsync.desktop.kit.Palette;
 import hopsync.desktop.screens.library.PackLibrary;
 import hopsync.desktop.screens.mods.ModsPanel;
 import hopsync.desktop.screens.pack.PackHero;
@@ -22,14 +23,19 @@ import org.junit.jupiter.api.BeforeAll;
 import javax.swing.JScrollPane;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JLayeredPane;
+import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.time.ZoneOffset;
@@ -97,7 +103,8 @@ class ScreensTest {
     void heroAndLibraryRenderEveryPhase() {
         PackHero hero = new PackHero(dispatched::add, ZoneOffset.UTC);
         PackLibrary library = new PackLibrary(dispatched::add);
-        StatusBar statusBar = new StatusBar(ZoneOffset.UTC);
+        StatusBar statusBar = new StatusBar(ZoneOffset.UTC, dispatched::add);
+        UiState.AppUpdate update = new UiState.AppUpdate("26.2.1", "https://github.com/o/h/releases/tag/26.2.1");
         ModsPanel mods = new ModsPanel(dispatched::add);
         for (UiState phase : everyPhaseAndCreated()) {
             for (UiState state : List.of(phase, reduce(phase, new UiAction.SetFilter(UiState.Filter.ALL),
@@ -106,7 +113,7 @@ class ScreensTest {
                 PackUiState pack = state.selected().orElseThrow();
                 hero.render(pack, state);
                 library.render(state);
-                statusBar.render(pack);
+                statusBar.render(pack, update);
                 mods.render(pack, state);
                 paint(hero, 746, 134);
                 paint(library, 214, 560);
@@ -129,6 +136,61 @@ class ScreensTest {
 
         assertTrue(shortName > 0);
         assertEquals(shortName, longName);
+    }
+
+    @Test
+    void aNarrowHeaderMovesTheButtonsUnderTheNameInsteadOfHidingIt() throws Exception {
+        // A created pack in review has the most buttons: add mods, publish, not now, apply
+        UiState review = reduce(created(), new SyncEvent.UpdateStarted(MINE.id()), new SyncEvent.PlanReady(MINE.id(), plan()));
+        PackHero hero = new PackHero(dispatched::add, ZoneOffset.UTC);
+
+        for (int width : new int[] {600, 800, 1100}) {
+            SwingUtilities.invokeAndWait(() -> {
+                hero.render(review.selected().orElseThrow(), review);
+                hero.setSize(UIScale.scale(width), UIScale.scale(134));
+                invalidateTree(hero);
+                layoutTree(hero);
+                // The row of buttons makes the header taller, as the window would then give it
+                hero.setSize(hero.getWidth(), hero.getPreferredSize().height);
+                invalidateTree(hero);
+                layoutTree(hero);
+                // Right the first time: a window lays it out once more only if something else changes
+                assertEquals(hero.getHeight(), hero.getPreferredSize().height, width + " px: the height kept changing");
+
+                JLabel name = findLabel(hero, review.selected().orElseThrow().displayName());
+                assertTrue(name.getWidth() >= name.getPreferredSize().width,
+                    width + " px: the name is cut to " + name.getWidth() + " px");
+                Rectangle header = new Rectangle(0, 0, hero.getWidth(), hero.getHeight());
+                for (JButton button : buttons(hero)) {
+                    Rectangle bounds = SwingUtilities.convertRectangle(button.getParent(), button.getBounds(), hero);
+                    assertTrue(header.contains(bounds), width + " px: " + button.getText() + " at " + bounds);
+                }
+            });
+        }
+    }
+
+    private static JLabel findLabel(Container container, String text) {
+        for (Component child : container.getComponents()) {
+            if (child instanceof JLabel label && text.equals(label.getText())) return label;
+            if (child instanceof Container inner) {
+                JLabel found = findLabel(inner, text);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private static List<JButton> buttons(Container container) {
+        List<JButton> found = new ArrayList<>();
+        for (Component child : container.getComponents()) {
+            if (child instanceof JButton button && button.isVisible() && button.getText() != null
+                    && !button.getText().isEmpty()) {
+                found.add(button);
+            } else if (child instanceof Container inner && child.isVisible()) {
+                found.addAll(buttons(inner));
+            }
+        }
+        return found;
     }
 
     /**
@@ -176,7 +238,9 @@ class ScreensTest {
 
     @Test
     void emptyStateRenders() {
-        new StatusBar(ZoneOffset.UTC).render(null);
+        StatusBar statusBar = new StatusBar(ZoneOffset.UTC, dispatched::add);
+        statusBar.render(null, null);
+        paint(statusBar, 960, 28);
         PackLibrary library = new PackLibrary(dispatched::add);
         library.render(UiState.INITIAL);
         paint(library, 214, 560);
@@ -231,7 +295,7 @@ class ScreensTest {
         UiState packSettings = reduce(loaded(), new UiAction.OpenSettings());
         UiState scratch = reduce(empty, new UiAction.StartFromScratch());
         UiState described = reduce(scratch, new UiAction.GameVersionsLoaded(List.of("1.21.2", "1.21.1")),
-            new UiAction.EditNewPack("Aventura con amigos", "1.21.1", "neoforge"));
+            new UiAction.EditNewPack("Aventura con amigos", "1.21.1", "neoforge", ""));
         return List.of(
             empty,
             scratch,
@@ -259,9 +323,17 @@ class ScreensTest {
                 new UiAction.ChooseFolder(OTHER.gameDir()),
                 new UiAction.FolderChecked(new GameFolder(GameFolder.Kind.OTHER, null, OTHER.gameDir(), 2, "Other"))),
             reduce(packSettings, new UiAction.SelectPackSection(Sheet.PackSettings.Section.REMOVE)),
+            reduce(created(), new UiAction.OpenSettings(),
+                new UiAction.SelectPackSection(Sheet.PackSettings.Section.SERVER)),
+            reduce(created(), new UiAction.OpenSettings(),
+                new UiAction.SelectPackSection(Sheet.PackSettings.Section.SERVER),
+                new UiAction.SetServerAddress("https://play.example.net")),
+            reduce(described, new UiAction.EditNewPack("Aventura con amigos", "1.21.1", "neoforge", "play example")),
             reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.GENERAL),
                 new UiAction.SetPreferences(new Preferences(false, true, 6, true))),
             reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ABOUT)),
+            reduce(loaded(), new UiAction.AppUpdateFound("26.2.1", "https://github.com/o/h/releases/tag/26.2.1"),
+                new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ABOUT)),
             reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ACCOUNT)),
             reduce(loaded(), new UiAction.AccountLoaded(null, false, true),
                 new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ACCOUNT),
@@ -331,6 +403,29 @@ class ScreensTest {
         sheets.render(reduce(add, new UiAction.SetLinkUrl("https://example.org/b.json")));
         assertEquals("https://example.org/b.json", field.getText());
         assertTrue(dispatched.isEmpty(), "rendering never dispatches: " + dispatched);
+    }
+
+    @Test
+    void toastIsDarkGlassOverABlurOfWhatIsUnderIt() {
+        JLayeredPane layer = new JLayeredPane();
+        layer.setSize(400, 200);
+        JPanel content = new JPanel();
+        content.setBackground(Palette.brand());
+        content.setBounds(0, 0, 400, 200);
+        layer.add(content, JLayeredPane.DEFAULT_LAYER);
+        Toast toast = new Toast(layer);
+        toast.render(reduce(loaded(), new UiAction.ShowToast("IP copiada")).toast());
+
+        BufferedImage image = new BufferedImage(400, 200, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = image.createGraphics();
+        layer.paint(g);
+        g.dispose();
+
+        assertEquals(Palette.text(), toast.getForeground());
+        // Inside the pill, past the text: the raised glass, lightened by the light panel showing through
+        int red = new Color(image.getRGB(toast.getX() + toast.getWidth() - 8, toast.getY() + toast.getHeight() / 2))
+            .getRed();
+        assertTrue(red > Palette.raised().getRed() + 20 && red < Palette.brand().getRed() - 40, "glass red " + red);
     }
 
     @Test

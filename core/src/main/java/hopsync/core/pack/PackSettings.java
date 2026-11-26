@@ -13,9 +13,12 @@ import java.util.Optional;
  * @param parallelDownloads files downloaded at the same time, 1–8
  * @param reduceMotion      keep the animated mark still, for players sensitive to motion
  * @param libraryWidth      width of the pack library the player dragged to, in unscaled pixels, 200–360
+ * @param language          language tag of the app's texts the player picked, or blank to follow the system
+ * @param checkAppUpdates   ask HopSync's repository for a newer release when the app starts
  */
 public record PackSettings(List<Pack> packs, String activeId, boolean checkOnStart, boolean chainQueue,
-                           int parallelDownloads, boolean reduceMotion, int libraryWidth) {
+                           int parallelDownloads, boolean reduceMotion, int libraryWidth, String language,
+                           boolean checkAppUpdates) {
 
     public static final int MIN_PARALLEL_DOWNLOADS = 1;
     public static final int MAX_PARALLEL_DOWNLOADS = 8;
@@ -24,10 +27,13 @@ public record PackSettings(List<Pack> packs, String activeId, boolean checkOnSta
     public static final int DEFAULT_LIBRARY_WIDTH = 232;
     public static final PackSettings EMPTY = new PackSettings(List.of(), null, true, true, 4, false);
 
-    /** Settings with the library at its default width. */
+    /**
+     * Settings with the library at its default width, the texts in the system's language and the check for newer
+     * releases on.
+     */
     public PackSettings(List<Pack> packs, String activeId, boolean checkOnStart, boolean chainQueue,
                         int parallelDownloads, boolean reduceMotion) {
-        this(packs, activeId, checkOnStart, chainQueue, parallelDownloads, reduceMotion, DEFAULT_LIBRARY_WIDTH);
+        this(packs, activeId, checkOnStart, chainQueue, parallelDownloads, reduceMotion, DEFAULT_LIBRARY_WIDTH, "", true);
     }
 
     public PackSettings {
@@ -38,6 +44,7 @@ public record PackSettings(List<Pack> packs, String activeId, boolean checkOnSta
         }
         parallelDownloads = Math.clamp(parallelDownloads, MIN_PARALLEL_DOWNLOADS, MAX_PARALLEL_DOWNLOADS);
         libraryWidth = Math.clamp(libraryWidth, MIN_LIBRARY_WIDTH, MAX_LIBRARY_WIDTH);
+        language = language == null ? "" : language.strip();
     }
 
     public Optional<Pack> active() {
@@ -50,6 +57,6 @@ public record PackSettings(List<Pack> packs, String activeId, boolean checkOnSta
 
     public PackSettings withPacks(List<Pack> newPacks, String newActiveId) {
         return new PackSettings(newPacks, newActiveId, checkOnStart, chainQueue, parallelDownloads, reduceMotion,
-            libraryWidth);
+            libraryWidth, language, checkAppUpdates);
     }
 }

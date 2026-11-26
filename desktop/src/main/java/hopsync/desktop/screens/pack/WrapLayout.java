@@ -26,10 +26,19 @@ final class WrapLayout extends FlowLayout {
         return wrappedSize(target, false);
     }
 
+    /** The size at a width the target does not have yet, so its parent can reserve the right height at once. */
+    Dimension preferredLayoutSize(Container target, int width) {
+        return wrappedSize(target, true, width);
+    }
+
     private Dimension wrappedSize(Container target, boolean preferred) {
+        return wrappedSize(target, preferred, target.getWidth());
+    }
+
+    private Dimension wrappedSize(Container target, boolean preferred, int targetWidth) {
         synchronized (target.getTreeLock()) {
             Insets insets = target.getInsets();
-            int available = target.getWidth() > 0 ? target.getWidth() - insets.left - insets.right - getHgap() * 2
+            int available = targetWidth > 0 ? targetWidth - insets.left - insets.right - getHgap() * 2
                 : Integer.MAX_VALUE;
             int width = 0;
             int height = 0;
