@@ -8,6 +8,7 @@ import hopsync.core.failure.SyncFailure;
 import hopsync.core.pack.Pack;
 import hopsync.desktop.kit.HopSyncDark;
 import hopsync.desktop.kit.Palette;
+import hopsync.desktop.kit.RemoteImages;
 import hopsync.desktop.screens.library.PackLibrary;
 import hopsync.desktop.screens.mods.ModsPanel;
 import hopsync.desktop.screens.pack.PackHero;
@@ -61,6 +62,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * throws fails the build instead of the app.
  */
 class ScreensTest {
+    private static final RemoteImages NO_IMAGES = new RemoteImages(url -> {
+        throw new java.io.IOException("offline");
+    }, Runnable::run);
+
     private static final String D = DEMO.id();
     private final List<UiAction> dispatched = new ArrayList<>();
 
@@ -376,7 +381,7 @@ class ScreensTest {
         JLayeredPane window = new JLayeredPane();
         window.setSize(960, 620);
         SheetLayer sheets = new SheetLayer(window, dispatched::add, "https://example.org/demo.json",
-            Path.of("settings.json"));
+            Path.of("settings.json"), NO_IMAGES);
         JComponent firstRun = sheets.firstRunWizard();
         for (UiState state : everySheet()) {
             sheets.render(state);
@@ -392,7 +397,7 @@ class ScreensTest {
     void typingALinkDispatchesItButRenderingItBackDoesNot() {
         JLayeredPane window = new JLayeredPane();
         window.setSize(960, 620);
-        SheetLayer sheets = new SheetLayer(window, dispatched::add, "", Path.of("settings.json"));
+        SheetLayer sheets = new SheetLayer(window, dispatched::add, "", Path.of("settings.json"), NO_IMAGES);
         UiState add = reduce(loaded(), new UiAction.AddPack());
         sheets.render(add);
         JTextField field = find(sheets, JTextField.class);

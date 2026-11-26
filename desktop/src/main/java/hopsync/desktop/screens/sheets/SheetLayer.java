@@ -1,6 +1,7 @@
 package hopsync.desktop.screens.sheets;
 
 import com.formdev.flatlaf.util.UIScale;
+import hopsync.desktop.kit.RemoteImages;
 import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.Sheet;
 import hopsync.desktop.store.UiAction;
@@ -47,7 +48,8 @@ public final class SheetLayer extends JPanel {
     private final JPanel appSettingsCard;
     private JComponent shownCard;
 
-    public SheetLayer(JLayeredPane owner, Consumer<UiAction> dispatch, String demoUrl, Path settingsFile) {
+    public SheetLayer(JLayeredPane owner, Consumer<UiAction> dispatch, String demoUrl, Path settingsFile,
+        RemoteImages images) {
         super(null);
         this.owner = owner;
         wizard = new AddPackView(dispatch, demoUrl);
@@ -57,7 +59,7 @@ public final class SheetLayer extends JPanel {
         wizardCard = SheetParts.floatingCard(wizard);
         packSettingsCard = SheetParts.floatingCard(packSettings);
         appSettingsCard = SheetParts.floatingCard(appSettings);
-        addMods = new AddModsView(dispatch);
+        addMods = new AddModsView(dispatch, images);
         addModsCard = SheetParts.floatingCard(addMods);
         publish = new PublishView(dispatch);
         publishCard = SheetParts.floatingCard(publish);

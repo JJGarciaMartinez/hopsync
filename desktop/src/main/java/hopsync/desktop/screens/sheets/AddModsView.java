@@ -8,6 +8,7 @@ import hopsync.desktop.kit.ButtonStyle;
 import hopsync.desktop.kit.Fonts;
 import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.Palette;
+import hopsync.desktop.kit.RemoteImages;
 import hopsync.desktop.kit.StatusTag;
 import hopsync.desktop.screens.FileChoosers;
 import hopsync.desktop.store.Sheet;
@@ -52,6 +53,7 @@ public final class AddModsView extends JPanel {
     private static final int TYPING_PAUSE_MS = 300;
 
     private final Consumer<UiAction> dispatch;
+    private final RemoteImages images;
     private final JLabel subtitle = new JLabel();
     private final JTextField search = new JTextField();
     private final JPanel notes = SheetParts.column();
@@ -61,9 +63,10 @@ public final class AddModsView extends JPanel {
     private Sheet.AddMods shown;
     private boolean rendering;
 
-    public AddModsView(Consumer<UiAction> dispatch) {
+    public AddModsView(Consumer<UiAction> dispatch, RemoteImages images) {
         super(new BorderLayout(0, UIScale.scale(12)));
         this.dispatch = dispatch;
+        this.images = images;
         setOpaque(false);
         typing = new Timer(TYPING_PAUSE_MS, e -> dispatch.accept(new UiAction.SearchMods(search.getText().strip())));
         typing.setRepeats(false);

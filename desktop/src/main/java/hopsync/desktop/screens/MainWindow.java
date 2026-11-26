@@ -5,6 +5,7 @@ import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.LoaderIcon;
 import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.Palette;
+import hopsync.desktop.kit.RemoteImages;
 import hopsync.desktop.screens.library.PackLibrary;
 import hopsync.desktop.screens.mods.ModsPanel;
 import hopsync.desktop.screens.pack.PackHero;
@@ -54,7 +55,8 @@ public final class MainWindow extends JFrame {
     private UiState shown;
 
     /** @param demoUrl the preset pack link the wizard offers to try */
-    public MainWindow(Consumer<UiAction> dispatch, String demoUrl, Path settingsFile, ZoneId zone) {
+    public MainWindow(Consumer<UiAction> dispatch, String demoUrl, Path settingsFile, ZoneId zone,
+        RemoteImages images) {
         super(Messages.get("window.titleEmpty"));
         setIconImages(LogoIcon.windowImages());
         // Closing goes through the store, so a running apply can be confirmed and stopped first
@@ -69,7 +71,7 @@ public final class MainWindow extends JFrame {
         hero = new PackHero(dispatch, zone);
         mods = new ModsPanel(dispatch);
         statusBar = new StatusBar(zone, dispatch);
-        sheets = new SheetLayer(getLayeredPane(), dispatch, demoUrl, settingsFile);
+        sheets = new SheetLayer(getLayeredPane(), dispatch, demoUrl, settingsFile, images);
 
         JPanel packArea = new JPanel(new BorderLayout());
         packArea.setBackground(Palette.background());
