@@ -2,6 +2,11 @@ package hopsync.desktop.screens;
 
 import com.formdev.flatlaf.util.UIScale;
 import hopsync.core.catalog.CatalogProject;
+import hopsync.core.catalog.CatalogVersion;
+import hopsync.core.catalog.ProjectDetails;
+import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.screens.sheets.AddModsView;
+import java.awt.event.MouseEvent;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.publish.PublishStep;
 import hopsync.core.failure.SyncFailure;
@@ -373,7 +378,116 @@ class ScreensTest {
             reduce(created(), new UiAction.OpenAddMods(MINE.id()), new UiAction.SearchMods("zzz"),
                 new UiAction.ModsFound("zzz", List.of()), new UiAction.ModAddFailed(null, new SyncFailure.UnsafePath("x.txt"))),
             reduce(created(), new UiAction.OpenAddMods(MINE.id()),
-                new UiAction.ModSearchFailed("", new SyncFailure.Network("api.modrinth.com", "timeout"))));
+                new UiAction.ModSearchFailed("", new SyncFailure.Network("api.modrinth.com", "timeout"))),
+            reduce(addModsList(), new UiAction.OpenModDetail(IRIS)),
+            reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
+                new UiAction.ModDetailLoaded(IRIS.id(), details(3, "## Iris\n\nShaders **fast**."), VERSION,
+                    List.of("Fabric API"), false), new UiAction.SelectShot(2)),
+            reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
+                new UiAction.ModDetailLoaded(IRIS.id(), details(0, ""), VERSION, List.of(), false)),
+            reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
+                new UiAction.ModDetailLoaded(IRIS.id(), details(1, "Body"), null, List.of(), true)),
+            reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
+                new UiAction.ModDetailFailed(IRIS.id(), new SyncFailure.Network("api.modrinth.com", "timeout"))),
+            reduce(addModsList(), new UiAction.OpenModDetail(SODIUM),
+                new UiAction.ModDetailLoaded(SODIUM.id(), details(2, "Body"), null, List.of(), false)),
+            reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
+                new UiAction.ModDetailLoaded(IRIS.id(), details(1, "Body"), VERSION, List.of(), false),
+                new UiAction.AddCatalogMod(IRIS.id())));
+    }
+
+    private static final CatalogProject SODIUM =
+        new CatalogProject("a", "sodium", "Sodium", "Fast", "jelly", "https://cdn.example.org/a.png", 1_234_567);
+    private static final CatalogProject IRIS = new CatalogProject("b", "iris", "Iris", "Shaders", "coderbot", null, 99);
+    private static final CatalogVersion VERSION = new CatalogVersion("v1", IRIS.id(), "1.8.0", List.of("1.21.1"),
+        List.of("fabric"), true, List.of(), List.of());
+
+    private static ProjectDetails details(int shots, String body) {
+        List<ProjectDetails.Image> gallery = new ArrayList<>();
+        for (int i = 0; i < shots; i++) {
+            gallery.add(new ProjectDetails.Image("https://cdn.example.org/shot" + i + ".png", "Shot " + i, i == 1));
+        }
+        return new ProjectDetails(IRIS.id(), IRIS.slug(), IRIS.title(), "Shaders for everyone.", body, gallery);
+    }
+
+    /** Add mods for MINE with Sodium already in the pack and Iris not. */
+    private static UiState addModsList() {
+        return reduce(created(), new UiAction.OpenAddMods(MINE.id()), new UiAction.PackModsLoaded(MINE.id(), Set.of("a")),
+            new UiAction.ModsFound("", List.of(SODIUM, IRIS)));
+    }
+
+    private AddModsView addModsView(UiState state) {
+        AddModsView view = new AddModsView(dispatched::add, NO_IMAGES);
+        view.render((Sheet.AddMods) state.sheet(), "Aventura");
+        paint(view, 700, 520);
+        return view;
+    }
+
+    @Test
+    void clickingAResultOpensItsDetailButItsAddButtonOnlyAdds() {
+        AddModsView view = addModsView(addModsList());
+        JComponent row = findNamed(view, Messages.get("addMods.openDetail", IRIS.title()));
+        assertTrue(row != null, "the row is named for screen readers");
+        assertTrue(row.isFocusable(), "the row takes keyboard focus");
+
+        click(row);
+        assertEquals(List.of(new UiAction.OpenModDetail(IRIS)), dispatched);
+        dispatched.clear();
+
+        JButton add = (JButton) findNamed(view, Messages.get("addMods.add") + " " + IRIS.title());
+        click(add);
+        add.doClick();
+        assertEquals(List.of(new UiAction.AddCatalogMod(IRIS.id())), dispatched);
+    }
+
+    @Test
+    void detailGoesBackAndAddsToThePack() {
+        AddModsView view = addModsView(reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
+            new UiAction.ModDetailLoaded(IRIS.id(), details(3, "Body"), VERSION, List.of(), false)));
+        assertTrue(dispatched.isEmpty(), "rendering never dispatches: " + dispatched);
+
+        visibleButton(view, Messages.get("addMods.back")).doClick();
+        assertEquals(List.of(new UiAction.BackToResults()), dispatched);
+        dispatched.clear();
+        JButton add = visibleButton(view, Messages.get("addMods.addToPack"));
+        assertTrue(add.isEnabled());
+        add.doClick();
+        assertEquals(List.of(new UiAction.AddCatalogMod(IRIS.id())), dispatched);
+    }
+
+    @Test
+    void detailAddButtonIsAbsentInThePackAndDisabledWithoutAVersion() {
+        AddModsView inPack = addModsView(reduce(addModsList(), new UiAction.OpenModDetail(SODIUM),
+            new UiAction.ModDetailLoaded(SODIUM.id(), details(0, ""), null, List.of(), false)));
+        assertEquals(null, visibleButton(inPack, Messages.get("addMods.addToPack")));
+        assertTrue(findNamed(inPack, Messages.get("addMods.added")) != null, "shows Agregado");
+
+        AddModsView noVersion = addModsView(reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
+            new UiAction.ModDetailLoaded(IRIS.id(), details(0, ""), null, List.of(), true)));
+        assertFalse(visibleButton(noVersion, Messages.get("addMods.addToPack")).isEnabled());
+    }
+
+    private static void click(Component component) {
+        for (int id : new int[] {MouseEvent.MOUSE_PRESSED, MouseEvent.MOUSE_RELEASED, MouseEvent.MOUSE_CLICKED}) {
+            component.dispatchEvent(new MouseEvent(component, id, 0, 0, 4, 4, 1, false, MouseEvent.BUTTON1));
+        }
+    }
+
+    private static JComponent findNamed(Container container, String name) {
+        for (Component child : container.getComponents()) {
+            if (!child.isVisible()) continue;
+            if (child instanceof JComponent c && c.getAccessibleContext() != null
+                    && name.equals(c.getAccessibleContext().getAccessibleName())) return c;
+            if (child instanceof Container inner) {
+                JComponent found = findNamed(inner, name);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private static JButton visibleButton(Container container, String text) {
+        return buttons(container).stream().filter(b -> text.equals(b.getText())).findFirst().orElse(null);
     }
 
     @Test

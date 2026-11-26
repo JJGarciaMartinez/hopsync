@@ -5,7 +5,6 @@ import com.formdev.flatlaf.util.UIScale;
 import hopsync.core.catalog.CatalogProject;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.ButtonStyle;
-import hopsync.desktop.kit.Fonts;
 import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.RemoteImages;
@@ -14,6 +13,7 @@ import hopsync.desktop.screens.FileChoosers;
 import hopsync.desktop.store.Sheet;
 import hopsync.desktop.store.UiAction;
 
+import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -23,12 +23,19 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import java.awt.BasicStroke;
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -36,8 +43,12 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
-import java.util.List;
-import java.util.Locale;
+import java.awt.event.ActionEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -45,19 +56,28 @@ import java.util.function.Consumer;
  * "Agregar mods" for a pack the player created: a search in the mod catalog limited to the pack's Minecraft
  * version and loader, one row per mod with "Agregar" (or "Agregado" once in the pack), a note on the mods that came
  * along as dependencies, "Agregar un jar" for a mod that is not in the catalog, and "Listo". The search waits for
- * the player to stop typing before it is dispatched.
+ * the player to stop typing before it is dispatched. A result opens the mod's detail in place of the list, which
+ * stays as it was for when the player goes back.
  */
 public final class AddModsView extends JPanel {
     /** The results take whatever height the card leaves; this is only their smallest. */
     private static final int RESULTS_HEIGHT = 160;
     private static final int TYPING_PAUSE_MS = 300;
+    private static final String LIST = "list";
+    private static final String DETAIL = "detail";
+    private static final String OPEN = "openDetail";
+    private static final int ICON = 48;
 
     private final Consumer<UiAction> dispatch;
     private final RemoteImages images;
     private final JLabel subtitle = new JLabel();
     private final JTextField search = new JTextField();
+    private final JPanel searchBlock = SheetParts.column();
     private final JPanel notes = SheetParts.column();
     private final Results results = new Results();
+    private final CardLayout centerCards = new CardLayout();
+    private final JPanel center = new JPanel(centerCards);
+    private final ModDetailView detail;
     private final JLabel count = new JLabel();
     private final Timer typing;
     private Sheet.AddMods shown;
@@ -67,6 +87,7 @@ public final class AddModsView extends JPanel {
         super(new BorderLayout(0, UIScale.scale(12)));
         this.dispatch = dispatch;
         this.images = images;
+        detail = new ModDetailView(dispatch, images, RESULTS_HEIGHT);
         setOpaque(false);
         typing = new Timer(TYPING_PAUSE_MS, e -> dispatch.accept(new UiAction.SearchMods(search.getText().strip())));
         typing.setRepeats(false);
@@ -120,8 +141,9 @@ public final class AddModsView extends JPanel {
         scroll.getVerticalScrollBar().setUnitIncrement(UIScale.scale(16));
 
         JPanel top = SheetParts.column();
-        SheetParts.stack(top, 0, head);
-        SheetParts.stack(top, 16, search, notes);
+        SheetParts.stack(searchBlock, 16, Box.createVerticalStrut(0), search);
+        SheetParts.stack(top, 0, head, searchBlock);
+        SheetParts.stack(top, 16, notes);
 
         JButton jar = new JButton(Messages.get("addMods.addJar"), Icons.get(Icons.Glyph.FILE));
         ButtonStyle.apply(jar, ButtonStyle.SECONDARY);
@@ -141,8 +163,12 @@ public final class AddModsView extends JPanel {
         foot.add(count, BorderLayout.CENTER);
         foot.add(done, BorderLayout.EAST);
 
+        center.setOpaque(false);
+        center.add(scroll, LIST);
+        center.add(detail, DETAIL);
+
         add(top, BorderLayout.NORTH);
-        add(scroll, BorderLayout.CENTER);
+        add(center, BorderLayout.CENTER);
         add(foot, BorderLayout.SOUTH);
     }
 
@@ -165,6 +191,12 @@ public final class AddModsView extends JPanel {
                     || !Objects.equals(before.searchError(), sheet.searchError())) {
                 results.show(sheet);
             }
+            if (sheet.detail() != null && (before == null || !Objects.equals(before.detail(), sheet.detail())
+                    || !Objects.equals(before.inPack(), sheet.inPack()) || !before.adding().equals(sheet.adding()))) {
+                detail.render(sheet);
+            }
+            searchBlock.setVisible(sheet.detail() == null);
+            centerCards.show(center, sheet.detail() == null ? LIST : DETAIL);
             revalidate();
             repaint();
         } finally {
@@ -250,11 +282,17 @@ public final class AddModsView extends JPanel {
         }
     }
 
-    /** One mod: its initial on a tile, name and author, one line of description, and "Agregar" or "Agregado". */
+    /**
+     * One mod: its icon, name, author and downloads, one line of description, and "Agregar" or "Agregado". The
+     * whole row opens the mod's detail, by mouse or with Enter or Space; its button only adds.
+     */
     private final class Hit extends JPanel {
         Hit(CatalogProject project, Sheet.AddMods sheet) {
             super(new BorderLayout(UIScale.scale(12), 0));
             setOpaque(false);
+            setFocusable(true);
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            getAccessibleContext().setAccessibleName(Messages.get("addMods.openDetail", project.title()));
             setAlignmentX(LEFT_ALIGNMENT);
             setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, Palette.line()),
@@ -262,7 +300,9 @@ public final class AddModsView extends JPanel {
 
             JLabel name = shrinking(project.title());
             name.putClientProperty(FlatClientProperties.STYLE, "font: semibold");
-            JLabel author = new JLabel(project.author().isEmpty() ? "" : Messages.get("addMods.by", project.author()));
+            String downloads = Messages.get("addMods.downloads", project.downloads());
+            JLabel author = shrinking(project.author().isEmpty() ? downloads
+                : Messages.get("addMods.by", project.author()) + " · " + downloads);
             author.setForeground(Palette.textFaint());
             author.putClientProperty(FlatClientProperties.STYLE, "font: -1");
             JPanel nameLine = new JPanel();
@@ -281,9 +321,64 @@ public final class AddModsView extends JPanel {
             text.add(nameLine);
             text.add(description);
 
-            add(new Initial(project.title()), BorderLayout.WEST);
+            JComponent action = action(project, sheet);
+            add(new Thumb(project.title(), project.iconUrl(), ICON, images), BorderLayout.WEST);
             add(text, BorderLayout.CENTER);
-            add(action(project, sheet), BorderLayout.EAST);
+            add(action, BorderLayout.EAST);
+
+            Runnable open = () -> dispatch.accept(new UiAction.OpenModDetail(project));
+            listenForClicks(this, action, new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    if (SwingUtilities.isLeftMouseButton(e)) open.run();
+                }
+            });
+            getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), OPEN);
+            getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), OPEN);
+            getActionMap().put(OPEN, new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    open.run();
+                }
+            });
+            addFocusListener(new FocusAdapter() {
+                @Override
+                public void focusGained(FocusEvent e) {
+                    repaint();
+                }
+
+                @Override
+                public void focusLost(FocusEvent e) {
+                    repaint();
+                }
+            });
+        }
+
+        /** Labels with a tooltip take mouse events, so every part of the row but its button listens. */
+        private static void listenForClicks(Component component, Component skip, MouseAdapter listener) {
+            if (component == skip) return;
+            component.addMouseListener(listener);
+            if (component instanceof Container container) {
+                for (Component child : container.getComponents()) {
+                    listenForClicks(child, skip, listener);
+                }
+            }
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            if (!isFocusOwner()) return;
+            Graphics2D g2 = (Graphics2D) g.create();
+            try {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Palette.mine());
+                g2.setStroke(new BasicStroke(UIScale.scale(2f)));
+                int arc = UIScale.scale(12);
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, arc, arc);
+            } finally {
+                g2.dispose();
+            }
         }
 
         @Override
@@ -319,41 +414,5 @@ public final class AddModsView extends JPanel {
                 return new Dimension(0, getPreferredSize().height);
             }
         };
-    }
-
-    /** The first letter of a mod's name on a raised tile, where the catalog would show its icon. */
-    private static final class Initial extends JComponent {
-        private static final int SIZE = 40;
-        private final String letter;
-
-        Initial(String title) {
-            letter = title.isBlank() ? "?" : title.strip().substring(0, 1).toUpperCase(Locale.ROOT);
-            setFont(Fonts.display(new JLabel().getFont(), 3));
-        }
-
-        @Override
-        public Dimension getPreferredSize() {
-            return new Dimension(UIScale.scale(SIZE), UIScale.scale(SIZE));
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            try {
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                int size = UIScale.scale(SIZE);
-                int y = (getHeight() - size) / 2;
-                g2.setColor(Palette.raised());
-                g2.fillRoundRect(0, y, size, size, UIScale.scale(20), UIScale.scale(20));
-                g2.setColor(Palette.textSecondary());
-                g2.setFont(getFont());
-                var metrics = g2.getFontMetrics();
-                g2.drawString(letter, (size - metrics.stringWidth(letter)) / 2,
-                    y + (size - metrics.getHeight()) / 2 + metrics.getAscent());
-            } finally {
-                g2.dispose();
-            }
-        }
     }
 }
