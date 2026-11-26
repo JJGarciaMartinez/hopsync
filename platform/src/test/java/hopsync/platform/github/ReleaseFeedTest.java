@@ -23,13 +23,13 @@ class ReleaseFeedTest {
     @Test
     void listsPublishedReleasesNewestFirst() throws Exception {
         ReleaseFeed feed = feed("owner/hopsync", """
-            [{"tag_name":"b26.3.0","html_url":"https://github.com/owner/hopsync/releases/tag/b26.3.0","prerelease":true,"draft":false},
+            [{"tag_name":"26.3.0-b.1","html_url":"https://github.com/owner/hopsync/releases/tag/26.3.0-b.1","prerelease":true,"draft":false},
              {"tag_name":"26.3.0-wip","html_url":"https://github.com/owner/hopsync/releases/tag/wip","prerelease":false,"draft":true},
              {"tag_name":"26.2.0","html_url":"https://github.com/owner/hopsync/releases/tag/26.2.0","prerelease":false,"draft":false}]
             """);
 
         assertEquals(List.of(
-            new ReleaseFeed.Release("b26.3.0", "https://github.com/owner/hopsync/releases/tag/b26.3.0", true),
+            new ReleaseFeed.Release("26.3.0-b.1", "https://github.com/owner/hopsync/releases/tag/26.3.0-b.1", true),
             new ReleaseFeed.Release("26.2.0", "https://github.com/owner/hopsync/releases/tag/26.2.0", false)),
             feed.releases());
         assertEquals(List.of(ReleaseFeed.API + "owner/hopsync/releases?per_page=" + ReleaseFeed.PAGE), asked);

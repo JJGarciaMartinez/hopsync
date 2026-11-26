@@ -2,7 +2,6 @@ package hopsync.desktop.config;
 
 import java.io.InputStream;
 import java.util.Properties;
-import java.util.regex.Pattern;
 
 /**
  * The app version shown to players, read from the version.properties packaged in the JAR.
@@ -10,10 +9,7 @@ import java.util.regex.Pattern;
 public final class AppVersion {
     private static final System.Logger LOG = System.getLogger(AppVersion.class.getName());
 
-    // Test builds are tagged a26.x.y, b26.x.y or rc26.x.y (see VERSION_GUIDE.md)
-    private static final Pattern TEST_BUILD = Pattern.compile("^(a|b|rc)\\d");
-
-    /** The version as written in version.properties, e.g. b26.2.0. */
+    /** The version as written in version.properties, e.g. 26.2.0-b.1. */
     public static final String VERSION = loadVersion();
     public static final String VERSION_APP = displayVersion(VERSION);
 
@@ -21,7 +17,7 @@ public final class AppVersion {
     }
 
     static boolean isTestBuild(String version) {
-        return TEST_BUILD.matcher(version).find();
+        return ReleaseVersion.parse(version).map(ReleaseVersion::isTestBuild).orElse(false);
     }
 
     static String displayVersion(String version) {

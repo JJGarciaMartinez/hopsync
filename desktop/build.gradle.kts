@@ -7,13 +7,29 @@ plugins {
 // version.properties is the single source of truth for name and version (see VERSION_GUIDE.md)
 val versionProps = Properties().apply { rootProject.file("version.properties").inputStream().use(::load) }
 val appName: String = versionProps.getProperty("app.name")
-val numericVersion: String = versionProps.getProperty("app.version.numeric")
 val vendor: String = versionProps.getProperty("app.vendor")
 val winUpgradeUuid: String = versionProps.getProperty("app.win.upgrade.uuid")
-// jpackage takes one to three numbers, e.g. 26.1.4
-val numericPattern = Regex("""\d+(\.\d+){0,2}""")
 
 version = versionProps.getProperty("app.version")
+
+// jpackage takes only one to three numbers, and an installer replaces another only with a higher one, so every
+// version maps to YY.MAJOR.(FIXES*100 + stage + N) with a = 0, b = 30, rc = 60, release = 90 (see VERSION_GUIDE.md)
+val versionPattern = Regex("""(\d+)\.(\d+)\.(\d+)(?:-(a|b|rc)\.(\d+))?""")
+fun installerVersion(version: String): String {
+    val match = versionPattern.matchEntire(version)
+        ?: throw GradleException("Version $version: expected YY.MAJOR.FIXES or YY.MAJOR.FIXES-(a|b|rc).N, e.g. 26.2.0-b.1")
+    val (year, major, fixes, stage, n) = match.destructured
+    val iteration = n.toIntOrNull() ?: 0
+    if (stage.isNotEmpty() && iteration !in 1..29) throw GradleException("Version $version: N goes from 1 to 29")
+    val build = fixes.toInt() * 100 + mapOf("a" to 0, "b" to 30, "rc" to 60).getOrDefault(stage, 90) + iteration
+    // Windows installers allow at most 255.255.65535; macOS needs the first number above 0
+    if (year.toInt() !in 1..255 || major.toInt() > 255 || build > 65535) {
+        throw GradleException("Version $version: installer version $year.$major.$build is out of range")
+    }
+    return "$year.$major.$build"
+}
+check(listOf("26.2.0-a.1", "26.2.0-b.2", "26.2.0-rc.1", "26.2.0", "26.2.1-b.1").map(::installerVersion) ==
+    listOf("26.2.1", "26.2.32", "26.2.61", "26.2.90", "26.2.131"))
 
 dependencies {
     implementation(project(":core"))
@@ -73,7 +89,7 @@ tasks.register<Exec>("jpackage") {
     outputs.dir(installerDir)
 
     val dest = installerDir.get().asFile
-    args("--name", appName, "--app-version", numericVersion, "--vendor", vendor,
+    args("--name", appName, "--vendor", vendor,
         "--description", "Keeps your Minecraft modpacks up to date",
         "--input", jpackageInput.get().asFile.path, "--main-jar", "$appName.jar", "--main-class", "hopsync.Main",
         "--dest", dest.path, "--java-options", "-Xmx1024m", "--java-options", "-Dfile.encoding=UTF-8")
@@ -89,13 +105,17 @@ tasks.register<Exec>("jpackage") {
             "--linux-package-name", appName.lowercase(), "--linux-shortcut", "--linux-menu-group", "Game")
     }
 
+    val display = project.version.toString()
     doFirst {
-        if (!numericPattern.matches(numericVersion)) {
-            throw GradleException("app.version.numeric=$numericVersion: jpackage needs one to three numbers, e.g. 26.1.4")
-        }
+        args("--app-version", installerVersion(display))
         executable = jpackageTool.get().asFile.path
         // jpackage refuses to overwrite an installer left by a previous run
         dest.deleteRecursively()
+    }
+    // Players download by the version they see, not the installer's number: HopSync-26.2.0-b.1.msi
+    doLast {
+        val number = installerVersion(display)
+        dest.listFiles()?.forEach { it.renameTo(File(dest, it.name.replace(number, display))) }
     }
 }
 
@@ -134,21 +154,14 @@ tasks.register<Zip>("portableZip") {
 
 tasks.register("updateVersion") {
     group = "versioning"
-    description = "Sets the version: ./gradlew updateVersion -PnewVersion=b26.2.0 [-Pnumeric=26.2.0]"
+    description = "Sets the version: ./gradlew updateVersion -PnewVersion=26.2.0-b.1"
     val newVersion = providers.gradleProperty("newVersion")
-    val numeric = providers.gradleProperty("numeric")
     val file = rootProject.file("version.properties")
     doLast {
         val display = newVersion.orNull
-            ?: throw GradleException("Usage: ./gradlew updateVersion -PnewVersion=b26.2.0 [-Pnumeric=26.2.0]")
-        // a26.1.0, b26.1.0 and rc26.1.0 are test builds of 26.1.0
-        val number = numeric.orNull ?: display.replace(Regex("^[a-zA-Z]+-?"), "")
-        if (!numericPattern.matches(number)) {
-            throw GradleException("Numeric version $number: jpackage needs one to three numbers, e.g. 26.1.4")
-        }
-        file.writeText(file.readText()
-            .replace(Regex("(?m)^app\\.version=.*$"), "app.version=$display")
-            .replace(Regex("(?m)^app\\.version\\.numeric=.*$"), "app.version.numeric=$number"))
-        logger.lifecycle("version.properties: app.version=$display, app.version.numeric=$number")
+            ?: throw GradleException("Usage: ./gradlew updateVersion -PnewVersion=26.2.0-b.1")
+        val number = installerVersion(display)
+        file.writeText(file.readText().replace(Regex("(?m)^app\\.version=.*$"), "app.version=$display"))
+        logger.lifecycle("version.properties: app.version=$display (installers: $number)")
     }
 }

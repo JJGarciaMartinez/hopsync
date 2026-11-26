@@ -35,7 +35,7 @@ refactor/cleanup ──┘        │         │
                        (testing)   (release)
                                       │
                                       ▼
-                                   tag: b26.2.0
+                                   tag: 26.2.0
 ```
 
 ### Typical Development Cycle
@@ -79,7 +79,7 @@ git checkout -b fix/critical-bug
 # Fix and merge to main
 git checkout main
 git merge fix/critical-bug
-git tag b26.1.5  # Patch version
+git tag 26.2.1  # Fix version
 
 # Also merge to develop
 git checkout develop
@@ -93,7 +93,7 @@ git branch -d fix/critical-bug
 # When develop is stable and ready
 git checkout main
 git merge develop
-git tag b26.2.0
+git tag 26.2.0
 git push origin main --tags
 
 # Continue development on develop
@@ -107,9 +107,9 @@ Tags follow the format defined in `VERSION_GUIDE.md`:
 
 | Tag | Phase | Meaning |
 |-----|-------|---------|
-| `a26.1.0` | Alpha | Early development, unstable |
-| `b26.1.0` | Beta | Feature-complete, testing |
-| `rc26.1.0` | Release Candidate | Final testing |
+| `26.1.0-a.1` | Alpha | Early development, unstable |
+| `26.1.0-b.1` | Beta | Feature-complete, testing |
+| `26.1.0-rc.1` | Release Candidate | Final testing |
 | `26.1.0` | Stable | Production-ready |
 
 **Important:** Tags are only created on `main` branch.
@@ -157,7 +157,7 @@ git push origin develop
 # Prepare release
 git checkout main
 git merge develop
-git tag b26.2.0
+git tag 26.2.0
 git push origin main --tags
 ```
 
