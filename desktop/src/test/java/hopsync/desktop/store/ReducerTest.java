@@ -838,6 +838,14 @@ class ReducerTest {
     }
 
     @Test
+    void addingAnotherModKeepsTheOpenDetail() {
+        UiState state = reduce(addModsOpen(), new UiAction.AddCatalogMod(SODIUM.id()), new UiAction.OpenModDetail(IRIS),
+            new UiAction.ModAdded(SODIUM.id(), new Sheet.Added("Sodium", List.of()), Set.of(SODIUM.id())));
+        assertEquals(IRIS, addMods(state).detail().project());
+        assertEquals("Sodium", addMods(state).lastAdded().title());
+    }
+
+    @Test
     void addingFromDetailReturnsToList() {
         UiState state = reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM), new UiAction.AddCatalogMod(SODIUM.id()),
             new UiAction.ModAdded(SODIUM.id(), new Sheet.Added("Sodium", List.of()), Set.of(SODIUM.id())));

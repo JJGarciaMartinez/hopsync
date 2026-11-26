@@ -217,8 +217,10 @@ public sealed interface Sheet {
         AddMods withAdded(String projectId, Added result, Set<String> projects) {
             Set<String> next = new HashSet<>(adding);
             next.remove(projectId);
+            // Only the added mod's own detail returns to the list; another one opened meanwhile stays open
+            boolean ownDetail = detail != null && detail.project().id().equals(projectId);
             return new AddMods(packId, minecraft, loader, query, results, searchError, projects, next,
-                added + 1 + result.alsoAdded().size(), result, null, null);
+                added + 1 + result.alsoAdded().size(), result, null, ownDetail ? null : detail);
         }
 
         AddMods withFailure(String projectId, SyncFailure failure) {
