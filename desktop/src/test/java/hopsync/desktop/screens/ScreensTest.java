@@ -467,6 +467,20 @@ class ScreensTest {
         assertFalse(visibleButton(noVersion, Messages.get("addMods.addToPack")).isEnabled());
     }
 
+    @Test
+    void detailAddButtonIsDisabledUntilTheDetailLoads() {
+        AddModsView loading = addModsView(reduce(addModsList(), new UiAction.OpenModDetail(IRIS)));
+        assertFalse(visibleButton(loading, Messages.get("addMods.addToPack")).isEnabled());
+
+        AddModsView failed = addModsView(reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
+            new UiAction.ModDetailFailed(IRIS.id(), new SyncFailure.Network("api.modrinth.com", "timeout"))));
+        assertFalse(visibleButton(failed, Messages.get("addMods.addToPack")).isEnabled());
+
+        AddModsView loaded = addModsView(reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
+            new UiAction.ModDetailLoaded(IRIS.id(), details(0, ""), VERSION, List.of(), false)));
+        assertTrue(visibleButton(loaded, Messages.get("addMods.addToPack")).isEnabled());
+    }
+
     private static void click(Component component) {
         for (int id : new int[] {MouseEvent.MOUSE_PRESSED, MouseEvent.MOUSE_RELEASED, MouseEvent.MOUSE_CLICKED}) {
             component.dispatchEvent(new MouseEvent(component, id, 0, 0, 4, 4, 1, false, MouseEvent.BUTTON1));

@@ -134,7 +134,8 @@ final class ModDetailView extends JPanel {
             boolean adding = sheet.adding().contains(project.id());
             JButton add = new JButton(Messages.get(adding ? "addMods.adding" : "addMods.addToPack"));
             ButtonStyle.apply(add, ButtonStyle.PRIMARY);
-            add.setEnabled(!adding && sheet.inPack() != null && !detail.noVersion());
+            add.setEnabled(!adding && sheet.inPack() != null && detail.details() != null && detail.failure() == null
+                && !detail.noVersion());
             add.addActionListener(e -> dispatch.accept(new UiAction.AddCatalogMod(project.id())));
             action = add;
         }
