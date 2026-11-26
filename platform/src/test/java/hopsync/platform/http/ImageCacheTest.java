@@ -8,6 +8,10 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -55,6 +59,32 @@ class ImageCacheTest {
         assertThrows(SyncException.class, () -> cache.load("https://cdn.example/big.png"));
         try (var files = Files.list(dir)) {
             assertEquals(0, files.count());
+        }
+    }
+
+    @Test
+    void concurrentLoadsOfSameUrlDoNotClash() throws Exception {
+        CountDownLatch both = new CountDownLatch(2);
+        ImageCache cache = new ImageCache((url, max) -> {
+            both.countDown();
+            try {
+                both.await();
+            } catch (InterruptedException e) {
+                throw new IOException(e);
+            }
+            return new byte[]{7, 8, 9};
+        }, dir);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<byte[]> a = pool.submit(() -> cache.load("https://cdn.example/a.png"));
+            Future<byte[]> b = pool.submit(() -> cache.load("https://cdn.example/a.png"));
+            assertArrayEquals(new byte[]{7, 8, 9}, a.get());
+            assertArrayEquals(new byte[]{7, 8, 9}, b.get());
+        } finally {
+            pool.shutdown();
+        }
+        try (var files = Files.list(dir)) {
+            assertEquals(1, files.count());
         }
     }
 }

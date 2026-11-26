@@ -36,9 +36,14 @@ public final class ImageCache {
         }
         byte[] bytes = fetcher.get(url, MAX_BYTES);
         Files.createDirectories(dir);
-        Path part = dir.resolve(file.getFileName() + ".part");
-        Files.write(part, bytes);
-        AtomicFiles.move(part, file);
+        // Unique temp name: concurrent loads of one URL must not share a part file
+        Path part = Files.createTempFile(dir, "img", ".part");
+        try {
+            Files.write(part, bytes);
+            AtomicFiles.move(part, file);
+        } finally {
+            Files.deleteIfExists(part);
+        }
         return bytes;
     }
 
