@@ -5,6 +5,7 @@ import hopsync.core.catalog.CatalogVersion;
 import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.PackInfo;
+import hopsync.core.publish.FetchProgress;
 import hopsync.core.publish.PublishStep;
 
 import java.util.List;
@@ -31,10 +32,10 @@ public sealed interface Sheet {
      */
     record AddPack(boolean firstRun, int step, String url, LinkCheck link, List<GameFolder> folders,
                    GameFolder chosen, SyncFailure error, Creation creation, Recovery recovery,
-                   String ownRepo) implements Sheet {
+                   String ownRepo, FetchProgress working) implements Sheet {
 
         public static AddPack start(boolean firstRun) {
-            return new AddPack(firstRun, 1, "", new LinkCheck.Unchecked(), null, null, null, null, null, null);
+            return new AddPack(firstRun, 1, "", new LinkCheck.Unchecked(), null, null, null, null, null, null, null);
         }
 
         /** Step 1 can move on: a checked link, a repository picked to recover, or a new pack that is described. */
@@ -45,43 +46,47 @@ public sealed interface Sheet {
         }
 
         AddPack withCreation(Creation newCreation) {
-            return new AddPack(firstRun, 1, url, link, folders, chosen, null, newCreation, null, ownRepo);
+            return new AddPack(firstRun, 1, url, link, folders, chosen, null, newCreation, null, ownRepo, working);
         }
 
         AddPack withRecovery(Recovery newRecovery) {
-            return new AddPack(firstRun, 1, url, link, folders, chosen, null, null, newRecovery, ownRepo);
+            return new AddPack(firstRun, 1, url, link, folders, chosen, null, null, newRecovery, ownRepo, working);
         }
 
         AddPack withUrl(String newUrl, LinkCheck newLink) {
-            return new AddPack(firstRun, step, newUrl, newLink, folders, chosen, error, creation, recovery, null);
+            return new AddPack(firstRun, step, newUrl, newLink, folders, chosen, error, creation, recovery, null, working);
         }
 
         AddPack withLink(LinkCheck newLink) {
-            return new AddPack(firstRun, step, url, newLink, folders, chosen, error, creation, recovery, ownRepo);
+            return new AddPack(firstRun, step, url, newLink, folders, chosen, error, creation, recovery, ownRepo, working);
         }
 
         AddPack withOwnRepo(String repo) {
-            return new AddPack(firstRun, step, url, link, folders, chosen, error, creation, recovery, repo);
+            return new AddPack(firstRun, step, url, link, folders, chosen, error, creation, recovery, repo, working);
         }
 
         AddPack withStep(int newStep) {
             return new AddPack(firstRun, newStep, url, link, newStep == 2 ? null : folders, newStep == 2 ? null : chosen,
-                null, creation, recovery, ownRepo);
+                null, creation, recovery, ownRepo, working);
         }
 
         AddPack withFolders(List<GameFolder> found) {
             // Preselect the first free folder, as the design does
             GameFolder first = found.stream().filter(GameFolder::isFree).findFirst().orElse(null);
             return new AddPack(firstRun, step, url, link, List.copyOf(found), chosen != null ? chosen : first, error,
-                creation, recovery, ownRepo);
+                creation, recovery, ownRepo, working);
         }
 
         AddPack withChosen(GameFolder folder) {
-            return new AddPack(firstRun, step, url, link, folders, folder, null, creation, recovery, ownRepo);
+            return new AddPack(firstRun, step, url, link, folders, folder, null, creation, recovery, ownRepo, working);
+        }
+
+        AddPack withWorking(FetchProgress progress) {
+            return new AddPack(firstRun, step, url, link, folders, chosen, error, creation, recovery, ownRepo, progress);
         }
 
         AddPack withError(SyncFailure failure) {
-            return new AddPack(firstRun, step, url, link, folders, chosen, failure, creation, recovery, ownRepo);
+            return new AddPack(firstRun, step, url, link, folders, chosen, failure, creation, recovery, ownRepo, null);
         }
     }
 

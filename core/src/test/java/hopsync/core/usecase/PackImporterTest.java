@@ -17,6 +17,7 @@ import hopsync.core.port.PackDefinitionRepository;
 import hopsync.core.port.PackPublisher;
 import hopsync.core.port.PackRepository;
 import hopsync.core.port.PackSettingsRepository;
+import hopsync.core.publish.FetchProgress;
 import hopsync.core.publish.RemotePack;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,7 @@ class PackImporterTest {
 
     private final Map<String, CatalogVersion> catalogVersions = new HashMap<>();
     private final Map<String, String> repoFiles = new HashMap<>();
+    private final List<FetchProgress> reported = new java.util.ArrayList<>();
     private String repoToml;
     private PackDefinitionRepository definitions;
     private PackRegistry registry;
@@ -88,7 +90,8 @@ class PackImporterTest {
                 current = next;
             }
         };
-        PackRepository repository = (repo, into) -> {
+        PackRepository repository = (repo, into, progress) -> {
+            progress.accept(new FetchProgress(repoFiles.size(), repoFiles.size()));
             for (Map.Entry<String, String> file : repoFiles.entrySet()) {
                 Path target = into.resolve(file.getKey());
                 Files.createDirectories(target.getParent());
@@ -140,7 +143,7 @@ class PackImporterTest {
 
     @Test
     void importsThePackAsOneTheSameAsPublishedFromHere() throws IOException {
-        Pack pack = importer.importPack("player/mi-pack", dir.resolve("game"));
+        Pack pack = importer.importPack("player/mi-pack", dir.resolve("game"), reported::add);
 
         PackDefinition definition = registry.definition(pack.id()).orElseThrow();
         assertEquals(INFO, definition.pack());
@@ -150,6 +153,7 @@ class PackImporterTest {
         Path folder = definitions.folder(pack.id());
         assertEquals("jar", Files.readString(folder.resolve("local-mods/mine.jar")));
         assertEquals("{}", Files.readString(folder.resolve("configs/server/rules.json")));
+        assertEquals(List.of(new FetchProgress(2, 2)), reported, "the repository's progress reaches the caller");
         assertEquals(Optional.of(URL), pack.link());
         assertEquals("player/mi-pack", ((PackSource.Local) pack.source()).publication().repo());
         PackPublisher neverUsed = (request, progress, cancel) -> {
@@ -164,7 +168,7 @@ class PackImporterTest {
         catalogVersions.clear();
 
         SyncException e = assertThrows(SyncException.class,
-            () -> importer.importPack("player/mi-pack", dir.resolve("game")));
+            () -> importer.importPack("player/mi-pack", dir.resolve("game"), progress -> { }));
 
         assertEquals(new SyncFailure.ModUnavailable("sodium"), e.failure());
         assertTrue(registry.packs().isEmpty());
@@ -175,7 +179,7 @@ class PackImporterTest {
         repoToml = "[pack]\nname = \"open\n";
 
         SyncException e = assertThrows(SyncException.class,
-            () -> importer.importPack("player/mi-pack", dir.resolve("game")));
+            () -> importer.importPack("player/mi-pack", dir.resolve("game"), progress -> { }));
 
         assertInstanceOf(SyncFailure.ManifestInvalid.class, e.failure());
         assertTrue(registry.packs().isEmpty());
@@ -186,7 +190,7 @@ class PackImporterTest {
         Path game = dir.resolve("game");
         registry.addLocal(PackDefinition.empty(INFO), game);
 
-        SyncException e = assertThrows(SyncException.class, () -> importer.importPack("player/mi-pack", game));
+        SyncException e = assertThrows(SyncException.class, () -> importer.importPack("player/mi-pack", game, progress -> { }));
 
         assertInstanceOf(SyncFailure.FolderUsedByPack.class, e.failure());
         assertEquals(1, registry.packs().size());

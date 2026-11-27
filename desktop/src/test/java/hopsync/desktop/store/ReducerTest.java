@@ -5,6 +5,7 @@ import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.publish.PublishStep;
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.publish.FetchProgress;
 import hopsync.core.pack.Pack;
 import org.junit.jupiter.api.Test;
 
@@ -727,6 +728,52 @@ class ReducerTest {
         assertNull(wizard(reduce(signedOut, new UiAction.StartFromScratch())).recovery());
         assertNull(wizard(reduce(reduce(loaded(), new UiAction.AddPack(), new UiAction.StartFromScratch()),
             new UiAction.StartRecovery())).creation(), "recovering and creating exclude each other");
+    }
+
+    private static UiState recoveryFolderStep() {
+        GameFolder free = new GameFolder(GameFolder.Kind.OFFICIAL, null, Path.of("/games/.minecraft").toAbsolutePath(),
+            0, null);
+        return reduce(loaded(), new UiAction.AddPack(), new UiAction.StartRecovery(),
+            new UiAction.RecoveryLoaded(List.of("player/mi-pack")), new UiAction.WizardNext(),
+            new UiAction.FoldersFound(List.of(free)));
+    }
+
+    @Test
+    void recoveringShowsWorkAtOnceAndLocksTheWizardUntilItEnds() {
+        UiState step2 = recoveryFolderStep();
+        assertNull(wizard(step2).working());
+        assertNull(wizard(reduce(step2, new UiAction.RecoveryProgress(1, 2))).working(), "nothing is running yet");
+
+        UiState working = reduce(step2, new UiAction.FinishAddPack());
+        assertEquals(new FetchProgress(0, 0), wizard(working).working());
+        UiState halfway = reduce(working, new UiAction.RecoveryProgress(5, 10));
+        assertEquals(new FetchProgress(5, 10), wizard(halfway).working());
+        assertEquals(new FetchProgress(5, 10), wizard(reduce(halfway, new UiAction.FinishAddPack())).working(),
+            "a second click does not start over");
+
+        assertEquals(2, wizard(reduce(halfway, new UiAction.WizardBack())).step(), "cannot go back meanwhile");
+        assertEquals(halfway.sheet(), reduce(halfway, new UiAction.CloseSheet()).sheet());
+        assertEquals(halfway.sheet(), reduce(halfway, new UiAction.Escape()).sheet());
+
+        UiState failed = reduce(halfway, new UiAction.SheetFailed(new SyncFailure.Network("github.com", "timeout")));
+        assertNull(wizard(failed).working());
+        assertEquals(new SyncFailure.Network("github.com", "timeout"), wizard(failed).error());
+        assertEquals(1, wizard(reduce(failed, new UiAction.WizardBack())).step());
+        assertNull(reduce(halfway, new UiAction.SheetSaved()).sheet());
+    }
+
+    @Test
+    void onlyARecoveryShowsWorkWhenFinishing() {
+        GameFolder free = new GameFolder(GameFolder.Kind.OFFICIAL, null, Path.of("/games/.minecraft").toAbsolutePath(),
+            0, null);
+        String url = "https://example.org/pack.json";
+        UiState followed = reduce(linkChecked(url), new UiAction.WizardNext(), new UiAction.FoldersFound(List.of(free)));
+        assertNull(wizard(reduce(followed, new UiAction.FinishAddPack())).working(), "following a link is quick");
+
+        UiState claimed = reduce(linkChecked(url), new UiAction.LinkOwnerFound(url, "player/mi-pack"),
+            new UiAction.WizardNext(), new UiAction.FoldersFound(List.of(free)));
+        assertEquals(new FetchProgress(0, 0), wizard(reduce(claimed, new UiAction.FinishAddPack())).working(),
+            "claiming an own pack downloads it");
     }
 
     @Test

@@ -2,6 +2,7 @@ package hopsync.platform.github;
 
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.publish.FetchProgress;
 import hopsync.core.publish.RemotePack;
 import hopsync.platform.secrets.MemorySecrets;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,7 +15,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -49,25 +54,53 @@ class GitHubPacksTest {
         if (path.startsWith("/repos/player/") && path.endsWith("/contents/hopsync.toml")) {
             return new GitHubApi.Response(404, "{\"message\":\"Not Found\"}");
         }
-        if (path.equals("/repos/" + REPO + "/git/trees/main?recursive=1")) {
-            return tree == null ? new GitHubApi.Response(404, "{}") : new GitHubApi.Response(200, tree);
+        if (path.equals("/repos/" + REPO + "/git/ref/heads/main")) {
+            return tree == null ? new GitHubApi.Response(404, "{}")
+                : new GitHubApi.Response(200, "{\"object\":{\"sha\":\"commit-1\"}}");
         }
-        if (path.startsWith("/repos/" + REPO + "/git/blobs/")) {
-            String text = switch (path.substring(path.lastIndexOf('/') + 1)) {
-                case "sha-toml" -> "[pack]\nname = \"Mi pack\"\n";
-                case "sha-rules" -> "{}";
-                case "sha-jar" -> "jar bytes";
-                default -> throw new AssertionError("Unexpected blob " + path);
-            };
+        if (path.equals("/repos/" + REPO + "/git/trees/commit-1?recursive=1")) {
+            return new GitHubApi.Response(200, tree);
+        }
+        if (path.equals("/repos/" + REPO + "/git/blobs/sha-toml")) {
             String base64 = Base64.getMimeEncoder(4, "\n".getBytes(StandardCharsets.UTF_8))
-                .encodeToString(text.getBytes(StandardCharsets.UTF_8));
+                .encodeToString("[pack]\nname = \"Mi pack\"\n".getBytes(StandardCharsets.UTF_8));
             return new GitHubApi.Response(200,
                 "{\"encoding\":\"base64\",\"content\":\"" + base64.replace("\n", "\\n") + "\"}");
         }
         throw new AssertionError("Unexpected call " + method + " " + path);
     };
 
-    private final GitHubPacks packs = new GitHubPacks(new GitHubApi(github), secrets, "github.token");
+    private static final String RAW = "https://raw.githubusercontent.com/Player/mi-pack/commit-1/";
+
+    private final Map<String, byte[]> raw = new ConcurrentHashMap<>();
+    private final AtomicInteger running = new AtomicInteger();
+    private final AtomicInteger mostRunning = new AtomicInteger();
+    private long downloadMillis;
+
+    /** A raw.githubusercontent.com that serves {@code raw}, one request at a time counted. */
+    private final GitHubPacks.Downloader downloader = (url, max) -> {
+        mostRunning.accumulateAndGet(running.incrementAndGet(), Math::max);
+        try {
+            if (downloadMillis > 0) {
+                Thread.sleep(downloadMillis);
+            }
+            byte[] bytes = raw.get(url);
+            if (bytes == null) {
+                throw new AssertionError("Unexpected download " + url);
+            }
+            return bytes;
+        } catch (InterruptedException e) {
+            throw new IOException(e);
+        } finally {
+            running.decrementAndGet();
+        }
+    };
+
+    private final GitHubPacks packs = new GitHubPacks(new GitHubApi(github), secrets, "github.token", downloader);
+
+    private static String jarEntry(String path, int size) {
+        return "{\"path\":\"" + path + "\",\"type\":\"blob\",\"sha\":\"x\",\"size\":" + size + "}";
+    }
 
     @BeforeEach
     void signInAndPublish() {
@@ -82,6 +115,8 @@ class GitHubPacksTest {
             + "{\"path\":\"configs/server/rules.json\",\"type\":\"blob\",\"sha\":\"sha-rules\",\"size\":2},"
             + "{\"path\":\"local-mods/mine.jar\",\"type\":\"blob\",\"sha\":\"sha-jar\",\"size\":9},"
             + "{\"path\":\"local-mods/deep/other.jar\",\"type\":\"blob\",\"sha\":\"sha-other\",\"size\":9}]}";
+        raw.put(RAW + "configs/server/rules.json", "{}".getBytes(StandardCharsets.UTF_8));
+        raw.put(RAW + "local-mods/mine.jar", "jar bytes".getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -119,7 +154,7 @@ class GitHubPacksTest {
 
     @Test
     void fetchDownloadsTheTomlAndTheConfigsAndOwnJarsOnly() throws IOException {
-        RemotePack remote = packs.fetch(REPO, dir);
+        RemotePack remote = packs.fetch(REPO, dir, progress -> { });
 
         assertEquals("[pack]\nname = \"Mi pack\"\n", remote.toml());
         assertEquals(REPO, remote.publication().repo());
@@ -133,7 +168,7 @@ class GitHubPacksTest {
 
     @Test
     void fetchRefusesARepoOfAnotherAccount() {
-        SyncException e = assertThrows(SyncException.class, () -> packs.fetch("friend/their-pack", dir));
+        SyncException e = assertThrows(SyncException.class, () -> packs.fetch("friend/their-pack", dir, progress -> { }));
 
         assertEquals(new SyncFailure.NotRepoOwner("friend/their-pack"), e.failure());
     }
@@ -142,11 +177,11 @@ class GitHubPacksTest {
     void fetchRefusesARepoWithoutTomlOrBranch() {
         tree = "{\"truncated\":false,\"tree\":[{\"path\":\"README.md\",\"type\":\"blob\",\"sha\":\"x\"}]}";
         assertEquals(new SyncFailure.NotAHopSyncRepo(REPO),
-            assertThrows(SyncException.class, () -> packs.fetch(REPO, dir)).failure());
+            assertThrows(SyncException.class, () -> packs.fetch(REPO, dir, progress -> { })).failure());
 
         tree = null;
         assertEquals(new SyncFailure.NotAHopSyncRepo(REPO),
-            assertThrows(SyncException.class, () -> packs.fetch(REPO, dir)).failure());
+            assertThrows(SyncException.class, () -> packs.fetch(REPO, dir, progress -> { })).failure());
     }
 
     @Test
@@ -154,19 +189,82 @@ class GitHubPacksTest {
         tree = "{\"tree\":[{\"path\":\"hopsync.toml\",\"type\":\"blob\",\"sha\":\"sha-toml\",\"size\":24},"
             + "{\"path\":\"local-mods/huge.jar\",\"type\":\"blob\",\"sha\":\"sha-jar\",\"size\":"
             + (GitHubPacks.MAX_FILE_BYTES + 1) + "}]}";
-        SyncFailure tooLarge = assertThrows(SyncException.class, () -> packs.fetch(REPO, dir)).failure();
+        SyncFailure tooLarge = assertThrows(SyncException.class, () -> packs.fetch(REPO, dir, progress -> { })).failure();
         assertTrue(tooLarge instanceof SyncFailure.ResponseTooLarge, tooLarge.describe());
 
         tree = "{\"tree\":[{\"path\":\"hopsync.toml\",\"type\":\"blob\",\"sha\":\"sha-toml\",\"size\":24},"
             + "{\"path\":\"configs/../../evil.json\",\"type\":\"blob\",\"sha\":\"sha-rules\",\"size\":2}]}";
         assertEquals(new SyncFailure.UnsafePath("configs/../../evil.json"),
-            assertThrows(SyncException.class, () -> packs.fetch(REPO, dir)).failure());
+            assertThrows(SyncException.class, () -> packs.fetch(REPO, dir, progress -> { })).failure());
         assertFalse(Files.exists(dir.resolve("../evil.json")));
     }
 
     @Test
     void fetchRefusesANameThatIsNotARepo() {
         assertEquals(new SyncFailure.NotAHopSyncRepo("player/../user"),
-            assertThrows(SyncException.class, () -> packs.fetch("player/../user", dir)).failure());
+            assertThrows(SyncException.class, () -> packs.fetch("player/../user", dir, progress -> { })).failure());
+    }
+
+    @Test
+    void fetchEncodesEachPathSegmentOfTheDownloadUrl() throws IOException {
+        tree = "{\"tree\":[{\"path\":\"hopsync.toml\",\"type\":\"blob\",\"sha\":\"sha-toml\",\"size\":24},"
+            + jarEntry("local-mods/Camera [1.21]+x y.jar", 3) + "]}";
+        raw.put(RAW + "local-mods/Camera%20%5B1.21%5D%2Bx%20y.jar", "abc".getBytes(StandardCharsets.UTF_8));
+
+        packs.fetch(REPO, dir, progress -> { });
+
+        assertEquals("abc", Files.readString(dir.resolve("local-mods/Camera [1.21]+x y.jar")));
+    }
+
+    @Test
+    void fetchReportsProgressFromZeroToTheNumberOfFiles() throws IOException {
+        List<FetchProgress> seen = new CopyOnWriteArrayList<>();
+
+        packs.fetch(REPO, dir, seen::add);
+
+        assertEquals(new FetchProgress(0, 2), seen.getFirst());
+        assertEquals(new FetchProgress(2, 2), seen.getLast());
+        assertEquals(3, seen.size());
+    }
+
+    @Test
+    void fetchDownloadsSeveralFilesAtOnceButNeverMoreThanTheLimit() throws IOException {
+        StringBuilder entries = new StringBuilder(jarEntry("hopsync.toml", 24).replace("\"x\"", "\"sha-toml\""));
+        for (int i = 0; i < 24; i++) {
+            entries.append(',').append(jarEntry("local-mods/m" + i + ".jar", 1));
+            raw.put(RAW + "local-mods/m" + i + ".jar", new byte[] {1});
+        }
+        tree = "{\"tree\":[" + entries + "]}";
+        downloadMillis = 20;
+
+        packs.fetch(REPO, dir, progress -> { });
+
+        assertTrue(mostRunning.get() > 1, "downloads overlap");
+        assertTrue(mostRunning.get() <= GitHubPacks.PARALLEL_DOWNLOADS, "at most " + mostRunning.get());
+        assertEquals(24, Files.list(dir.resolve("local-mods")).count());
+    }
+
+    @Test
+    void aFailedDownloadFailsTheFetchWithItsCause() {
+        raw.remove(RAW + "local-mods/mine.jar");
+        GitHubPacks failing = new GitHubPacks(new GitHubApi(github), secrets, "github.token", (url, max) -> {
+            if (url.endsWith("mine.jar")) {
+                throw new SyncException(new SyncFailure.Network("raw.githubusercontent.com", "timeout"));
+            }
+            return downloader.get(url, max);
+        });
+
+        SyncException e = assertThrows(SyncException.class, () -> failing.fetch(REPO, dir, progress -> { }));
+
+        assertEquals(new SyncFailure.Network("raw.githubusercontent.com", "timeout"), e.failure());
+    }
+
+    @Test
+    void aFileThatArrivesWithAnotherSizeThanTheTreeSaysFails() {
+        raw.put(RAW + "local-mods/mine.jar", "abc".getBytes(StandardCharsets.UTF_8));
+
+        SyncException e = assertThrows(SyncException.class, () -> packs.fetch(REPO, dir, progress -> { }));
+
+        assertEquals(new SyncFailure.SizeMismatch("local-mods/mine.jar", 9, 3), e.failure());
     }
 }

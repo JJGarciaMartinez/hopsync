@@ -206,6 +206,9 @@ public sealed interface UiAction {
     /** Picks the repository to recover, as {@code owner/name}. */
     record ChooseRecoveryRepo(String repo) implements UiAction {}
 
+    /** Files downloaded so far while a pack is recovered; {@code total} is 0 until the file list is known. */
+    record RecoveryProgress(int done, int total) implements UiAction {}
+
     /** The checked link comes from a repository of the signed-in player, so the pack can be recovered for editing. */
     record LinkOwnerFound(String url, String repo) implements UiAction {}
 

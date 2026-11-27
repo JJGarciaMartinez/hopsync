@@ -9,6 +9,7 @@ import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.SegmentedControl;
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.publish.FetchProgress;
 import hopsync.desktop.store.Account;
 import hopsync.desktop.store.GameFolder;
 import hopsync.desktop.store.Sheet;
@@ -19,6 +20,7 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -219,6 +221,9 @@ public final class AddPackView extends JPanel {
             SheetParts.stack(bottom, 10, SheetParts.notice(
                 Messages.get("sheet.wizard.saveFailed", Messages.failure(sheet.error())), Palette.error()));
         }
+        if (sheet.working() != null) {
+            SheetParts.stack(bottom, 10, working(sheet.working()));
+        }
         SheetParts.stack(bottom, 12, footer(sheet));
         revalidate();
         repaint();
@@ -344,6 +349,20 @@ public final class AddPackView extends JPanel {
         return parts;
     }
 
+    /** How far the recovery has got: a bar, and the count once the file list is known. */
+    private static JPanel working(FetchProgress progress) {
+        JProgressBar bar = new JProgressBar(0, Math.max(progress.total(), 1));
+        bar.setIndeterminate(progress.total() == 0);
+        bar.setValue(progress.done());
+        bar.getAccessibleContext().setAccessibleName(Messages.get("sheet.wizard.recovering", progress.done(),
+            progress.total()));
+        JPanel panel = SheetParts.column();
+        SheetParts.stack(panel, 0, bar);
+        SheetParts.stack(panel, 6, SheetParts.hint(progress.total() == 0 ? Messages.get("sheet.wizard.recoveringStart")
+            : Messages.get("sheet.wizard.recovering", progress.done(), progress.total())));
+        return panel;
+    }
+
     /** The other way to add a pack on the left of step 1; the buttons on the right. */
     private JPanel footer(Sheet.AddPack sheet) {
         boolean creating = sheet.creation() != null;
@@ -358,12 +377,14 @@ public final class AddPackView extends JPanel {
             next.setEnabled(sheet.canContinue());
             buttons.add(next);
         } else {
-            buttons.add(SheetParts.button("sheet.wizard.back", ButtonStyle.SECONDARY, dispatch,
-                new UiAction.WizardBack()));
+            JButton back = SheetParts.button("sheet.wizard.back", ButtonStyle.SECONDARY, dispatch,
+                new UiAction.WizardBack());
+            back.setEnabled(sheet.working() == null);
+            buttons.add(back);
             String finishKey = creating ? "sheet.wizard.create" : recovering ? "sheet.wizard.recover"
                 : sheet.firstRun() ? "sheet.wizard.start" : "sheet.wizard.finish";
             JButton finish = SheetParts.button(finishKey, ButtonStyle.PRIMARY, dispatch, new UiAction.FinishAddPack());
-            finish.setEnabled(sheet.chosen() != null && sheet.chosen().isFree());
+            finish.setEnabled(sheet.chosen() != null && sheet.chosen().isFree() && sheet.working() == null);
             buttons.add(finish);
         }
         JPanel footer = new JPanel(new BorderLayout(UIScale.scale(12), 0));

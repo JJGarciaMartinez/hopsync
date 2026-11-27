@@ -36,6 +36,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -54,6 +55,8 @@ final class SheetEffects {
     private final ModCatalog catalog;
     private final PackEditor editor;
     private final PackImporter importer;
+    /** A recovery downloads for minutes; a second click on "Recuperar" must not start another one. */
+    private final AtomicBoolean recovering = new AtomicBoolean();
     private final PackOwnership ownership;
     /** The sheet open before the action being handled; closing the add-mods sheet needs to know what it added. */
     private Sheet previous;
@@ -359,10 +362,14 @@ final class SheetEffects {
      *                 picked the repository
      */
     private void recoverPack(String repo, Path folder, LinkCheck.Valid followed) {
+        if (!recovering.compareAndSet(false, true)) {
+            return;
+        }
         background.execute(() -> {
             try {
                 checkWritable(folder);
-                Pack added = importer.importPack(repo, folder);
+                Pack added = importer.importPack(repo, folder,
+                    progress -> store.dispatch(new UiAction.RecoveryProgress(progress.done(), progress.total())));
                 registry.select(added.id());
                 store.dispatch(new UiAction.SheetSaved());
                 reloadPacks.run();
@@ -377,6 +384,8 @@ final class SheetEffects {
             } catch (IOException | RuntimeException e) {
                 LOG.log(System.Logger.Level.WARNING, "Could not recover the pack " + repo, e);
                 store.dispatch(new UiAction.SheetFailed(SyncFailures.from(e, folder.toString())));
+            } finally {
+                recovering.set(false);
             }
         });
     }

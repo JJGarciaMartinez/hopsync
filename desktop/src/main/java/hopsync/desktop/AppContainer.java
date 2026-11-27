@@ -74,7 +74,8 @@ public final class AppContainer {
         gitHubAuth = new GitHubAuth(config.githubClientId(), config.network());
         publishing = new PackPublishing(packRegistry, definitions,
             new GitHubPublisher(new GitHubApi(config.network()), secrets, GitHubAuth.TOKEN_KEY));
-        gitHubPacks = new GitHubPacks(new GitHubApi(config.network()), secrets, GitHubAuth.TOKEN_KEY);
+        gitHubPacks = new GitHubPacks(new GitHubApi(config.network()), secrets, GitHubAuth.TOKEN_KEY,
+            downloadService::getBytes);
         packImporter = new PackImporter(gitHubPacks, modCatalog, packRegistry, definitions);
         ModUpdateService modUpdateService = new ModUpdateService(manifestService, definitionResolver, downloadService,
             packRegistry::parallelDownloads);

@@ -11,6 +11,7 @@ import hopsync.core.pack.PackToml;
 import hopsync.core.port.ModCatalog;
 import hopsync.core.port.PackDefinitionRepository;
 import hopsync.core.port.PackRepository;
+import hopsync.core.publish.FetchProgress;
 import hopsync.core.publish.RemotePack;
 import hopsync.core.util.SafePaths;
 
@@ -23,6 +24,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
@@ -47,14 +49,15 @@ public final class PackImporter {
     /**
      * @param repo    GitHub repository as {@code owner/name}
      * @param gameDir the game folder the pack will update
+     * @param progress told while the repository's files are downloaded, which is most of the time of an import
      * @throws SyncException with {@link SyncFailure.ManifestInvalid} when the toml is malformed,
      *                       {@link SyncFailure.ModUnavailable} when a mod's pinned version is gone from the catalog,
      *                       or {@link SyncFailure.FolderUsedByPack} when another pack uses the folder
      */
-    public Pack importPack(String repo, Path gameDir) throws IOException {
+    public Pack importPack(String repo, Path gameDir, Consumer<FetchProgress> progress) throws IOException {
         Path staging = Files.createTempDirectory("hopsync-import");
         try {
-            RemotePack remote = repository.fetch(repo, staging);
+            RemotePack remote = repository.fetch(repo, staging, progress);
             PackDefinition definition = complete(parse(remote.toml()), ownJars(staging.resolve(DefinitionResolver.OWN_MODS)));
             Pack pack = registry.addLocal(definition, gameDir);
             try {
