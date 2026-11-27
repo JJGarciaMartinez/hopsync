@@ -38,4 +38,44 @@ class MarkdownTextTest {
         assertEquals("", MarkdownText.plain(null, 10));
         assertEquals("", MarkdownText.plain("  ", 10));
     }
+
+    @Test
+    void realisticBodyBecomesPlainText() {
+        String body = """
+            # **Sodium**
+
+            __Sodium__ is a *free* and _open-source_ rendering engine.<br>It needs `Fabric API`.
+
+            ---
+
+            | Feature | Status |
+            |---------|:------:|
+            | Chunks  | ~~slow~~ fast |
+
+            Tom &amp; Jerry&nbsp;say &quot;hi&quot; &lt;3 &#39;ok&#39; &gt;_&lt;
+            """;
+        assertEquals("Sodium\n\nSodium is a free and open-source rendering engine.\nIt needs Fabric API.\n\n"
+            + "Feature · Status\nChunks · slow fast\n\nTom & Jerry say \"hi\" <3 'ok' >_<",
+            MarkdownText.plain(body, 600));
+    }
+
+    @Test
+    void comparisonsAreNotTags() {
+        assertEquals("if a < b > c then", MarkdownText.plain("if a < b > c then", 600));
+    }
+
+    @Test
+    void snakeCaseAndLoneAsterisksSurvive() {
+        assertEquals("set max_render_distance to 2 * 3", MarkdownText.plain("set max_render_distance to 2 * 3", 600));
+    }
+
+    @Test
+    void entitiesAreDecodedOnce() {
+        assertEquals("&lt; & \" '", MarkdownText.plain("&amp;lt; &amp; &quot; &#39;", 600));
+    }
+
+    @Test
+    void tagsDoNotSpanParagraphsOfProse() {
+        assertEquals("a < b\n\nc > d", MarkdownText.plain("a < b\n\nc > d", 600));
+    }
 }
