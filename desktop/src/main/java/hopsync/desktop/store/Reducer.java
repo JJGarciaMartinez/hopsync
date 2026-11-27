@@ -83,9 +83,9 @@ public final class Reducer {
             case UiAction.OpenModDetail a -> updateAddMods(state, sheet -> sheet.withDetail(Sheet.ModDetail.loading(a.project())));
             case UiAction.ModDetailLoaded a -> updateAddMods(state, sheet -> isOpen(sheet, a.projectId())
                 ? sheet.withDetail(new Sheet.ModDetail(sheet.detail().project(), a.details(), a.version(), a.needs(),
-                    a.noVersion(), null, sheet.detail().shot())) : sheet);
+                    a.unavailable(), null, sheet.detail().shot())) : sheet);
             case UiAction.ModDetailFailed a -> updateAddMods(state, sheet -> isOpen(sheet, a.projectId())
-                ? sheet.withDetail(new Sheet.ModDetail(sheet.detail().project(), null, null, List.of(), false,
+                ? sheet.withDetail(new Sheet.ModDetail(sheet.detail().project(), null, null, List.of(), null,
                     a.failure(), 0)) : sheet);
             case UiAction.SelectShot a -> updateAddMods(state, sheet -> sheet.detail() != null
                 && sheet.detail().details() != null && a.index() >= 0
@@ -382,7 +382,7 @@ public final class Reducer {
 
     private static Sheet.ModDetail withShot(Sheet.ModDetail detail, int shot) {
         return new Sheet.ModDetail(detail.project(), detail.details(), detail.version(), detail.needs(),
-            detail.noVersion(), detail.failure(), shot);
+            detail.unavailable(), detail.failure(), shot);
     }
 
     private static UiState updateAddMods(UiState state, UnaryOperator<Sheet.AddMods> change) {

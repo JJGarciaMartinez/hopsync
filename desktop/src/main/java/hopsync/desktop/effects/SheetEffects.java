@@ -201,10 +201,11 @@ final class SheetEffects {
                 try {
                     PackEditor.Preview preview = editor.preview(sheet.packId(), project.id());
                     store.dispatch(new UiAction.ModDetailLoaded(project.id(), details, preview.version(),
-                        preview.needs(), false));
+                        preview.needs(), null));
                 } catch (SyncException e) {
-                    if (!(e.failure() instanceof SyncFailure.ModUnavailable)) throw e;
-                    store.dispatch(new UiAction.ModDetailLoaded(project.id(), details, null, List.of(), true));
+                    if (!(e.failure() instanceof SyncFailure.ModUnavailable unavailable)) throw e;
+                    store.dispatch(new UiAction.ModDetailLoaded(project.id(), details, null, List.of(),
+                        unavailable.mod()));
                 }
             } catch (Exception e) {
                 LOG.log(System.Logger.Level.WARNING, "Could not load the page of " + project.id(), e);

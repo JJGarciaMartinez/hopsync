@@ -209,9 +209,11 @@ final class ModDetailView extends JPanel {
 
     private static JComponent facts(Sheet.AddMods sheet, Sheet.ModDetail detail) {
         String loader = Messages.loader(sheet.loader());
-        String version = detail.version() == null
-            ? Messages.get("addMods.noVersion", sheet.minecraft(), loader)
-            : Messages.get("addMods.willAddValue", detail.version().versionNumber(), sheet.minecraft(), loader);
+        String version = detail.version() != null
+            ? Messages.get("addMods.willAddValue", detail.version().versionNumber(), sheet.minecraft(), loader)
+            : detail.missingDependency() == null ? Messages.get("addMods.noVersion", sheet.minecraft(), loader)
+            : Messages.get("addMods.dependencyNoVersion", detail.project().title(), detail.missingDependency(),
+                sheet.minecraft(), loader);
         String needs = detail.needs().isEmpty() ? Messages.get("addMods.noDependencies")
             : Messages.get("addMods.alsoAdds", Messages.list(detail.needs()));
         JPanel row = new JPanel(new GridLayout(1, 2, UIScale.scale(10), 0)) {

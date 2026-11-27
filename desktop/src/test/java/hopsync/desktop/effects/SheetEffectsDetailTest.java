@@ -34,7 +34,6 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -162,7 +161,7 @@ class SheetEffectsDetailTest {
         assertEquals(DETAILS, loaded.details());
         assertEquals("s1", loaded.version().id());
         assertTrue(loaded.needs().isEmpty());
-        assertFalse(loaded.noVersion());
+        assertNull(loaded.unavailable());
     }
 
     @Test
@@ -171,7 +170,17 @@ class SheetEffectsDetailTest {
         assertEquals(DETAILS, loaded.details());
         assertNull(loaded.version());
         assertTrue(loaded.needs().isEmpty());
-        assertTrue(loaded.noVersion());
+        assertEquals("sodium", loaded.unavailable());
+    }
+
+    @Test
+    void aDependencyWithoutVersionIsNamed() throws Exception {
+        CatalogVersion needsApi = new CatalogVersion("s1", "sodium", "1.0", List.of("1.21.1"), List.of("fabric"), true,
+            version("s1", "sodium").files(), List.of(new CatalogVersion.Dependency("fabric-api", null, true)));
+        versions.put("sodium", List.of(needsApi));
+        UiAction.ModDetailLoaded loaded = assertInstanceOf(UiAction.ModDetailLoaded.class, open().getFirst());
+        assertNull(loaded.version());
+        assertEquals("fabric-api", loaded.unavailable());
     }
 
     @Test

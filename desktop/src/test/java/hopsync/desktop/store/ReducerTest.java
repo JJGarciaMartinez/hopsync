@@ -773,17 +773,29 @@ class ReducerTest {
     @Test
     void loadedDetailIsKept() {
         UiState state = reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM),
-            new UiAction.ModDetailLoaded(SODIUM.id(), detailsOf(SODIUM), null, List.of("Fabric API"), true));
+            new UiAction.ModDetailLoaded(SODIUM.id(), detailsOf(SODIUM), null, List.of("Fabric API"), "Sodium"));
         Sheet.ModDetail detail = addMods(state).detail();
         assertEquals(detailsOf(SODIUM), detail.details());
         assertEquals(List.of("Fabric API"), detail.needs());
         assertTrue(detail.noVersion());
+        assertNull(detail.missingDependency());
+    }
+
+    @Test
+    void aDependencyWithoutVersionIsNamed() {
+        Sheet.ModDetail detail = addMods(reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM),
+            new UiAction.ModDetailLoaded(SODIUM.id(), detailsOf(SODIUM), null, List.of(), "Fabric API"))).detail();
+        assertTrue(detail.noVersion());
+        assertEquals("Fabric API", detail.missingDependency());
+        Sheet.ModDetail byId = addMods(reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM),
+            new UiAction.ModDetailLoaded(SODIUM.id(), detailsOf(SODIUM), null, List.of(), SODIUM.id()))).detail();
+        assertNull(byId.missingDependency());
     }
 
     @Test
     void staleDetailAnswerIsIgnored() {
         UiState state = reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM), new UiAction.OpenModDetail(IRIS),
-            new UiAction.ModDetailLoaded(SODIUM.id(), detailsOf(SODIUM), null, List.of(), false),
+            new UiAction.ModDetailLoaded(SODIUM.id(), detailsOf(SODIUM), null, List.of(), null),
             new UiAction.ModDetailFailed(SODIUM.id(), new SyncFailure.ModUnavailable("Sodium")));
         Sheet.ModDetail detail = addMods(state).detail();
         assertEquals(IRIS, detail.project());
@@ -803,7 +815,7 @@ class ReducerTest {
     @Test
     void selectShotChangesIndexWithinGallery() {
         UiState loaded = reduce(addModsOpen(), new UiAction.OpenModDetail(SODIUM),
-            new UiAction.ModDetailLoaded(SODIUM.id(), detailsOf(SODIUM), null, List.of(), false));
+            new UiAction.ModDetailLoaded(SODIUM.id(), detailsOf(SODIUM), null, List.of(), null));
         assertEquals(1, addMods(reduce(loaded, new UiAction.SelectShot(1))).detail().shot());
         assertEquals(0, addMods(reduce(loaded, new UiAction.SelectShot(2))).detail().shot());
         assertEquals(0, addMods(reduce(loaded, new UiAction.SelectShot(-1))).detail().shot());

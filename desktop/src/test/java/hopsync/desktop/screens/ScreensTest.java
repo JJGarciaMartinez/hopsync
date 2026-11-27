@@ -60,6 +60,7 @@ import static hopsync.desktop.store.StoreFixtures.reduce;
 import static hopsync.desktop.store.StoreFixtures.upToDatePlan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -382,17 +383,19 @@ class ScreensTest {
             reduce(addModsList(), new UiAction.OpenModDetail(IRIS)),
             reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
                 new UiAction.ModDetailLoaded(IRIS.id(), details(3, "## Iris\n\nShaders **fast**."), VERSION,
-                    List.of("Fabric API"), false), new UiAction.SelectShot(2)),
+                    List.of("Fabric API"), null), new UiAction.SelectShot(2)),
             reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
-                new UiAction.ModDetailLoaded(IRIS.id(), details(0, ""), VERSION, List.of(), false)),
+                new UiAction.ModDetailLoaded(IRIS.id(), details(0, ""), VERSION, List.of(), null)),
             reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
-                new UiAction.ModDetailLoaded(IRIS.id(), details(1, "Body"), null, List.of(), true)),
+                new UiAction.ModDetailLoaded(IRIS.id(), details(1, "Body"), null, List.of(), IRIS.id())),
+            reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
+                new UiAction.ModDetailLoaded(IRIS.id(), details(1, "Body"), null, List.of(), "Fabric API")),
             reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
                 new UiAction.ModDetailFailed(IRIS.id(), new SyncFailure.Network("api.modrinth.com", "timeout"))),
             reduce(addModsList(), new UiAction.OpenModDetail(SODIUM),
-                new UiAction.ModDetailLoaded(SODIUM.id(), details(2, "Body"), null, List.of(), false)),
+                new UiAction.ModDetailLoaded(SODIUM.id(), details(2, "Body"), null, List.of(), null)),
             reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
-                new UiAction.ModDetailLoaded(IRIS.id(), details(1, "Body"), VERSION, List.of(), false),
+                new UiAction.ModDetailLoaded(IRIS.id(), details(1, "Body"), VERSION, List.of(), null),
                 new UiAction.AddCatalogMod(IRIS.id())));
     }
 
@@ -443,7 +446,7 @@ class ScreensTest {
     @Test
     void detailGoesBackAndAddsToThePack() {
         AddModsView view = addModsView(reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
-            new UiAction.ModDetailLoaded(IRIS.id(), details(3, "Body"), VERSION, List.of(), false)));
+            new UiAction.ModDetailLoaded(IRIS.id(), details(3, "Body"), VERSION, List.of(), null)));
         assertTrue(dispatched.isEmpty(), "rendering never dispatches: " + dispatched);
 
         visibleButton(view, Messages.get("addMods.back")).doClick();
@@ -458,13 +461,41 @@ class ScreensTest {
     @Test
     void detailAddButtonIsAbsentInThePackAndDisabledWithoutAVersion() {
         AddModsView inPack = addModsView(reduce(addModsList(), new UiAction.OpenModDetail(SODIUM),
-            new UiAction.ModDetailLoaded(SODIUM.id(), details(0, ""), null, List.of(), false)));
+            new UiAction.ModDetailLoaded(SODIUM.id(), details(0, ""), null, List.of(), null)));
         assertEquals(null, visibleButton(inPack, Messages.get("addMods.addToPack")));
         assertTrue(findNamed(inPack, Messages.get("addMods.added")) != null, "shows Agregado");
 
         AddModsView noVersion = addModsView(reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
-            new UiAction.ModDetailLoaded(IRIS.id(), details(0, ""), null, List.of(), true)));
+            new UiAction.ModDetailLoaded(IRIS.id(), details(0, ""), null, List.of(), IRIS.id())));
         assertFalse(visibleButton(noVersion, Messages.get("addMods.addToPack")).isEnabled());
+    }
+
+    @Test
+    void detailNamesTheDependencyWithoutAVersion() {
+        Sheet.AddMods list = (Sheet.AddMods) addModsList().sheet();
+        String minecraft = list.minecraft();
+        String loader = Messages.loader(list.loader());
+        AddModsView own = addModsView(reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
+            new UiAction.ModDetailLoaded(IRIS.id(), details(0, ""), null, List.of(), IRIS.id())));
+        assertNotNull(labelContaining(own, Messages.get("addMods.noVersion", minecraft, loader)));
+
+        AddModsView dependency = addModsView(reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
+            new UiAction.ModDetailLoaded(IRIS.id(), details(0, ""), null, List.of(), "Fabric API")));
+        assertNotNull(labelContaining(dependency,
+            Messages.get("addMods.dependencyNoVersion", IRIS.title(), "Fabric API", minecraft, loader)));
+        assertFalse(visibleButton(dependency, Messages.get("addMods.addToPack")).isEnabled());
+    }
+
+    private static JLabel labelContaining(Container container, String text) {
+        for (Component child : container.getComponents()) {
+            if (child instanceof JLabel label && label.isVisible() && label.getText() != null
+                    && label.getText().contains(text)) return label;
+            if (child instanceof Container inner) {
+                JLabel found = labelContaining(inner, text);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     @Test
@@ -477,7 +508,7 @@ class ScreensTest {
         assertFalse(visibleButton(failed, Messages.get("addMods.addToPack")).isEnabled());
 
         AddModsView loaded = addModsView(reduce(addModsList(), new UiAction.OpenModDetail(IRIS),
-            new UiAction.ModDetailLoaded(IRIS.id(), details(0, ""), VERSION, List.of(), false)));
+            new UiAction.ModDetailLoaded(IRIS.id(), details(0, ""), VERSION, List.of(), null)));
         assertTrue(visibleButton(loaded, Messages.get("addMods.addToPack")).isEnabled());
     }
 

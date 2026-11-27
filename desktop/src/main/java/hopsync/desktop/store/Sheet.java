@@ -246,18 +246,29 @@ public sealed interface Sheet {
      * @param details   the catalog page, {@code null} while loading
      * @param version   the version that would be added, {@code null} when there is none
      * @param needs     names of the required mods it would bring
-     * @param noVersion whether the mod has no version for the pack's Minecraft version and loader
-     * @param failure   why loading failed, or {@code null}
-     * @param shot      index of the gallery picture shown
+     * @param unavailable the name of the mod, this one or one it requires, that has no version for the pack's
+     *                    Minecraft version and loader; {@code null} when it can be added
+     * @param failure     why loading failed, or {@code null}
+     * @param shot        index of the gallery picture shown
      */
     record ModDetail(CatalogProject project, ProjectDetails details, CatalogVersion version, List<String> needs,
-                     boolean noVersion, SyncFailure failure, int shot) {
+                     String unavailable, SyncFailure failure, int shot) {
         public ModDetail {
             needs = List.copyOf(needs);
         }
 
         static ModDetail loading(CatalogProject project) {
-            return new ModDetail(project, null, null, List.of(), false, null, 0);
+            return new ModDetail(project, null, null, List.of(), null, null, 0);
+        }
+
+        public boolean noVersion() {
+            return unavailable != null;
+        }
+
+        /** The required mod without a version, or {@code null} when it is this mod itself or none. */
+        public String missingDependency() {
+            return unavailable == null || unavailable.isBlank() || unavailable.equals(project.title())
+                || unavailable.equals(project.id()) || unavailable.equals(project.slug()) ? null : unavailable;
         }
     }
 
