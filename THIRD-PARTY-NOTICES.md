@@ -25,7 +25,7 @@ The OpenJDK license ships with the runtime bundled in the installers (`legal/` f
 
 ## TwelveMonkeys ImageIO
 
-Copyright (c) 2008-2022, Harald Kuhr
+Copyright (c) 2008-2020, Harald Kuhr
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
