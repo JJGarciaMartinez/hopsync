@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -104,8 +105,8 @@ final class SheetEffects {
                 loadDetail(sheet, a.project());
             case UiAction.AddCatalogMod a when state.sheet() instanceof Sheet.AddMods sheet
                 && sheet.adding().contains(a.projectId()) -> addCatalogMod(sheet.packId(), a.projectId());
-            // Outside the sheet nothing else will check the pack, so the jar is checked at once
-            case UiAction.AddOwnJar a -> addOwnJar(a.packId(), a.jar(), !(state.sheet() instanceof Sheet.AddMods));
+            // Outside the sheet nothing else will check the pack, so the jars are checked at once
+            case UiAction.AddOwnJars a -> addOwnJars(a.packId(), a.jars(), !(state.sheet() instanceof Sheet.AddMods));
             // What was added reaches the game folder through the usual check and review
             case UiAction.CloseSheet a when previous instanceof Sheet.AddMods closed && state.sheet() == null
                 && closed.added() > 0 -> checkPack.accept(closed.packId());
@@ -227,16 +228,24 @@ final class SheetEffects {
         });
     }
 
-    private void addOwnJar(String packId, Path jar, boolean checkAfter) {
+    private void addOwnJars(String packId, List<Path> jars, boolean checkAfter) {
         background.execute(() -> {
             try {
-                String file = editor.addOwnJar(packId, jar);
-                store.dispatch(new UiAction.ModAdded(null, new Sheet.Added(file, List.of()),
-                    editor.catalogProjects(packId)));
+                PackEditor.OwnJars result = editor.addOwnJars(packId, jars);
+                if (!result.rejected().isEmpty()) {
+                    LOG.log(System.Logger.Level.WARNING, "Skipped " + result.rejected() + " for pack " + packId);
+                }
+                Set<String> projects = editor.catalogProjects(packId);
+                // One action per jar keeps the sheet's count right; the last one names them all
+                List<String> added = result.added();
+                for (int i = 0; i < added.size(); i++) {
+                    String title = i == added.size() - 1 ? String.join(", ", added) : added.get(i);
+                    store.dispatch(new UiAction.ModAdded(null, new Sheet.Added(title, List.of()), projects));
+                }
                 if (checkAfter) checkPack.accept(packId);
             } catch (Exception e) {
-                LOG.log(System.Logger.Level.WARNING, "Could not add " + jar + " to pack " + packId, e);
-                store.dispatch(new UiAction.ModAddFailed(null, SyncFailures.from(e, jar.toString())));
+                LOG.log(System.Logger.Level.WARNING, "Could not add " + jars + " to pack " + packId, e);
+                store.dispatch(new UiAction.ModAddFailed(null, SyncFailures.from(e, jars.getFirst().toString())));
             }
         });
     }

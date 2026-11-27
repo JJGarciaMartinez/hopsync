@@ -49,6 +49,8 @@ import java.awt.event.FocusEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -149,9 +151,9 @@ public final class AddModsView extends JPanel {
         ButtonStyle.apply(jar, ButtonStyle.SECONDARY);
         jar.addActionListener(e -> {
             String packId = shown == null ? null : shown.packId();
-            if (packId != null) {
-                FileChoosers.chooseJar(this).ifPresent(path -> dispatch.accept(new UiAction.AddOwnJar(packId, path)));
-            }
+            if (packId == null) return;
+            List<Path> jars = FileChoosers.chooseJars(this);
+            if (!jars.isEmpty()) dispatch.accept(new UiAction.AddOwnJars(packId, jars));
         });
         JButton done = SheetParts.button("addMods.done", ButtonStyle.PRIMARY, dispatch, new UiAction.CloseSheet());
         count.setForeground(Palette.textSecondary());

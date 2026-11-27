@@ -33,6 +33,7 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridBagLayout;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -127,7 +128,9 @@ public final class ModsPanel extends JPanel {
         ButtonStyle.apply(jar, ButtonStyle.SECONDARY);
         jar.addActionListener(e -> {
             String id = packId;
-            if (id != null) FileChoosers.chooseJar(this).ifPresent(path -> dispatch.accept(new UiAction.AddOwnJar(id, path)));
+            if (id == null) return;
+            List<Path> jars = FileChoosers.chooseJars(this);
+            if (!jars.isEmpty()) dispatch.accept(new UiAction.AddOwnJars(id, jars));
         });
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, UIScale.scale(8), 0));
         buttons.setOpaque(false);

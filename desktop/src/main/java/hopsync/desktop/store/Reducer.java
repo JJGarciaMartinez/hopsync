@@ -79,7 +79,7 @@ public final class Reducer {
                 ? sheet.withInPack(a.projects()) : sheet);
             case UiAction.AddCatalogMod a -> updateAddMods(state, sheet -> sheet.inPack() != null
                 && sheet.inPack().contains(a.projectId()) ? sheet : sheet.withAdding(a.projectId()));
-            case UiAction.AddOwnJar a -> state;
+            case UiAction.AddOwnJars a -> state;
             case UiAction.OpenModDetail a -> updateAddMods(state, sheet -> sheet.withDetail(Sheet.ModDetail.loading(a.project())));
             case UiAction.ModDetailLoaded a -> updateAddMods(state, sheet -> isOpen(sheet, a.projectId())
                 ? sheet.withDetail(new Sheet.ModDetail(sheet.detail().project(), a.details(), a.version(), a.needs(),
