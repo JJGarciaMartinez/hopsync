@@ -1,9 +1,21 @@
-# HopSync
+<p align="center">
+  <img src="brand/png/app-icon-128.png" alt="HopSync logo" width="96">
+</p>
 
-HopSync is a desktop app for Windows, macOS and Linux that keeps Minecraft modpacks in sync. A pack is a list of
-mods and configs. Playing it with friends means everyone needs the same files, in the right versions, in the
-right game folder. HopSync does that for you, and lets you build and share your own pack without touching a
-server or a command line.
+# HopSync: keep your Minecraft modpack in sync with your friends
+
+HopSync is a free desktop app for Windows, macOS and Linux. It installs and updates the mods of a Minecraft
+modpack for you. Whoever runs the pack shares **one link**. Everyone else pastes it, picks their game folder,
+and HopSync downloads the right mods in the right versions. No zips, no copying files by hand, no "which version
+do you have?". You can also build your own pack and share it, without a server or a command line.
+
+<p align="center">
+  <img src=".github/readme/review.png" alt="HopSync showing a modpack with 78 changes ready to apply" width="760">
+</p>
+
+**[Download HopSync](https://github.com/JJGarciaMartinez/hopsync/releases/latest)**, or jump to
+[how it works](#how-it-works), [why updates are safe](#why-updates-are-safe),
+[the architecture](#architecture) or [building from source](#development).
 
 The interface is in English and Latin American Spanish. It follows the system language, and the player can
 pick another one in HopSync settings.
@@ -21,6 +33,48 @@ HopSync replaces that with a **link**:
 - **When the pack changes**, HopSync shows each player what changed. They apply it with one click.
 
 HopSync only touches the files it installed. Mods you added yourself and configs you edited stay as they are.
+
+## A look at the app
+
+**See what will change before anything is written.** HopSync compares the pack with your game folder and lists
+every mod it will add, update or remove, and how much it will download. You decide when to apply.
+
+**Updates in one click.** Files download in parallel with a progress bar per mod, and you can cancel at any
+time.
+
+<p align="center">
+  <img src=".github/readme/applying.png" alt="HopSync downloading a pack, with progress per mod" width="760">
+</p>
+
+**Every mod, at a glance.** Open any mod to see what it does, its version and where it comes from. "Your mods"
+keeps what you added yourself apart from the pack.
+
+<p align="center">
+  <img src=".github/readme/mods.png" alt="The mod list of a pack with one mod expanded" width="760">
+</p>
+
+**Join a pack with a link, or start your own.** Paste the link a friend gave you, or build a pack from scratch.
+
+<p align="center">
+  <img src=".github/readme/add-pack.png" alt="The Add pack window, asking for a pack link" width="760">
+</p>
+
+**Search Modrinth without leaving the app.** HopSync picks the newest version that fits your Minecraft version
+and loader, and adds the mods they need.
+
+<table>
+  <tr>
+    <td><img src=".github/readme/add-mods.png" alt="Searching mods on Modrinth"></td>
+    <td><img src=".github/readme/mod-detail.png" alt="The detail of a mod, with its gallery"></td>
+  </tr>
+</table>
+
+**Share it with a link.** Connect your GitHub account and publish. Your friends get the link, and every change you
+publish reaches them the next time they check.
+
+<p align="center">
+  <img src=".github/readme/publish.png" alt="A pack you created, with the Publish button" width="760">
+</p>
 
 ## How it works
 
