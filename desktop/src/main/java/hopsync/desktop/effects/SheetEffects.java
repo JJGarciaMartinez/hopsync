@@ -1,5 +1,7 @@
 package hopsync.desktop.effects;
 
+import hopsync.core.catalog.CatalogProject;
+import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.failure.SyncFailures;
@@ -98,12 +100,16 @@ final class SheetEffects {
             }
             case UiAction.SearchMods a when state.sheet() instanceof Sheet.AddMods sheet && sheet.results() == null ->
                 search(sheet);
+            case UiAction.OpenModDetail a when state.sheet() instanceof Sheet.AddMods sheet ->
+                loadDetail(sheet, a.project());
             case UiAction.AddCatalogMod a when state.sheet() instanceof Sheet.AddMods sheet
                 && sheet.adding().contains(a.projectId()) -> addCatalogMod(sheet.packId(), a.projectId());
             // Outside the sheet nothing else will check the pack, so the jar is checked at once
             case UiAction.AddOwnJar a -> addOwnJar(a.packId(), a.jar(), !(state.sheet() instanceof Sheet.AddMods));
             // What was added reaches the game folder through the usual check and review
             case UiAction.CloseSheet a when previous instanceof Sheet.AddMods closed && state.sheet() == null
+                && closed.added() > 0 -> checkPack.accept(closed.packId());
+            case UiAction.Escape a when previous instanceof Sheet.AddMods closed && state.sheet() == null
                 && closed.added() > 0 -> checkPack.accept(closed.packId());
             case UiAction.CheckLink a -> fetchLink(state.sheet());
             case UiAction.StartFromScratch a when state.sheet() instanceof Sheet.AddPack wizard
@@ -179,6 +185,31 @@ final class SheetEffects {
             } catch (Exception e) {
                 LOG.log(System.Logger.Level.WARNING, "Could not search mods for \"" + query + "\"", e);
                 store.dispatch(new UiAction.ModSearchFailed(query, SyncFailures.from(e, "")));
+            }
+        });
+    }
+
+    private void loadDetail(Sheet.AddMods sheet, CatalogProject project) {
+        background.execute(() -> {
+            try {
+                ProjectDetails details = catalog.details(project.id()).orElse(null);
+                if (details == null) {
+                    store.dispatch(new UiAction.ModDetailFailed(project.id(),
+                        new SyncFailure.ModUnavailable(project.title())));
+                    return;
+                }
+                try {
+                    PackEditor.Preview preview = editor.preview(sheet.packId(), project.id());
+                    store.dispatch(new UiAction.ModDetailLoaded(project.id(), details, preview.version(),
+                        preview.needs(), null));
+                } catch (SyncException e) {
+                    if (!(e.failure() instanceof SyncFailure.ModUnavailable unavailable)) throw e;
+                    store.dispatch(new UiAction.ModDetailLoaded(project.id(), details, null, List.of(),
+                        unavailable.mod()));
+                }
+            } catch (Exception e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not load the page of " + project.id(), e);
+                store.dispatch(new UiAction.ModDetailFailed(project.id(), SyncFailures.from(e, "")));
             }
         });
     }

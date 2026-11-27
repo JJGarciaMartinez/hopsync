@@ -1,6 +1,8 @@
 package hopsync.desktop.store;
 
 import hopsync.core.catalog.CatalogProject;
+import hopsync.core.catalog.CatalogVersion;
+import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.Manifest;
@@ -111,6 +113,22 @@ public sealed interface UiAction {
     /** The catalog projects the pack already lists. */
     record PackModsLoaded(String packId, Set<String> projects) implements UiAction {}
 
+    /** Opens a mod's page in the add-mods sheet; Effects loads it. */
+    record OpenModDetail(CatalogProject project) implements UiAction {}
+
+    /**
+     * @param details     the catalog page; {@code version} is the one that would be added, or {@code null}
+     * @param unavailable the mod, itself or one it requires, that has no version for the pack; {@code null} for none
+     */
+    record ModDetailLoaded(String projectId, ProjectDetails details, CatalogVersion version, List<String> needs,
+                           String unavailable) implements UiAction {}
+
+    record ModDetailFailed(String projectId, SyncFailure failure) implements UiAction {}
+
+    record SelectShot(int index) implements UiAction {}
+
+    record BackToResults() implements UiAction {}
+
     record AddCatalogMod(String projectId) implements UiAction {}
 
     /** A jar the player picked, copied into the pack as one of its own mods. */
@@ -132,8 +150,11 @@ public sealed interface UiAction {
 
     record OpenAppSettings(Sheet.AppSettings.Section section) implements UiAction {}
 
-    /** Esc or "Cancelar"; the first-run wizard cannot be closed. */
+    /** The close X, "Listo" or "Cancelar"; the first-run wizard cannot be closed. */
     record CloseSheet() implements UiAction {}
+
+    /** Esc: back to the results from a mod's detail, otherwise like {@link CloseSheet}. */
+    record Escape() implements UiAction {}
 
     /** A sheet saved; the packs are reloaded by Effects. */
     record SheetSaved() implements UiAction {}

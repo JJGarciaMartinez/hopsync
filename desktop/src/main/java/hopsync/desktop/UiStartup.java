@@ -33,7 +33,7 @@ public final class UiStartup {
         Store store = new Store(UiState.INITIAL);
         errors.onNotice(() -> store.dispatch(new UiAction.ShowToast(Messages.get("toast.unexpectedError"))));
         MainWindow window = new MainWindow(store::dispatch, container.presetManifestUrl(), container.settingsFile(),
-            ZoneId.systemDefault());
+            ZoneId.systemDefault(), container.remoteImages());
         store.subscribe(window::render);
         window.setVisible(true);
         new Effects(store, container.packRegistry(), container.packSessions(), container.manifestService(),

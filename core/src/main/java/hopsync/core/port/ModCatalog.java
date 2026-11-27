@@ -2,11 +2,13 @@ package hopsync.core.port;
 
 import hopsync.core.catalog.CatalogProject;
 import hopsync.core.catalog.CatalogVersion;
+import hopsync.core.catalog.ProjectDetails;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** The mod catalog created packs pick their mods from (Modrinth). */
 public interface ModCatalog {
@@ -25,4 +27,7 @@ public interface ModCatalog {
 
     /** The projects with these ids, keyed by id, with their author; unknown ids are left out. */
     Map<String, CatalogProject> projects(Collection<String> projectIds) throws IOException;
+
+    /** A project's page (description and gallery); empty if unknown. */
+    Optional<ProjectDetails> details(String projectIdOrSlug) throws IOException;
 }

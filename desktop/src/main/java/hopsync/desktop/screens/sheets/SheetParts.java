@@ -6,6 +6,7 @@ import com.formdev.flatlaf.util.UIScale;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.ButtonStyle;
 import hopsync.desktop.kit.Fonts;
+import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.store.UiAction;
 
@@ -20,6 +21,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.Scrollable;
+import javax.swing.SwingConstants;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -217,6 +219,18 @@ final class SheetParts {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, UIScale.scale(4), 0));
         row.setOpaque(false);
         row.add(words);
+        row.add(button);
+        return row;
+    }
+
+    /** A small raised button with an icon, so a navigation or outbound action does not read as plain text. */
+    static JPanel iconLink(String text, Icons.Glyph glyph, boolean iconAfterText, Runnable onClick) {
+        JButton button = new JButton(text, Icons.get(glyph));
+        ButtonStyle.apply(button, ButtonStyle.SECONDARY, ButtonStyle.SMALL);
+        button.setHorizontalTextPosition(iconAfterText ? SwingConstants.LEADING : SwingConstants.TRAILING);
+        button.addActionListener(e -> onClick.run());
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        row.setOpaque(false);
         row.add(button);
         return row;
     }
