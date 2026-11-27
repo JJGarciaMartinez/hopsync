@@ -9,15 +9,17 @@ import java.util.stream.Collectors;
 public final class MarkdownText {
 
     private static final Pattern FENCE = Pattern.compile("(?s)(```|~~~).*?(\\1|$)");
-    private static final Pattern IMAGE = Pattern.compile("!\\[[^\\]]*]\\([^)]*\\)");
-    private static final Pattern LINK = Pattern.compile("\\[([^\\]]*)]\\([^)]*\\)");
+    // Spans are bounded so an unclosed marker scans a few KB, not the rest of the body
+    private static final Pattern IMAGE = Pattern.compile("!\\[[^\\]]{0,1000}+]\\([^)]{0,2000}+\\)");
+    private static final Pattern LINK = Pattern.compile("\\[([^\\]]{0,1000}+)]\\([^)]{0,2000}+\\)");
     private static final Pattern LINE_BREAK = Pattern.compile("(?i)<br\\s*/?>");
-    private static final Pattern HTML = Pattern.compile("</?[A-Za-z!][^>]*>");
-    private static final Pattern RULE = Pattern.compile("(?m)^[ \\t]*([-*_][ \\t]*){3,}$");
+    private static final Pattern HTML = Pattern.compile("</?[A-Za-z!][^>]{0,2000}+>");
+    // Lookaheads plus one possessive class instead of a repeated group: Java recurses once per group repetition
+    private static final Pattern RULE = Pattern.compile("(?m)^(?=(?:[ \\t]*+[-*_]){3})[-*_ \\t]++$");
     private static final Pattern TABLE_SEPARATOR =
-        Pattern.compile("(?m)^[ \\t]*\\|?([ \\t]*:?-+:?[ \\t]*\\|)+([ \\t]*:?-+:?[ \\t]*)?(\\n|$)");
+        Pattern.compile("(?m)^(?=[ \\t]*+\\|?[ \\t]*+:?-)(?=[^|\\n]*+\\|)[-:| \\t]++(?:\\n|$)");
     private static final Pattern TABLE_ROW = Pattern.compile("(?m)^[ \\t]*\\|(.*)$");
-    private static final Pattern STRONG = Pattern.compile("(\\*\\*|__|~~)(?=\\S)(.+?)(?<=\\S)\\1");
+    private static final Pattern STRONG = Pattern.compile("(\\*\\*|__|~~)(?=\\S)(.{1,1000}?)(?<=\\S)\\1");
     // Single * or _ only around words, so snake_case names and a lone "2 * 3" stay as they are
     private static final Pattern EMPHASIS = Pattern.compile("(?<![\\w*])\\*(?=\\S)([^*\\n]+?)(?<=\\S)\\*(?![\\w*])"
         + "|(?<![\\w_])_(?=\\S)([^_\\n]+?)(?<=\\S)_(?![\\w_])");
@@ -26,15 +28,22 @@ public final class MarkdownText {
     private static final Pattern BREAKS = Pattern.compile("\\n[ \\t]*\\n+");
     private static final Pattern SPACES = Pattern.compile("[ \\t]+");
 
+    // The output is at most maxChars long, so the regexes (some quadratic on hostile lines) only see a bounded head
+    private static final int MIN_INPUT = 8_192;
+    private static final int INPUT_PER_OUTPUT_CHAR = 8;
+
     private MarkdownText() {
     }
 
     /** Plain text of the Markdown, cut at a sentence end (or a word) before {@code maxChars} with an ellipsis. */
     public static String plain(String markdown, int maxChars) {
-        if (markdown == null || markdown.isBlank()) {
+        if (markdown == null || markdown.isBlank() || maxChars <= 0) {
             return "";
         }
-        String text = FENCE.matcher(markdown.replace("\r\n", "\n")).replaceAll("");
+        String head = head(markdown, Math.max(MIN_INPUT, (int) Math.min(Integer.MAX_VALUE,
+            (long) maxChars * INPUT_PER_OUTPUT_CHAR)));
+        boolean capped = head.length() < markdown.length();
+        String text = FENCE.matcher(head.replace("\r\n", "\n")).replaceAll("");
         text = IMAGE.matcher(text).replaceAll("");
         text = LINK.matcher(text).replaceAll("$1");
         text = LINE_BREAK.matcher(text).replaceAll("\n");
@@ -57,7 +66,21 @@ public final class MarkdownText {
                 out.append(out.length() == 0 ? "" : "\n\n").append(line);
             }
         }
-        return cut(out.toString(), maxChars);
+        String result = cut(out.toString(), maxChars);
+        return capped && !result.endsWith("…") ? result + "…" : result;
+    }
+
+    // Cut at the last paragraph, else line, break in the second half of the limit, else at the limit
+    private static String head(String markdown, int limit) {
+        if (markdown.length() <= limit) {
+            return markdown;
+        }
+        String head = markdown.substring(0, limit);
+        int end = head.lastIndexOf("\n\n");
+        if (end < limit / 2) {
+            end = head.lastIndexOf('\n');
+        }
+        return end >= limit / 2 ? head.substring(0, end) : head;
     }
 
     private static String cells(String row) {

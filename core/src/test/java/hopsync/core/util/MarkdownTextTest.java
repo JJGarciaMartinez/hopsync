@@ -1,8 +1,14 @@
 package hopsync.core.util;
 
+import java.time.Duration;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MarkdownTextTest {
@@ -77,5 +83,32 @@ class MarkdownTextTest {
     @Test
     void tagsDoNotSpanParagraphsOfProse() {
         assertEquals("a < b\n\nc > d", MarkdownText.plain("a < b\n\nc > d", 600));
+    }
+
+    @Test
+    void zeroOrNegativeLimitGivesEmpty() {
+        assertEquals("", MarkdownText.plain("text", 0));
+        assertEquals("", MarkdownText.plain("text", -5));
+    }
+
+    @Test
+    void longBodyIsCappedAtALineAndMarkedAsCut() {
+        String body = "Intro.\n\n" + "<b></b>\n".repeat(2_000) + "\nTail";
+        assertEquals("Intro.…", MarkdownText.plain(body, 600));
+    }
+
+    @ParameterizedTest(name = "hostile body {index}")
+    @MethodSource("hostileBodies")
+    void hostileBodiesFinishQuickly(String body) {
+        assertTimeoutPreemptively(Duration.ofSeconds(2), () -> {
+            String result = MarkdownText.plain(body, 600);
+            assertTrue(result.length() <= 601, () -> String.valueOf(result.length()));
+        });
+    }
+
+    static Stream<String> hostileBodies() {
+        return Stream.of("-".repeat(100_000), "*".repeat(100_000), "_".repeat(100_000), "|-".repeat(50_000),
+            "**a ".repeat(25_000), "__a ".repeat(25_000), "~~a ".repeat(25_000), "<a".repeat(50_000),
+            "[".repeat(100_000), "![".repeat(50_000), "|-*_<a[![`~**__&amp;\n".repeat(250_000));
     }
 }
