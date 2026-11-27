@@ -1,9 +1,21 @@
-# HopSync
+<p align="center">
+  <img src="brand/png/app-icon-128.png" alt="HopSync logo" width="96">
+</p>
 
-HopSync is a desktop app for Windows, macOS and Linux that keeps Minecraft modpacks in sync. A pack is a list of
-mods and configs. Playing it with friends means everyone needs the same files, in the right versions, in the
-right game folder. HopSync does that for you, and lets you build and share your own pack without touching a
-server or a command line.
+# HopSync: keep your Minecraft modpack in sync with your friends
+
+HopSync is a free desktop app for Windows, macOS and Linux. It installs and updates the mods of a Minecraft
+modpack for you. Whoever runs the pack shares **one link**. Everyone else pastes it, picks their game folder,
+and HopSync downloads the right mods in the right versions. No zips, no copying files by hand, no "which version
+do you have?". You can also build your own pack and share it, without a server or a command line.
+
+<p align="center">
+  <img src=".github/readme/review.png" alt="HopSync showing a modpack with 78 changes ready to apply" width="760">
+</p>
+
+**[Download HopSync](https://github.com/JJGarciaMartinez/hopsync/releases/latest)**, or jump to
+[how it works](#how-it-works), [why updates are safe](#why-updates-are-safe),
+[the architecture](#architecture) or [building from source](#development).
 
 The interface is in English and Latin American Spanish. It follows the system language, and the player can
 pick another one in HopSync settings.
@@ -22,6 +34,48 @@ HopSync replaces that with a **link**:
 
 HopSync only touches the files it installed. Mods you added yourself and configs you edited stay as they are.
 
+## A look at the app
+
+**See what will change before anything is written.** HopSync compares the pack with your game folder and lists
+every mod it will add, update or remove, and how much it will download. You decide when to apply.
+
+**Updates in one click.** Files download in parallel with a progress bar per mod, and you can cancel at any
+time.
+
+<p align="center">
+  <img src=".github/readme/applying.png" alt="HopSync downloading a pack, with progress per mod" width="760">
+</p>
+
+**Every mod, at a glance.** Open any mod to see what it does, its version and where it comes from. "Your mods"
+keeps what you added yourself apart from the pack.
+
+<p align="center">
+  <img src=".github/readme/mods.png" alt="The mod list of a pack with one mod expanded" width="760">
+</p>
+
+**Join a pack with a link, or start your own.** Paste the link a friend gave you, or build a pack from scratch.
+
+<p align="center">
+  <img src=".github/readme/add-pack.png" alt="The Add pack window, asking for a pack link" width="760">
+</p>
+
+**Search Modrinth without leaving the app.** HopSync picks the newest version that fits your Minecraft version
+and loader, and adds the mods they need.
+
+<table>
+  <tr>
+    <td><img src=".github/readme/add-mods.png" alt="Searching mods on Modrinth"></td>
+    <td><img src=".github/readme/mod-detail.png" alt="The detail of a mod, with its gallery"></td>
+  </tr>
+</table>
+
+**Share it with a link.** Connect your GitHub account and publish. Your friends get the link, and every change you
+publish reaches them the next time they check.
+
+<p align="center">
+  <img src=".github/readme/publish.png" alt="A pack you created, with the Publish button" width="760">
+</p>
+
 ## How it works
 
 ### Following a pack
@@ -33,7 +87,7 @@ HopSync only touches the files it installed. Mods you added yourself and configs
    updated or removed, and the download size. Nothing is written yet.
 3. **Apply.** HopSync downloads the files in parallel and checks the size and SHA-512 hash of each one. It then
    moves each file into place in one step. You can cancel at any time.
-4. **Stay up to date.** HopSync checks again when you ask, or every time it opens if "Buscar cambios al abrir"
+4. **Stay up to date.** HopSync checks again when you ask, or every time it opens if "Check for changes on open"
    is on. If the pack changed, you
    review and apply again. Only what is missing or changed is downloaded.
 
@@ -41,16 +95,16 @@ You can follow several packs, each in its own folder. The same pack can also liv
 
 ### Creating and sharing your own pack
 
-1. **Start from scratch.** In the wizard, choose "Empieza desde cero". Give the pack a name, a Minecraft
+1. **Start from scratch.** In the wizard, choose "Start from scratch". Give the pack a name, a Minecraft
    version and a loader (Fabric, NeoForge, Forge or Quilt).
 2. **Add mods.** Search the [Modrinth](https://modrinth.com/) catalog from the app. HopSync picks the newest
    version that fits your Minecraft version and loader, and adds the mods it requires too. You can also add
    jars of your own, change a mod's version, or remove it. Every change goes through the same review and apply
    as any other pack, so your own game folder always matches what you edit.
-3. **Publish.** Connect your GitHub account in "Ajustes de HopSync › Cuenta" and choose "Publicar". The first
+3. **Publish.** Connect your GitHub account in "HopSync settings › Account" and choose "Publish". The first
    time, HopSync creates a public repository in your account from a template. Each publish uploads the pack
    in one commit and waits for the repository's build to make the manifest. You then get the link to share.
-4. **Publish changes.** After you edit the pack, HopSync shows "Publicar cambios". Your friends see the update
+4. **Publish changes.** After you edit the pack, HopSync shows "Publish changes". Your friends see the update
    the next time they check.
 
 Each published repository has a README with the pack's link and a content notice. The mods belong to their
@@ -190,8 +244,8 @@ More detail:
 
 ## Brand
 
-The visual identity is documented in [brand/BRAND.md](brand/BRAND.md): the mark "Tu caja", the palette "Tinta,
-turquesa y coral", the type and the voice. Its tokens and assets are generated from the app's own theme and
+The visual identity is documented in [brand/BRAND.md](brand/BRAND.md) (written in Spanish): the mark "Your box", the palette
+"Ink, turquoise and coral", the type and the voice. Its tokens and assets are generated from the app's own theme and
 drawing code (`./gradlew brandAssets`), so the app and the brand sheet never drift apart.
 
 ## Requirements
