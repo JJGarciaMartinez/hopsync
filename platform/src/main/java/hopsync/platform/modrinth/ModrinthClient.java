@@ -2,6 +2,7 @@ package hopsync.platform.modrinth;
 
 import hopsync.core.catalog.CatalogProject;
 import hopsync.core.catalog.CatalogVersion;
+import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.port.ModCatalog;
@@ -16,6 +17,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * The Modrinth API (v2) as the mod catalog of created packs. Read-only and without an account; requests go
@@ -81,6 +83,31 @@ public class ModrinthClient implements ModCatalog {
             throw e;
         }
         return readVersions(versions);
+    }
+
+    @Override
+    public Optional<ProjectDetails> details(String projectIdOrSlug) throws IOException {
+        Map<?, ?> project;
+        try {
+            project = (Map<?, ?>) parse(API + "/project/" + encode(projectIdOrSlug));
+        } catch (SyncException e) {
+            if (e.failure() instanceof SyncFailure.HttpStatus status && status.status() == 404) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+        List<ProjectDetails.Image> gallery = new ArrayList<>();
+        if (project.get("gallery") instanceof List<?> items) {
+            for (Object item : items) {
+                Map<?, ?> image = (Map<?, ?>) item;
+                if (image.get("url") instanceof String url && !url.isEmpty()) {
+                    gallery.add(new ProjectDetails.Image(url, optional(image, "title"),
+                        Boolean.TRUE.equals(image.get("featured"))));
+                }
+            }
+        }
+        return Optional.of(new ProjectDetails(text(project, "id"), optional(project, "slug"),
+            optional(project, "title"), optional(project, "description"), optional(project, "body"), gallery));
     }
 
     @Override

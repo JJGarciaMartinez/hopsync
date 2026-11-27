@@ -1,6 +1,7 @@
 package hopsync.core.usecase;
 
 import hopsync.core.catalog.CatalogProject;
+import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.catalog.CatalogVersion;
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
@@ -113,6 +114,11 @@ class PackEditorTest {
             }
 
             @Override
+            public Optional<ProjectDetails> details(String id) {
+                return Optional.empty();
+            }
+
+            @Override
             public Map<String, CatalogProject> projects(Collection<String> ids) {
                 return ids.stream().collect(Collectors.toMap(id -> id,
                     id -> new CatalogProject(id, id + "-slug", "Title " + id, "", "", null, 0)));
@@ -162,6 +168,45 @@ class PackEditorTest {
 
         assertEquals(new SyncFailure.ModUnavailable("Title gone"), e.failure());
         assertEquals(List.of(), mods(), "nothing is added when a required mod cannot be");
+    }
+
+    @Test
+    void previewNamesNewestVersionAndMissingDependencies() throws IOException {
+        versions.put("a", List.of(version("a1", "a", "1.0", true)));
+        versions.put("b", List.of(version("b2", "b", "2.0", true, needs("a")), version("b1", "b", "1.0", true)));
+
+        PackEditor.Preview preview = editor.preview(pack.id(), "b");
+
+        assertEquals("2.0", preview.version().versionNumber());
+        assertEquals(List.of("Title a"), preview.needs());
+    }
+
+    @Test
+    void previewSkipsDependenciesAlreadyInPack() throws IOException {
+        versions.put("a", List.of(version("a1", "a", "1.0", true)));
+        versions.put("b", List.of(version("b1", "b", "1.0", true, needs("a"))));
+        editor.addFromCatalog(pack.id(), "a");
+
+        assertEquals(List.of(), editor.preview(pack.id(), "b").needs());
+    }
+
+    @Test
+    void previewThrowsWhenNoVersionFitsThePack() {
+        versions.put("b", List.of(version("b1", "b", "1.0", true, needs("gone"))));
+
+        SyncException e = assertThrows(SyncException.class, () -> editor.preview(pack.id(), "b"));
+
+        assertEquals(new SyncFailure.ModUnavailable("Title gone"), e.failure());
+    }
+
+    @Test
+    void previewDoesNotSave() throws IOException {
+        versions.put("a", List.of(version("a1", "a", "1.0", true)));
+        versions.put("b", List.of(version("b1", "b", "1.0", true, needs("a"))));
+
+        editor.preview(pack.id(), "b");
+
+        assertEquals(List.of(), mods());
     }
 
     @Test

@@ -88,6 +88,17 @@ public class DownloadService implements FileDownloader {
         });
     }
 
+    /** Fetches a binary body (an image) of at most {@code maxBytes}; never cached by ETag. */
+    public byte[] getBytes(String url, long maxBytes) throws IOException {
+        URI uri = toUri(url);
+        return withRetries(url, () -> {
+            HttpResponse<InputStream> response = send(uri, null, CancellationToken.none());
+            try (InputStream body = response.body()) {
+                return readLimited(body, url, maxBytes);
+            }
+        });
+    }
+
     @Override
     public void download(String url, Path destination, String expectedSha512, long expectedSize,
                          LongConsumer onBytes, CancellationToken cancel) throws IOException {
@@ -231,9 +242,13 @@ public class DownloadService implements FileDownloader {
     }
 
     private static byte[] readLimited(InputStream in, String url) throws IOException {
-        byte[] bytes = in.readNBytes((int) MAX_TEXT_BYTES + 1);
-        if (bytes.length > MAX_TEXT_BYTES) {
-            throw new SyncException(new SyncFailure.ResponseTooLarge(url, MAX_TEXT_BYTES));
+        return readLimited(in, url, MAX_TEXT_BYTES);
+    }
+
+    private static byte[] readLimited(InputStream in, String url, long maxBytes) throws IOException {
+        byte[] bytes = in.readNBytes((int) maxBytes + 1);
+        if (bytes.length > maxBytes) {
+            throw new SyncException(new SyncFailure.ResponseTooLarge(url, maxBytes));
         }
         return bytes;
     }

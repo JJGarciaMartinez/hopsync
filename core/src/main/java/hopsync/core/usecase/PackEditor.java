@@ -61,25 +61,8 @@ public final class PackEditor {
      */
     public Added addFromCatalog(String packId, String projectId) throws IOException {
         PackDefinition definition = definition(packId);
-        PackInfo info = definition.pack();
-        Set<String> inPack = new LinkedHashSet<>();
-        for (PackDefinition.Mod mod : definition.mods()) {
-            if (mod instanceof PackDefinition.ModrinthMod modrinth) inPack.add(modrinth.projectId());
-        }
-
-        List<CatalogVersion> picked = new ArrayList<>();
-        Set<String> seen = new LinkedHashSet<>();
-        Deque<String> pending = new ArrayDeque<>(List.of(projectId));
-        while (!pending.isEmpty()) {
-            String next = pending.poll();
-            if (inPack.contains(next) || !seen.add(next)) continue;
-            CatalogVersion version = newest(catalog.versions(next, info.minecraft(), info.loader()))
-                .orElseThrow(() -> new SyncException(new SyncFailure.ModUnavailable(titleOf(next))));
-            picked.add(version);
-            for (CatalogVersion.Dependency dependency : version.required()) {
-                dependencyProject(dependency).ifPresent(pending::add);
-            }
-        }
+        Set<String> inPack = projectsIn(definition);
+        List<CatalogVersion> picked = walk(definition.pack(), inPack, projectId);
         if (picked.isEmpty()) {
             return new Added(titleOf(projectId), List.of());
         }
@@ -107,6 +90,65 @@ public final class PackEditor {
         registry.saveDefinition(packId, definition.withMods(mods));
         CatalogProject added = projects.get(requested);
         return new Added(added == null ? requested : added.title(), alsoAdded);
+    }
+
+    /**
+     * What adding a catalog mod would do, without saving anything.
+     *
+     * @param version the version that would be added
+     * @param needs   titles of the required mods the pack lacks and that would come with it, in the order they are added
+     */
+    public record Preview(CatalogVersion version, List<String> needs) {
+        public Preview {
+            needs = List.copyOf(needs);
+        }
+    }
+
+    /**
+     * Resolves what {@link #addFromCatalog} would add, so the two never disagree.
+     *
+     * @throws SyncException with {@link SyncFailure.ModUnavailable} when it, or a mod it requires, has no version
+     *                       for this pack
+     */
+    public Preview preview(String packId, String projectId) throws IOException {
+        PackDefinition definition = definition(packId);
+        PackInfo info = definition.pack();
+        List<CatalogVersion> picked = walk(info, projectsIn(definition), projectId);
+        CatalogVersion version = picked.isEmpty()
+            ? newest(catalog.versions(projectId, info.minecraft(), info.loader()))
+                .orElseThrow(() -> new SyncException(new SyncFailure.ModUnavailable(titleOf(projectId))))
+            : picked.getFirst();
+        List<String> ids = picked.stream().skip(1).map(CatalogVersion::projectId).toList();
+        Map<String, CatalogProject> projects = ids.isEmpty() ? Map.of() : catalog.projects(ids);
+        List<String> needs = ids.stream()
+            .map(id -> projects.get(id) == null ? id : projects.get(id).title()).toList();
+        return new Preview(version, needs);
+    }
+
+    private static Set<String> projectsIn(PackDefinition definition) {
+        Set<String> inPack = new LinkedHashSet<>();
+        for (PackDefinition.Mod mod : definition.mods()) {
+            if (mod instanceof PackDefinition.ModrinthMod modrinth) inPack.add(modrinth.projectId());
+        }
+        return inPack;
+    }
+
+    /** The newest version of the mod and of every mod it requires that the pack lacks, in walk order. */
+    private List<CatalogVersion> walk(PackInfo info, Set<String> inPack, String projectId) throws IOException {
+        List<CatalogVersion> picked = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        Deque<String> pending = new ArrayDeque<>(List.of(projectId));
+        while (!pending.isEmpty()) {
+            String next = pending.poll();
+            if (inPack.contains(next) || !seen.add(next)) continue;
+            CatalogVersion version = newest(catalog.versions(next, info.minecraft(), info.loader()))
+                .orElseThrow(() -> new SyncException(new SyncFailure.ModUnavailable(titleOf(next))));
+            picked.add(version);
+            for (CatalogVersion.Dependency dependency : version.required()) {
+                dependencyProject(dependency).ifPresent(pending::add);
+            }
+        }
+        return picked;
     }
 
     /**

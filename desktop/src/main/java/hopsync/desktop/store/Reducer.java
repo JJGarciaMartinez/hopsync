@@ -80,9 +80,24 @@ public final class Reducer {
             case UiAction.AddCatalogMod a -> updateAddMods(state, sheet -> sheet.inPack() != null
                 && sheet.inPack().contains(a.projectId()) ? sheet : sheet.withAdding(a.projectId()));
             case UiAction.AddOwnJar a -> state;
+            case UiAction.OpenModDetail a -> updateAddMods(state, sheet -> sheet.withDetail(Sheet.ModDetail.loading(a.project())));
+            case UiAction.ModDetailLoaded a -> updateAddMods(state, sheet -> isOpen(sheet, a.projectId())
+                ? sheet.withDetail(new Sheet.ModDetail(sheet.detail().project(), a.details(), a.version(), a.needs(),
+                    a.unavailable(), null, sheet.detail().shot())) : sheet);
+            case UiAction.ModDetailFailed a -> updateAddMods(state, sheet -> isOpen(sheet, a.projectId())
+                ? sheet.withDetail(new Sheet.ModDetail(sheet.detail().project(), null, null, List.of(), null,
+                    a.failure(), 0)) : sheet);
+            case UiAction.SelectShot a -> updateAddMods(state, sheet -> sheet.detail() != null
+                && sheet.detail().details() != null && a.index() >= 0
+                && a.index() < sheet.detail().details().gallery().size()
+                ? sheet.withDetail(withShot(sheet.detail(), a.index())) : sheet);
+            case UiAction.BackToResults a -> updateAddMods(state, Sheet.AddMods::withoutDetail);
             case UiAction.ModAdded a -> updateAddMods(state, sheet -> sheet.withAdded(a.projectId(), a.result(), a.projects()));
             case UiAction.ModAddFailed a -> updateAddMods(state, sheet -> sheet.withFailure(a.projectId(), a.failure()));
             case UiAction.OpenAppSettings a -> state.withSheet(new Sheet.AppSettings(a.section(), state.preferences()));
+            case UiAction.Escape a when state.sheet() instanceof Sheet.AddMods sheet && sheet.detail() != null ->
+                state.withSheet(sheet.withoutDetail());
+            case UiAction.Escape a -> reduce(state, new UiAction.CloseSheet());
             case UiAction.CloseSheet a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.firstRun() ? state
                 : state.withSheet(null);
             case UiAction.SheetSaved a -> state.withSheet(null);
@@ -359,6 +374,15 @@ public final class Reducer {
             return state;
         }
         return state.withSheet(Sheet.AddMods.start(packId, pack.packInfo().minecraft(), pack.packInfo().loader()));
+    }
+
+    private static boolean isOpen(Sheet.AddMods sheet, String projectId) {
+        return sheet.detail() != null && sheet.detail().project().id().equals(projectId);
+    }
+
+    private static Sheet.ModDetail withShot(Sheet.ModDetail detail, int shot) {
+        return new Sheet.ModDetail(detail.project(), detail.details(), detail.version(), detail.needs(),
+            detail.unavailable(), detail.failure(), shot);
     }
 
     private static UiState updateAddMods(UiState state, UnaryOperator<Sheet.AddMods> change) {

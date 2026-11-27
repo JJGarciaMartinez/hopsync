@@ -35,6 +35,8 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":platform"))
     implementation("com.formdev:flatlaf:3.7.2")
+    // Modrinth serves most icons and gallery images as WebP, which the JDK's ImageIO cannot read
+    implementation("com.twelvemonkeys.imageio:imageio-webp:3.12.0")
 }
 
 application {

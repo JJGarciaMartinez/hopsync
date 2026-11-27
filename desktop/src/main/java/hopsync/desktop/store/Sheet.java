@@ -1,6 +1,8 @@
 package hopsync.desktop.store;
 
 import hopsync.core.catalog.CatalogProject;
+import hopsync.core.catalog.CatalogVersion;
+import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.PackInfo;
 import hopsync.core.publish.PublishStep;
@@ -175,10 +177,11 @@ public sealed interface Sheet {
      * @param added       how many mods this sheet added, dependencies included
      * @param lastAdded   what the last add did, to say which mods came with it; or {@code null}
      * @param error       why the last add failed, or {@code null}
+     * @param detail      the mod open in place of the list, or {@code null} for the list
      */
     record AddMods(String packId, String minecraft, String loader, String query, List<CatalogProject> results,
                    SyncFailure searchError, Set<String> inPack, Set<String> adding, int added,
-                   Added lastAdded, SyncFailure error) implements Sheet {
+                   Added lastAdded, SyncFailure error, ModDetail detail) implements Sheet {
 
         public AddMods {
             results = results == null ? null : List.copyOf(results);
@@ -187,41 +190,85 @@ public sealed interface Sheet {
         }
 
         public static AddMods start(String packId, String minecraft, String loader) {
-            return new AddMods(packId, minecraft, loader, "", null, null, null, Set.of(), 0, null, null);
+            return new AddMods(packId, minecraft, loader, "", null, null, null, Set.of(), 0, null, null, null);
         }
 
         AddMods withQuery(String newQuery) {
-            return new AddMods(packId, minecraft, loader, newQuery, null, null, inPack, adding, added, lastAdded, error);
+            return new AddMods(packId, minecraft, loader, newQuery, null, null, inPack, adding, added, lastAdded, error, null);
         }
 
         AddMods withResults(List<CatalogProject> found, SyncFailure failure) {
-            return new AddMods(packId, minecraft, loader, query, found, failure, inPack, adding, added, lastAdded, error);
+            return new AddMods(packId, minecraft, loader, query, found, failure, inPack, adding, added, lastAdded, error,
+                detail);
         }
 
         AddMods withInPack(Set<String> projects) {
             return new AddMods(packId, minecraft, loader, query, results, searchError, projects, adding, added,
-                lastAdded, error);
+                lastAdded, error, detail);
         }
 
         AddMods withAdding(String projectId) {
             Set<String> next = new HashSet<>(adding);
             next.add(projectId);
             return new AddMods(packId, minecraft, loader, query, results, searchError, inPack, next, added, lastAdded,
-                null);
+                null, detail);
         }
 
         AddMods withAdded(String projectId, Added result, Set<String> projects) {
             Set<String> next = new HashSet<>(adding);
             next.remove(projectId);
+            // Only the added mod's own detail returns to the list; another one opened meanwhile stays open
+            boolean ownDetail = detail != null && detail.project().id().equals(projectId);
             return new AddMods(packId, minecraft, loader, query, results, searchError, projects, next,
-                added + 1 + result.alsoAdded().size(), result, null);
+                added + 1 + result.alsoAdded().size(), result, null, ownDetail ? null : detail);
         }
 
         AddMods withFailure(String projectId, SyncFailure failure) {
             Set<String> next = new HashSet<>(adding);
             if (projectId != null) next.remove(projectId);
             return new AddMods(packId, minecraft, loader, query, results, searchError, inPack, next, added, lastAdded,
-                failure);
+                failure, detail);
+        }
+
+        AddMods withDetail(ModDetail open) {
+            return new AddMods(packId, minecraft, loader, query, results, searchError, inPack, adding, added,
+                lastAdded, error, open);
+        }
+
+        AddMods withoutDetail() {
+            return withDetail(null);
+        }
+    }
+
+    /**
+     * A mod's page inside the add-mods sheet.
+     *
+     * @param details   the catalog page, {@code null} while loading
+     * @param version   the version that would be added, {@code null} when there is none
+     * @param needs     names of the required mods it would bring
+     * @param unavailable the name of the mod, this one or one it requires, that has no version for the pack's
+     *                    Minecraft version and loader; {@code null} when it can be added
+     * @param failure     why loading failed, or {@code null}
+     * @param shot        index of the gallery picture shown
+     */
+    record ModDetail(CatalogProject project, ProjectDetails details, CatalogVersion version, List<String> needs,
+                     String unavailable, SyncFailure failure, int shot) {
+        public ModDetail {
+            needs = List.copyOf(needs);
+        }
+
+        static ModDetail loading(CatalogProject project) {
+            return new ModDetail(project, null, null, List.of(), null, null, 0);
+        }
+
+        public boolean noVersion() {
+            return unavailable != null;
+        }
+
+        /** The required mod without a version, or {@code null} when it is this mod itself or none. */
+        public String missingDependency() {
+            return unavailable == null || unavailable.isBlank() || unavailable.equals(project.title())
+                || unavailable.equals(project.id()) || unavailable.equals(project.slug()) ? null : unavailable;
         }
     }
 

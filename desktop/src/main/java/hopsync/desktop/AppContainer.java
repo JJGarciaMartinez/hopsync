@@ -16,7 +16,9 @@ import hopsync.platform.github.GitHubApi;
 import hopsync.platform.github.GitHubAuth;
 import hopsync.platform.github.GitHubPublisher;
 import hopsync.platform.github.ReleaseFeed;
+import hopsync.desktop.kit.RemoteImages;
 import hopsync.platform.http.DownloadService;
+import hopsync.platform.http.ImageCache;
 import hopsync.platform.manifest.ManifestService;
 import hopsync.platform.modrinth.ModrinthClient;
 import hopsync.platform.secrets.SystemKeychain;
@@ -48,6 +50,7 @@ public final class AppContainer {
     private final PackPublishing publishing;
     private final ReleaseFeed releaseFeed;
     private final PackSessions packSessions;
+    private final RemoteImages remoteImages;
     private final ExecutorService backgroundExecutor =
         Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("hopsync-update-", 0).factory());
 
@@ -57,6 +60,8 @@ public final class AppContainer {
         DefinitionStore definitions = new DefinitionStore(settingsStore.getFile().resolveSibling("packs"));
         packRegistry = new PackRegistry(settingsStore, definitions);
         DownloadService downloadService = new DownloadService(config.network());
+        ImageCache imageCache = new ImageCache(downloadService::getBytes, settingsStore.getFile().resolveSibling("images"));
+        remoteImages = new RemoteImages(imageCache::load, backgroundExecutor);
         manifestService = new ManifestService(downloadService, settingsStore.getFile().resolveSibling("manifests"));
         modCatalog = new ModrinthClient(downloadService::getUrlString);
         releaseFeed = new ReleaseFeed(downloadService::getUrlString, config.updateRepo());
@@ -129,6 +134,10 @@ public final class AppContainer {
     /** Virtual threads for background work: checks, applies, listing files, fetching manifests. */
     public Executor backgroundExecutor() {
         return backgroundExecutor;
+    }
+
+    public RemoteImages remoteImages() {
+        return remoteImages;
     }
 
     /** Manifest suggested to new players, from app.properties (may be empty). */

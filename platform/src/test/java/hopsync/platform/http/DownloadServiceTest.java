@@ -271,4 +271,12 @@ class DownloadServiceTest {
 
         assertEquals(new SyncFailure.ResponseTooLarge(baseUrl + "/huge", DownloadService.MAX_TEXT_BYTES), failure);
     }
+
+    @Test
+    void getBytesReturnsBodyAndRejectsOverCap() throws IOException {
+        assertArrayEquals(PAYLOAD, service.getBytes(baseUrl + "/file", PAYLOAD.length));
+
+        SyncFailure failure = failureOf(() -> service.getBytes(baseUrl + "/file", 1000));
+        assertEquals(new SyncFailure.ResponseTooLarge(baseUrl + "/file", 1000), failure);
+    }
 }
