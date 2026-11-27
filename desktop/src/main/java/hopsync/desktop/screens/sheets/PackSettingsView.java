@@ -184,7 +184,9 @@ public final class PackSettingsView extends JPanel {
         // The pack may have started writing files since the sheet opened
         remove.setEnabled(!pack.phase().isWriting());
         SheetParts.stack(removePane, 12,
-            SheetParts.paragraph(Messages.get("sheet.pack.removeBody", pack.displayName()), Palette.text()),
+            SheetParts.paragraph(Messages.get(pack.published() ? "sheet.pack.removeBodyPublished"
+                : pack.created() ? "sheet.pack.removeBodyCreated" : "sheet.pack.removeBody", pack.displayName()),
+                Palette.text()),
             remove);
     }
 

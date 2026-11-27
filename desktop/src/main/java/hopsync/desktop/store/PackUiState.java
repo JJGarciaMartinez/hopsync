@@ -55,6 +55,11 @@ public record PackUiState(String packId, String name, String manifestUrl, boolea
         rowStatus = Map.copyOf(rowStatus);
     }
 
+    /** A pack the player created and has published, so its repository can bring it back after it is removed. */
+    public boolean published() {
+        return created && !manifestUrl.isBlank();
+    }
+
     /** Pack details from the manifest, or {@code null} before it is known. */
     public PackInfo packInfo() {
         return manifest == null ? null : manifest.pack();

@@ -196,6 +196,19 @@ public sealed interface UiAction {
 
     record FinishAddPack() implements UiAction {}
 
+    /** "Recuperar un pack mío" in the wizard: Effects lists the player's published packs. */
+    record StartRecovery() implements UiAction {}
+
+    record RecoveryLoaded(List<String> repos) implements UiAction {}
+
+    record RecoveryFailed(SyncFailure failure) implements UiAction {}
+
+    /** Picks the repository to recover, as {@code owner/name}. */
+    record ChooseRecoveryRepo(String repo) implements UiAction {}
+
+    /** The checked link comes from a repository of the signed-in player, so the pack can be recovered for editing. */
+    record LinkOwnerFound(String url, String repo) implements UiAction {}
+
     record SelectPackSection(Sheet.PackSettings.Section section) implements UiAction {}
 
     /** The server address typed in the settings of a pack the player created. */

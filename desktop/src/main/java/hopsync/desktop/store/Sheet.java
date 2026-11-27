@@ -17,57 +17,98 @@ import java.util.HashSet;
 public sealed interface Sheet {
 
     /**
-     * The add-pack wizard: step 1 checks the link, or describes a new pack when the player starts from
-     * scratch; step 2 picks the folder.
+     * The add-pack wizard: step 1 checks the link, describes a new pack when the player starts from scratch, or
+     * picks one of their published packs to recover; step 2 picks the folder.
      *
      * @param firstRun shown in the whole window while there are no packs; cannot be closed
      * @param folders  folders found on disk, {@code null} while they are being looked for
      * @param chosen   the folder picked in step 2, or {@code null}
      * @param error    why saving failed, or {@code null}
      * @param creation the new pack being described, or {@code null} when adding a pack by its link
+     * @param recovery the player's published packs being picked, or {@code null}; never together with a creation
+     * @param ownRepo  the player's own repository the checked link comes from, or {@code null}: saving the link then
+     *                 recovers the pack for editing instead of only following it
      */
     record AddPack(boolean firstRun, int step, String url, LinkCheck link, List<GameFolder> folders,
-                   GameFolder chosen, SyncFailure error, Creation creation) implements Sheet {
+                   GameFolder chosen, SyncFailure error, Creation creation, Recovery recovery,
+                   String ownRepo) implements Sheet {
 
         public static AddPack start(boolean firstRun) {
-            return new AddPack(firstRun, 1, "", new LinkCheck.Unchecked(), null, null, null, null);
+            return new AddPack(firstRun, 1, "", new LinkCheck.Unchecked(), null, null, null, null, null, null);
         }
 
-        /** Step 1 can move on: a checked link, or a new pack with a name, a Minecraft version and a loader. */
+        /** Step 1 can move on: a checked link, a repository picked to recover, or a new pack that is described. */
         public boolean canContinue() {
-            return creation == null ? link instanceof LinkCheck.Valid : creation.ready();
+            if (creation != null) return creation.ready();
+            if (recovery != null) return recovery.chosen() != null;
+            return link instanceof LinkCheck.Valid;
         }
 
         AddPack withCreation(Creation newCreation) {
-            return new AddPack(firstRun, 1, url, link, folders, chosen, null, newCreation);
+            return new AddPack(firstRun, 1, url, link, folders, chosen, null, newCreation, null, ownRepo);
+        }
+
+        AddPack withRecovery(Recovery newRecovery) {
+            return new AddPack(firstRun, 1, url, link, folders, chosen, null, null, newRecovery, ownRepo);
         }
 
         AddPack withUrl(String newUrl, LinkCheck newLink) {
-            return new AddPack(firstRun, step, newUrl, newLink, folders, chosen, error, creation);
+            return new AddPack(firstRun, step, newUrl, newLink, folders, chosen, error, creation, recovery, null);
         }
 
         AddPack withLink(LinkCheck newLink) {
-            return new AddPack(firstRun, step, url, newLink, folders, chosen, error, creation);
+            return new AddPack(firstRun, step, url, newLink, folders, chosen, error, creation, recovery, ownRepo);
+        }
+
+        AddPack withOwnRepo(String repo) {
+            return new AddPack(firstRun, step, url, link, folders, chosen, error, creation, recovery, repo);
         }
 
         AddPack withStep(int newStep) {
             return new AddPack(firstRun, newStep, url, link, newStep == 2 ? null : folders, newStep == 2 ? null : chosen,
-                null, creation);
+                null, creation, recovery, ownRepo);
         }
 
         AddPack withFolders(List<GameFolder> found) {
             // Preselect the first free folder, as the design does
             GameFolder first = found.stream().filter(GameFolder::isFree).findFirst().orElse(null);
             return new AddPack(firstRun, step, url, link, List.copyOf(found), chosen != null ? chosen : first, error,
-                creation);
+                creation, recovery, ownRepo);
         }
 
         AddPack withChosen(GameFolder folder) {
-            return new AddPack(firstRun, step, url, link, folders, folder, null, creation);
+            return new AddPack(firstRun, step, url, link, folders, folder, null, creation, recovery, ownRepo);
         }
 
         AddPack withError(SyncFailure failure) {
-            return new AddPack(firstRun, step, url, link, folders, chosen, failure, creation);
+            return new AddPack(firstRun, step, url, link, folders, chosen, failure, creation, recovery, ownRepo);
+        }
+    }
+
+    /**
+     * The player's published packs, offered to bring back for editing.
+     *
+     * @param repos  their repositories as {@code owner/name}, {@code null} while they are being looked for
+     * @param chosen the repository picked, or {@code null}
+     * @param error  why the list could not be loaded, or {@code null}; {@code GitHubSignedOut} asks to connect
+     */
+    record Recovery(List<String> repos, String chosen, SyncFailure error) {
+
+        public static Recovery start() {
+            return new Recovery(null, null, null);
+        }
+
+        /** Preselects the repository when there is only one. */
+        Recovery withRepos(List<String> found) {
+            return new Recovery(List.copyOf(found), found.size() == 1 ? found.getFirst() : chosen, null);
+        }
+
+        Recovery withChosen(String repo) {
+            return new Recovery(repos, repo, error);
+        }
+
+        Recovery withError(SyncFailure failure) {
+            return new Recovery(repos, chosen, failure);
         }
     }
 

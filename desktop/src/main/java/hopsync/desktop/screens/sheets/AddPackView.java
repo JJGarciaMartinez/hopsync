@@ -8,6 +8,8 @@ import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.SegmentedControl;
+import hopsync.core.failure.SyncFailure;
+import hopsync.desktop.store.Account;
 import hopsync.desktop.store.GameFolder;
 import hopsync.desktop.store.Sheet;
 import hopsync.desktop.store.UiAction;
@@ -43,6 +45,9 @@ public final class AddPackView extends JPanel {
     private final JButton demo = new JButton(Messages.get("sheet.wizard.demo"));
     private final JPanel linkStep = SheetParts.column();
     private final JPanel createStep = SheetParts.column();
+    private final JPanel recoverStep = SheetParts.column();
+    private final JPanel ownNote = SheetParts.column();
+    private final AccountPanel account;
     private final JTextField newName = new JTextField();
     private final JComboBox<String> minecraft = new JComboBox<>();
     private final SegmentedControl<String> loader;
@@ -54,6 +59,7 @@ public final class AddPackView extends JPanel {
     private final JPanel body = new JPanel(new BorderLayout());
     private final JPanel bottom = SheetParts.column();
     private Sheet.AddPack shown;
+    private Account shownAccount;
 
     /** @param demoUrl the preset pack link, offered to try HopSync; blank to hide it */
     public AddPackView(Consumer<UiAction> dispatch, String demoUrl) {
@@ -72,6 +78,8 @@ public final class AddPackView extends JPanel {
             dispatch.accept(new UiAction.CheckLink());
         });
         SheetParts.stack(linkStep, 8, SheetParts.label(Messages.get("sheet.link.label")), link, demo);
+        SheetParts.stack(linkStep, 12, ownNote);
+        account = new AccountPanel(dispatch, "sheet.recover.why");
 
         loader = new SegmentedControl<>(Sheet.Creation.LOADERS, picked -> edit(selectedVersion(), picked));
         Sheet.Creation.LOADERS.forEach(id -> loader.setLabel(id, Messages.get("loader." + id)));
@@ -156,34 +164,44 @@ public final class AddPackView extends JPanel {
         }
     }
 
-    public void render(Sheet.AddPack sheet) {
-        if (sheet.equals(shown)) return;
+    public void render(Sheet.AddPack sheet, Account gitHub) {
+        account.render(gitHub);
+        if (sheet.equals(shown) && gitHub.equals(shownAccount)) return;
+        shownAccount = gitHub;
         rendering = true;
         try {
-            show(sheet);
+            show(sheet, gitHub);
         } finally {
             rendering = false;
         }
     }
 
-    private void show(Sheet.AddPack sheet) {
+    private void show(Sheet.AddPack sheet, Account gitHub) {
         boolean creating = sheet.creation() != null;
+        boolean recovering = sheet.recovery() != null;
         boolean bodyChanged = shown == null || shown.step() != sheet.step()
-            || (shown.creation() != null) != creating;
+            || (shown.creation() != null) != creating || (shown.recovery() != null) != recovering;
         shown = sheet;
         step.setText(Messages.get("sheet.wizard.step", sheet.step()));
         steps.setStep(sheet.step());
-        title.setText(Messages.get(creating ? "sheet.wizard.createTitle"
+        title.setText(Messages.get(creating ? "sheet.wizard.createTitle" : recovering ? "sheet.wizard.recoverTitle"
             : sheet.firstRun() ? "sheet.wizard.firstRunTitle" : "sheet.wizard.title"));
         // Wraps at the content width: the card no longer grows to fit one long line
         subtitle.setText(SheetParts.wrap(Messages.get(sheet.step() == 1
-            ? creating ? "sheet.wizard.createSubtitle" : "sheet.wizard.linkSubtitle"
+            ? creating ? "sheet.wizard.createSubtitle" : recovering ? "sheet.wizard.recoverSubtitle"
+                : "sheet.wizard.linkSubtitle"
             : creating ? "sheet.wizard.createFolderSubtitle" : "sheet.wizard.folderSubtitle"), SheetParts.CONTENT_WIDTH));
 
         if (sheet.step() == 1 && creating) {
             showCreation(sheet.creation());
+        } else if (sheet.step() == 1 && recovering) {
+            showRecovery(sheet.recovery(), gitHub);
         } else if (sheet.step() == 1) {
             link.render(sheet.url(), sheet.link(), Messages.get("sheet.link.hint"));
+            ownNote.removeAll();
+            if (sheet.ownRepo() != null) {
+                SheetParts.stack(ownNote, 0, SheetParts.notice(Messages.get("sheet.link.own"), Palette.update()));
+            }
             demo.setVisible(demoUrl != null && !demoUrl.isBlank() && !demoUrl.equals(sheet.url()));
         } else {
             folderStep.removeAll();
@@ -192,7 +210,8 @@ public final class AddPackView extends JPanel {
         }
         if (bodyChanged) {
             body.removeAll();
-            body.add(sheet.step() == 2 ? folderStep : creating ? createStep : linkStep, BorderLayout.NORTH);
+            body.add(sheet.step() == 2 ? folderStep : creating ? createStep : recovering ? recoverStep : linkStep,
+                BorderLayout.NORTH);
         }
 
         bottom.removeAll();
@@ -241,6 +260,41 @@ public final class AddPackView extends JPanel {
             SheetParts.stack(versionsNote, 0, SheetParts.hint(Messages.get("sheet.create.loadingVersions")));
         } else {
             SheetParts.stack(versionsNote, 0, SheetParts.hint(Messages.get("sheet.create.hint")));
+        }
+    }
+
+    /**
+     * The player's published packs to pick from. Signed out, the GitHub panel stands in for the list: connecting
+     * there reloads it.
+     */
+    private void showRecovery(Sheet.Recovery recovery, Account gitHub) {
+        recoverStep.removeAll();
+        boolean signedOut = recovery.error() instanceof SyncFailure.GitHubSignedOut;
+        if (signedOut) {
+            SheetParts.stack(recoverStep, 0, account);
+        } else if (recovery.error() != null) {
+            SheetParts.stack(recoverStep, 0, SheetParts.notice(
+                Messages.get("sheet.recover.failed", Messages.failure(recovery.error())), Palette.error()));
+        } else if (recovery.repos() == null) {
+            SheetParts.stack(recoverStep, 0, SheetParts.hint(Messages.get("sheet.recover.loading")));
+        } else if (recovery.repos().isEmpty()) {
+            SheetParts.stack(recoverStep, 0, SheetParts.hint(Messages.get("sheet.recover.none", gitHub.login())));
+        } else {
+            SheetParts.stack(recoverStep, 0, SheetParts.label(Messages.get("sheet.recover.label")));
+            for (String repo : recovery.repos()) {
+                JButton pick = new JButton(repo, Icons.get(Icons.Glyph.FOLDER));
+                ButtonStyle.apply(pick, repo.equals(recovery.chosen()) ? ButtonStyle.PRIMARY : ButtonStyle.SECONDARY,
+                    ButtonStyle.SMALL);
+                pick.setHorizontalAlignment(JButton.LEFT);
+                pick.addActionListener(e -> dispatch.accept(new UiAction.ChooseRecoveryRepo(repo)));
+                SheetParts.stack(recoverStep, 8, pick);
+            }
+        }
+        if (!signedOut && (recovery.error() != null || recovery.repos() != null)) {
+            JButton retry = SheetParts.button("sheet.recover.retry", ButtonStyle.SECONDARY, dispatch,
+                new UiAction.StartRecovery());
+            ButtonStyle.apply(retry, ButtonStyle.SECONDARY, ButtonStyle.SMALL);
+            SheetParts.stack(recoverStep, 12, retry);
         }
     }
 
@@ -293,6 +347,7 @@ public final class AddPackView extends JPanel {
     /** The other way to add a pack on the left of step 1; the buttons on the right. */
     private JPanel footer(Sheet.AddPack sheet) {
         boolean creating = sheet.creation() != null;
+        boolean recovering = sheet.recovery() != null;
         List<JButton> buttons = new ArrayList<>();
         if (sheet.step() == 1) {
             if (!sheet.firstRun()) {
@@ -305,7 +360,7 @@ public final class AddPackView extends JPanel {
         } else {
             buttons.add(SheetParts.button("sheet.wizard.back", ButtonStyle.SECONDARY, dispatch,
                 new UiAction.WizardBack()));
-            String finishKey = creating ? "sheet.wizard.create"
+            String finishKey = creating ? "sheet.wizard.create" : recovering ? "sheet.wizard.recover"
                 : sheet.firstRun() ? "sheet.wizard.start" : "sheet.wizard.finish";
             JButton finish = SheetParts.button(finishKey, ButtonStyle.PRIMARY, dispatch, new UiAction.FinishAddPack());
             finish.setEnabled(sheet.chosen() != null && sheet.chosen().isFree());
@@ -318,11 +373,17 @@ public final class AddPackView extends JPanel {
             JPanel west = new JPanel(new GridBagLayout());
             west.setOpaque(false);
             footer.add(west, BorderLayout.WEST);
-            west.add(creating
-                ? SheetParts.textLink(Messages.get("sheet.wizard.haveLink"), Messages.get("sheet.wizard.useLink"),
-                    () -> dispatch.accept(new UiAction.UseLink()))
-                : SheetParts.textLink(Messages.get("sheet.wizard.noLink"), Messages.get("sheet.wizard.fromScratch"),
-                    () -> dispatch.accept(new UiAction.StartFromScratch())));
+            JPanel links = SheetParts.column();
+            if (creating || recovering) {
+                SheetParts.stack(links, 0, SheetParts.textLink(Messages.get("sheet.wizard.haveLink"),
+                    Messages.get("sheet.wizard.useLink"), () -> dispatch.accept(new UiAction.UseLink())));
+            } else {
+                SheetParts.stack(links, 0, SheetParts.textLink(Messages.get("sheet.wizard.noLink"),
+                    Messages.get("sheet.wizard.fromScratch"), () -> dispatch.accept(new UiAction.StartFromScratch())));
+                SheetParts.stack(links, 4, SheetParts.textLink(Messages.get("sheet.wizard.haveOwn"),
+                    Messages.get("sheet.wizard.recoverLink"), () -> dispatch.accept(new UiAction.StartRecovery())));
+            }
+            west.add(links);
         }
         footer.add(SheetParts.footer(buttons.toArray(JButton[]::new)), BorderLayout.EAST);
         return footer;

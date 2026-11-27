@@ -121,6 +121,14 @@ public final class Reducer {
                 ? state.withSheet(wizard.withCreation(wizard.creation() == null ? Sheet.Creation.start()
                     : wizard.creation().withVersionsError(null)))
                 : state;
+            case UiAction.StartRecovery a -> state.sheet() instanceof Sheet.AddPack wizard
+                ? state.withSheet(wizard.withRecovery(Sheet.Recovery.start())) : state;
+            case UiAction.RecoveryLoaded a -> updateRecovery(state, recovery -> recovery.withRepos(a.repos()));
+            case UiAction.RecoveryFailed a -> updateRecovery(state, recovery -> recovery.withError(a.failure()));
+            case UiAction.ChooseRecoveryRepo a -> updateRecovery(state, recovery -> recovery.withChosen(a.repo()));
+            case UiAction.LinkOwnerFound a -> state.sheet() instanceof Sheet.AddPack wizard
+                && wizard.link() instanceof LinkCheck.Valid valid && valid.url().equals(a.url())
+                ? state.withSheet(wizard.withOwnRepo(a.repo())) : state;
             case UiAction.UseLink a -> state.sheet() instanceof Sheet.AddPack wizard
                 ? state.withSheet(wizard.withCreation(null)) : state;
             case UiAction.EditNewPack a -> updateCreation(state,
@@ -422,7 +430,16 @@ public final class Reducer {
     private static UiState updateCreation(UiState state, UnaryOperator<Sheet.Creation> change) {
         return state.sheet() instanceof Sheet.AddPack wizard && wizard.creation() != null
             ? state.withSheet(new Sheet.AddPack(wizard.firstRun(), wizard.step(), wizard.url(), wizard.link(),
-                wizard.folders(), wizard.chosen(), wizard.error(), change.apply(wizard.creation())))
+                wizard.folders(), wizard.chosen(), wizard.error(), change.apply(wizard.creation()), null,
+                wizard.ownRepo()))
+            : state;
+    }
+
+    private static UiState updateRecovery(UiState state, UnaryOperator<Sheet.Recovery> change) {
+        return state.sheet() instanceof Sheet.AddPack wizard && wizard.recovery() != null
+            ? state.withSheet(new Sheet.AddPack(wizard.firstRun(), wizard.step(), wizard.url(), wizard.link(),
+                wizard.folders(), wizard.chosen(), wizard.error(), null, change.apply(wizard.recovery()),
+                wizard.ownRepo()))
             : state;
     }
 
