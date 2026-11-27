@@ -40,7 +40,15 @@ public final class ImageCache {
         Path part = Files.createTempFile(dir, "img", ".part");
         try {
             Files.write(part, bytes);
-            AtomicFiles.move(part, file);
+            try {
+                AtomicFiles.move(part, file);
+            } catch (IOException e) {
+                // Windows refuses to replace a file another thread is replacing; the name is the URL's hash, so
+                // the winner wrote the same bytes
+                if (!Files.isRegularFile(file)) {
+                    throw e;
+                }
+            }
         } finally {
             Files.deleteIfExists(part);
         }
