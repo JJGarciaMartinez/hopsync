@@ -152,27 +152,50 @@ public final class PackEditor {
     }
 
     /**
-     * Copies a jar the player picked into the pack's own mods and lists it; a jar with the same name is replaced.
+     * What adding several own jars did.
      *
-     * @return the jar's file name
+     * @param added    file names of the jars now in the pack
+     * @param rejected file names that were skipped: not a {@code .jar}, or a name that is not safe to write
      */
-    public String addOwnJar(String packId, Path jar) throws IOException {
-        PackDefinition definition = definition(packId);
-        String file = jar.getFileName().toString();
-        if (!file.toLowerCase(Locale.ROOT).endsWith(".jar") || !SafePaths.isSafeFileName(file)) {
-            throw new SyncException(new SyncFailure.UnsafePath(file));
+    public record OwnJars(List<String> added, List<String> rejected) {
+        public OwnJars {
+            added = List.copyOf(added);
+            rejected = List.copyOf(rejected);
         }
+    }
+
+    /**
+     * Copies the jars the player picked into the pack's own mods and lists them, saving the definition once; a jar
+     * with the same name is replaced. A jar that cannot be added is skipped and reported, the others still go in.
+     *
+     * @throws SyncException with {@link SyncFailure.UnsafePath} when none of the jars could be added
+     */
+    public OwnJars addOwnJars(String packId, List<Path> jars) throws IOException {
+        PackDefinition definition = definition(packId);
         Path ownMods = definitions.folder(packId).resolve(DefinitionResolver.OWN_MODS);
-        Files.createDirectories(ownMods);
-        Files.copy(jar, SafePaths.resolveInside(ownMods, file), StandardCopyOption.REPLACE_EXISTING);
-        boolean listed = definition.mods().stream()
-            .anyMatch(mod -> mod instanceof PackDefinition.OwnMod own && own.file().equals(file));
-        if (!listed) {
-            List<PackDefinition.Mod> mods = new ArrayList<>(definition.mods());
-            mods.add(new PackDefinition.OwnMod(file));
+        List<PackDefinition.Mod> mods = new ArrayList<>(definition.mods());
+        List<String> added = new ArrayList<>();
+        List<String> rejected = new ArrayList<>();
+        for (Path jar : jars) {
+            String file = jar.getFileName().toString();
+            if (!file.toLowerCase(Locale.ROOT).endsWith(".jar") || !SafePaths.isSafeFileName(file)) {
+                rejected.add(file);
+                continue;
+            }
+            Files.createDirectories(ownMods);
+            Files.copy(jar, SafePaths.resolveInside(ownMods, file), StandardCopyOption.REPLACE_EXISTING);
+            added.add(file);
+            if (mods.stream().noneMatch(mod -> mod instanceof PackDefinition.OwnMod own && own.file().equals(file))) {
+                mods.add(new PackDefinition.OwnMod(file));
+            }
+        }
+        if (added.isEmpty() && !rejected.isEmpty()) {
+            throw new SyncException(new SyncFailure.UnsafePath(rejected.getFirst()));
+        }
+        if (mods.size() != definition.mods().size()) {
             registry.saveDefinition(packId, definition.withMods(mods));
         }
-        return file;
+        return new OwnJars(added, rejected);
     }
 
     /** A mod's versions for the pack's Minecraft version and loader, newest first. */

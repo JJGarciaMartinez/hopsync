@@ -132,7 +132,7 @@ public sealed interface UiAction {
     record AddCatalogMod(String projectId) implements UiAction {}
 
     /** A jar the player picked, copied into the pack as one of its own mods. */
-    record AddOwnJar(String packId, Path jar) implements UiAction {}
+    record AddOwnJars(String packId, List<Path> jars) implements UiAction {}
 
     /** @param projectId the catalog project added, or {@code null} for an own jar */
     record ModAdded(String projectId, Sheet.Added result, Set<String> projects) implements UiAction {}

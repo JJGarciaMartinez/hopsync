@@ -213,15 +213,28 @@ class PackEditorTest {
     void ownJarsAreCopiedIntoThePackAndListedOnce() throws IOException {
         Path jar = Files.writeString(dir.resolve("mine.jar"), "v1");
 
-        assertEquals("mine.jar", editor.addOwnJar(pack.id(), jar));
+        assertEquals(List.of("mine.jar"), editor.addOwnJars(pack.id(), List.of(jar)).added());
         Files.writeString(jar, "v2");
-        editor.addOwnJar(pack.id(), jar);
+        editor.addOwnJars(pack.id(), List.of(jar));
 
         assertEquals(List.of(new PackDefinition.OwnMod("mine.jar")), mods());
         assertEquals("v2", Files.readString(dir.resolve("packs").resolve(pack.id()).resolve("local-mods/mine.jar")));
         SyncException notAJar = assertThrows(SyncException.class,
-            () -> editor.addOwnJar(pack.id(), Files.writeString(dir.resolve("notes.txt"), "x")));
+            () -> editor.addOwnJars(pack.id(), List.of(Files.writeString(dir.resolve("notes.txt"), "x"))));
         assertInstanceOf(SyncFailure.UnsafePath.class, notAJar.failure());
+    }
+
+    @Test
+    void severalOwnJarsGoInTogetherAndABadOneIsSkipped() throws IOException {
+        Path a = Files.writeString(dir.resolve("a.jar"), "a");
+        Path b = Files.writeString(dir.resolve("b.jar"), "b");
+        Path notes = Files.writeString(dir.resolve("notes.txt"), "x");
+
+        PackEditor.OwnJars result = editor.addOwnJars(pack.id(), List.of(a, notes, b));
+
+        assertEquals(List.of("a.jar", "b.jar"), result.added());
+        assertEquals(List.of("notes.txt"), result.rejected());
+        assertEquals(List.of(new PackDefinition.OwnMod("a.jar"), new PackDefinition.OwnMod("b.jar")), mods());
     }
 
     @Test
@@ -230,7 +243,7 @@ class PackEditorTest {
         versions.put("iris", List.of(version("i1", "iris", "1.8", true)));
         editor.addFromCatalog(pack.id(), "sodium");
         editor.addFromCatalog(pack.id(), "iris");
-        editor.addOwnJar(pack.id(), Files.writeString(dir.resolve("mine.jar"), "jar"));
+        editor.addOwnJars(pack.id(), List.of(Files.writeString(dir.resolve("mine.jar"), "jar")));
 
         assertEquals(List.of("s2", "s1"), editor.versions(pack.id(), "sodium").stream().map(CatalogVersion::id).toList());
         editor.changeVersion(pack.id(), "sodium-slug", "s1");
