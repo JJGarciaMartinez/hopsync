@@ -244,8 +244,8 @@ More detail:
 
 ## Brand
 
-The visual identity is documented in [brand/BRAND.md](brand/BRAND.md): the mark "Tu caja", the palette "Tinta,
-turquesa y coral", the type and the voice. Its tokens and assets are generated from the app's own theme and
+The visual identity is documented in [brand/BRAND.md](brand/BRAND.md) (written in Spanish): the mark "Your box", the palette
+"Ink, turquoise and coral", the type and the voice. Its tokens and assets are generated from the app's own theme and
 drawing code (`./gradlew brandAssets`), so the app and the brand sheet never drift apart.
 
 ## Requirements
