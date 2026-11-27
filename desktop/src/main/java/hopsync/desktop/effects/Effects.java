@@ -12,7 +12,9 @@ import hopsync.core.port.SecretStore;
 import hopsync.core.session.PackSessions;
 import hopsync.core.session.UpdateState;
 import hopsync.core.usecase.DefinitionResolver;
+import hopsync.core.port.PackOwnership;
 import hopsync.core.usecase.PackEditor;
+import hopsync.core.usecase.PackImporter;
 import hopsync.core.usecase.PackPublishing;
 import hopsync.desktop.config.AppVersion;
 import hopsync.desktop.config.ReleaseVersion;
@@ -71,11 +73,14 @@ public final class Effects {
      * @param secrets      the system keychain, holding the GitHub token
      * @param gitHub       signs the player in to GitHub
      * @param publishing   publishes created packs
+     * @param importer     brings a published pack back for editing
+     * @param ownership    tells which published packs are the player's
      * @param releases     HopSync's own releases, to offer a newer version
      */
     public Effects(Store store, PackRegistry registry, PackSessions sessions, ManifestService manifests,
                    ModCatalog catalog, DefinitionResolver createdPacks, PackEditor editor, SecretStore secrets,
-                   GitHubAuth gitHub, PackPublishing publishing, ReleaseFeed releases, ModLoadService modLoadService,
+                   GitHubAuth gitHub, PackPublishing publishing, PackImporter importer, PackOwnership ownership,
+                   ReleaseFeed releases, ModLoadService modLoadService,
                    InstanceFinder instances, Executor background, Path settingsFile, Clock clock, Runnable exit) {
         this.store = store;
         this.createdPacks = createdPacks;
@@ -90,7 +95,8 @@ public final class Effects {
         this.background = background;
         this.clock = clock;
         this.exit = exit;
-        this.sheets = new SheetEffects(store, registry, manifests, catalog, editor, instances, background, settingsFile,
+        this.sheets = new SheetEffects(store, registry, manifests, catalog, editor, importer, ownership, instances,
+            background, settingsFile,
             this::reloadPacks, packId -> sessions.get(packId).startUpdate(),
             packId -> sessions.get(packId).cancelUpdate(),
             packId -> sessions.get(packId).getPhase() == UpdateState.Phase.APPLYING);
@@ -217,8 +223,10 @@ public final class Effects {
         String name = Optional.ofNullable(state.packs().get(packId)).map(PackUiState::displayName).orElse(packId);
         sessions.drop(packId);
         Optional<String> link = registry.find(packId).flatMap(Pack::link);
+        // A published pack comes back from its repository; one only on this computer keeps its definition
+        boolean recoverable = state.packs().get(packId) != null && state.packs().get(packId).published();
         try {
-            registry.remove(packId);
+            registry.remove(packId, recoverable);
             // The cached manifest is HopSync's own file, unless another pack still uses the same link
             link.filter(url -> registry.packs().stream().noneMatch(other -> other.link().filter(url::equals).isPresent()))
                 .ifPresent(manifests::forget);

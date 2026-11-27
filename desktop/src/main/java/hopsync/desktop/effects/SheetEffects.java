@@ -11,7 +11,9 @@ import hopsync.core.pack.PackDefinition;
 import hopsync.core.pack.PackRegistry;
 import hopsync.core.pack.PackSource;
 import hopsync.core.port.ModCatalog;
+import hopsync.core.port.PackOwnership;
 import hopsync.core.usecase.PackEditor;
+import hopsync.core.usecase.PackImporter;
 import hopsync.desktop.config.AppVersion;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.logging.Logging;
@@ -34,6 +36,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -51,6 +54,10 @@ final class SheetEffects {
     private final ManifestService manifests;
     private final ModCatalog catalog;
     private final PackEditor editor;
+    private final PackImporter importer;
+    /** A recovery downloads for minutes; a second click on "Recuperar" must not start another one. */
+    private final AtomicBoolean recovering = new AtomicBoolean();
+    private final PackOwnership ownership;
     /** The sheet open before the action being handled; closing the add-mods sheet needs to know what it added. */
     private Sheet previous;
     private final InstanceFinder instances;
@@ -68,7 +75,7 @@ final class SheetEffects {
      * @param writing     whether a pack is writing files right now, when its settings cannot change
      */
     SheetEffects(Store store, PackRegistry registry, ManifestService manifests, ModCatalog catalog, PackEditor editor,
-                 InstanceFinder instances,
+                 PackImporter importer, PackOwnership ownership, InstanceFinder instances,
                  java.util.concurrent.Executor background, Path settingsFile, Runnable reloadPacks,
                  Consumer<String> checkPack, Consumer<String> dropUpdate, Predicate<String> writing) {
         this.store = store;
@@ -76,6 +83,8 @@ final class SheetEffects {
         this.manifests = manifests;
         this.catalog = catalog;
         this.editor = editor;
+        this.importer = importer;
+        this.ownership = ownership;
         this.instances = instances;
         this.background = background;
         this.settingsFile = settingsFile;
@@ -115,6 +124,10 @@ final class SheetEffects {
             case UiAction.CheckLink a -> fetchLink(state.sheet());
             case UiAction.StartFromScratch a when state.sheet() instanceof Sheet.AddPack wizard
                 && wizard.creation() != null && wizard.creation().versions() == null -> loadGameVersions();
+            case UiAction.StartRecovery a when state.sheet() instanceof Sheet.AddPack wizard
+                && wizard.recovery() != null && wizard.recovery().repos() == null -> loadOwnedRepos();
+            case UiAction.GitHubConnected a when state.sheet() instanceof Sheet.AddPack wizard
+                && wizard.recovery() != null -> loadOwnedRepos();
             case UiAction.WizardNext a when state.sheet() instanceof Sheet.AddPack wizard && wizard.step() == 2 ->
                 findFolders();
             case UiAction.ChooseFolder a -> checkFolder(a.path(), state.sheet());
@@ -136,11 +149,34 @@ final class SheetEffects {
             case null, default -> null;
         };
         if (!(link instanceof LinkCheck.Checking checking)) return;
+        boolean adding = sheet instanceof Sheet.AddPack;
         background.execute(() -> {
             try {
                 store.dispatch(new UiAction.LinkChecked(checking.url(), manifests.fetchManifest(checking.url())));
             } catch (Exception e) {
                 store.dispatch(new UiAction.LinkFailed(checking.url(), SyncFailures.from(e, "")));
+                return;
+            }
+            if (adding) findOwner(checking.url());
+        });
+    }
+
+    /** A link of the player's own repository can be added for editing; failing to tell only means it is followed. */
+    private void findOwner(String url) {
+        try {
+            ownership.ownedRepoOf(url).ifPresent(repo -> store.dispatch(new UiAction.LinkOwnerFound(url, repo)));
+        } catch (IOException | RuntimeException e) {
+            LOG.log(System.Logger.Level.WARNING, "Could not tell whether " + url + " is the player's own pack", e);
+        }
+    }
+
+    private void loadOwnedRepos() {
+        background.execute(() -> {
+            try {
+                store.dispatch(new UiAction.RecoveryLoaded(ownership.ownedRepos()));
+            } catch (Exception e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not list the player's published packs", e);
+                store.dispatch(new UiAction.RecoveryFailed(SyncFailures.from(e, "")));
             }
         });
     }
@@ -288,22 +324,68 @@ final class SheetEffects {
             if (wizard.creation().ready()) createPack(wizard.creation(), wizard.chosen().path());
             return;
         }
+        Path folder = wizard.chosen().path();
+        if (wizard.recovery() != null) {
+            if (wizard.recovery().chosen() != null) recoverPack(wizard.recovery().chosen(), folder, null);
+            return;
+        }
         if (!(wizard.link() instanceof LinkCheck.Valid valid)) {
             return;
         }
-        Path folder = wizard.chosen().path();
+        if (wizard.ownRepo() != null) {
+            recoverPack(wizard.ownRepo(), folder, valid);
+        } else {
+            background.execute(() -> followLink(valid, folder));
+        }
+    }
+
+    private void followLink(LinkCheck.Valid valid, Path folder) {
+        try {
+            checkWritable(folder);
+            Pack added = registry.add(valid.url(), folder);
+            registry.rememberName(added.id(), valid.info().name());
+            registry.select(added.id());
+            store.dispatch(new UiAction.SheetSaved());
+            reloadPacks.run();
+            checkPack.accept(added.id());
+        } catch (IOException | RuntimeException e) {
+            LOG.log(System.Logger.Level.WARNING, "Could not add the pack " + valid.url(), e);
+            store.dispatch(new UiAction.SheetFailed(SyncFailures.from(e, folder.toString())));
+        }
+    }
+
+    /**
+     * Brings the player's published pack back for editing.
+     *
+     * @param followed the checked link the repository came from: a repository HopSync did not create has no
+     *                 {@code hopsync.toml}, so the link is followed as any other; {@code null} when the player
+     *                 picked the repository
+     */
+    private void recoverPack(String repo, Path folder, LinkCheck.Valid followed) {
+        if (!recovering.compareAndSet(false, true)) {
+            return;
+        }
         background.execute(() -> {
             try {
                 checkWritable(folder);
-                Pack added = registry.add(valid.url(), folder);
-                registry.rememberName(added.id(), valid.info().name());
+                Pack added = importer.importPack(repo, folder,
+                    progress -> store.dispatch(new UiAction.RecoveryProgress(progress.done(), progress.total())));
                 registry.select(added.id());
                 store.dispatch(new UiAction.SheetSaved());
                 reloadPacks.run();
                 checkPack.accept(added.id());
-            } catch (IOException | RuntimeException e) {
-                LOG.log(System.Logger.Level.WARNING, "Could not add the pack " + valid.url(), e);
+            } catch (SyncException e) {
+                if (followed != null && e.failure() instanceof SyncFailure.NotAHopSyncRepo) {
+                    followLink(followed, folder);
+                    return;
+                }
+                LOG.log(System.Logger.Level.WARNING, "Could not recover the pack " + repo, e);
                 store.dispatch(new UiAction.SheetFailed(SyncFailures.from(e, folder.toString())));
+            } catch (IOException | RuntimeException e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not recover the pack " + repo, e);
+                store.dispatch(new UiAction.SheetFailed(SyncFailures.from(e, folder.toString())));
+            } finally {
+                recovering.set(false);
             }
         });
     }

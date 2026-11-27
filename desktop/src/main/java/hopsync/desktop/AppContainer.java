@@ -10,10 +10,12 @@ import hopsync.core.session.PackSessions;
 import hopsync.core.usecase.DefinitionResolver;
 import hopsync.core.usecase.ModUpdateService;
 import hopsync.core.usecase.PackEditor;
+import hopsync.core.usecase.PackImporter;
 import hopsync.core.usecase.PackPublishing;
 import hopsync.desktop.config.AppConfig;
 import hopsync.platform.github.GitHubApi;
 import hopsync.platform.github.GitHubAuth;
+import hopsync.platform.github.GitHubPacks;
 import hopsync.platform.github.GitHubPublisher;
 import hopsync.platform.github.ReleaseFeed;
 import hopsync.desktop.kit.RemoteImages;
@@ -48,6 +50,8 @@ public final class AppContainer {
     private final SecretStore secrets = SystemKeychain.forCurrentOs();
     private final GitHubAuth gitHubAuth;
     private final PackPublishing publishing;
+    private final PackImporter packImporter;
+    private final GitHubPacks gitHubPacks;
     private final ReleaseFeed releaseFeed;
     private final PackSessions packSessions;
     private final RemoteImages remoteImages;
@@ -70,6 +74,9 @@ public final class AppContainer {
         gitHubAuth = new GitHubAuth(config.githubClientId(), config.network());
         publishing = new PackPublishing(packRegistry, definitions,
             new GitHubPublisher(new GitHubApi(config.network()), secrets, GitHubAuth.TOKEN_KEY));
+        gitHubPacks = new GitHubPacks(new GitHubApi(config.network()), secrets, GitHubAuth.TOKEN_KEY,
+            downloadService::getBytes);
+        packImporter = new PackImporter(gitHubPacks, modCatalog, packRegistry, definitions);
         ModUpdateService modUpdateService = new ModUpdateService(manifestService, definitionResolver, downloadService,
             packRegistry::parallelDownloads);
         ApplyQueue applyQueue = new ApplyQueue(backgroundExecutor, packRegistry::chainQueue);
@@ -125,6 +132,15 @@ public final class AppContainer {
 
     public PackPublishing publishing() {
         return publishing;
+    }
+
+    public PackImporter packImporter() {
+        return packImporter;
+    }
+
+    /** The player's published packs on GitHub: which are theirs. */
+    public GitHubPacks gitHubPacks() {
+        return gitHubPacks;
     }
 
     public ReleaseFeed releaseFeed() {

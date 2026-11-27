@@ -136,7 +136,7 @@ class SheetEffectsDetailTest {
 
         Store store = new Store(UiState.INITIAL);
         store.addEffect((action, state) -> dispatched.add(action));
-        effects = new SheetEffects(store, registry, null, catalog, editor, new InstanceFinder("Linux", Map.of(), dir),
+        effects = new SheetEffects(store, registry, null, catalog, editor, null, null, new InstanceFinder("Linux", Map.of(), dir),
             Runnable::run, dir.resolve("settings.json"), () -> { }, checked::add, id -> { }, id -> false);
     }
 

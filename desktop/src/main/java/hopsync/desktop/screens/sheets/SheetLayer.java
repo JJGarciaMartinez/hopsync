@@ -95,11 +95,11 @@ public final class SheetLayer extends JPanel {
         Sheet sheet = state.sheet();
         JComponent card = switch (sheet) {
             case Sheet.AddPack add when add.firstRun() -> {
-                firstRunWizard.render(add);
+                firstRunWizard.render(add, state.account());
                 yield null;
             }
             case Sheet.AddPack add -> {
-                wizard.render(add);
+                wizard.render(add, state.account());
                 yield wizardCard;
             }
             case Sheet.PackSettings settings -> {

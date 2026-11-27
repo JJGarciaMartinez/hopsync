@@ -5,6 +5,7 @@ import hopsync.core.manifest.ConfigEntry;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.pack.Pack;
+import hopsync.core.publish.FetchProgress;
 import hopsync.core.sync.SyncPlan;
 import hopsync.desktop.store.PackUiState.Progress;
 import hopsync.desktop.store.PackUiState.Result;
@@ -98,8 +99,8 @@ public final class Reducer {
             case UiAction.Escape a when state.sheet() instanceof Sheet.AddMods sheet && sheet.detail() != null ->
                 state.withSheet(sheet.withoutDetail());
             case UiAction.Escape a -> reduce(state, new UiAction.CloseSheet());
-            case UiAction.CloseSheet a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.firstRun() ? state
-                : state.withSheet(null);
+            case UiAction.CloseSheet a -> state.sheet() instanceof Sheet.AddPack wizard
+                && (wizard.firstRun() || wizard.working() != null) ? state : state.withSheet(null);
             case UiAction.SheetSaved a -> state.withSheet(null);
             case UiAction.SheetFailed a -> switch (state.sheet()) {
                 case Sheet.AddPack wizard -> state.withSheet(wizard.withError(a.failure()));
@@ -121,13 +122,21 @@ public final class Reducer {
                 ? state.withSheet(wizard.withCreation(wizard.creation() == null ? Sheet.Creation.start()
                     : wizard.creation().withVersionsError(null)))
                 : state;
+            case UiAction.StartRecovery a -> state.sheet() instanceof Sheet.AddPack wizard
+                ? state.withSheet(wizard.withRecovery(Sheet.Recovery.start())) : state;
+            case UiAction.RecoveryLoaded a -> updateRecovery(state, recovery -> recovery.withRepos(a.repos()));
+            case UiAction.RecoveryFailed a -> updateRecovery(state, recovery -> recovery.withError(a.failure()));
+            case UiAction.ChooseRecoveryRepo a -> updateRecovery(state, recovery -> recovery.withChosen(a.repo()));
+            case UiAction.LinkOwnerFound a -> state.sheet() instanceof Sheet.AddPack wizard
+                && wizard.link() instanceof LinkCheck.Valid valid && valid.url().equals(a.url())
+                ? state.withSheet(wizard.withOwnRepo(a.repo())) : state;
             case UiAction.UseLink a -> state.sheet() instanceof Sheet.AddPack wizard
                 ? state.withSheet(wizard.withCreation(null)) : state;
             case UiAction.EditNewPack a -> updateCreation(state,
                 creation -> creation.withDetails(a.name(), a.minecraft(), a.loader(), a.server()));
             case UiAction.GameVersionsLoaded a -> updateCreation(state, creation -> creation.withVersions(a.versions()));
             case UiAction.GameVersionsFailed a -> updateCreation(state, creation -> creation.withVersionsError(a.failure()));
-            case UiAction.WizardBack a -> state.sheet() instanceof Sheet.AddPack wizard
+            case UiAction.WizardBack a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.working() == null
                 ? state.withSheet(wizard.withStep(1)) : state;
             case UiAction.FoldersFound a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.step() == 2
                 ? state.withSheet(wizard.withFolders(a.folders())) : state;
@@ -139,8 +148,11 @@ public final class Reducer {
                 && !a.address().equals(settings.server()) ? state.withSheet(settings.withServer(a.address())) : state;
             case UiAction.SetPreferences a -> state.sheet() instanceof Sheet.AppSettings settings
                 ? state.withSheet(new Sheet.AppSettings(settings.section(), a.preferences())) : state;
-            // Saved by Effects, which answers with SheetSaved or SheetFailed
-            case UiAction.FinishAddPack a -> state;
+            // Saved by Effects, which answers with SheetSaved or SheetFailed; a recovery takes long, so it shows at once
+            case UiAction.FinishAddPack a -> state.sheet() instanceof Sheet.AddPack wizard && recovers(wizard)
+                ? state.withSheet(wizard.withWorking(new FetchProgress(0, 0))) : state;
+            case UiAction.RecoveryProgress a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.working() != null
+                ? state.withSheet(wizard.withWorking(new FetchProgress(a.done(), a.total()))) : state;
             case UiAction.SavePackSettings a -> state;
             case UiAction.SaveAppSettings a -> state;
             case UiAction.CopyDiagnostics a -> state;
@@ -422,7 +434,24 @@ public final class Reducer {
     private static UiState updateCreation(UiState state, UnaryOperator<Sheet.Creation> change) {
         return state.sheet() instanceof Sheet.AddPack wizard && wizard.creation() != null
             ? state.withSheet(new Sheet.AddPack(wizard.firstRun(), wizard.step(), wizard.url(), wizard.link(),
-                wizard.folders(), wizard.chosen(), wizard.error(), change.apply(wizard.creation())))
+                wizard.folders(), wizard.chosen(), wizard.error(), change.apply(wizard.creation()), null,
+                wizard.ownRepo(), wizard.working()))
+            : state;
+    }
+
+    /** Step 2 of a wizard that brings a published pack back, with a folder it can use and nothing already running. */
+    private static boolean recovers(Sheet.AddPack wizard) {
+        boolean recovering = wizard.recovery() != null ? wizard.recovery().chosen() != null
+            : wizard.creation() == null && wizard.link() instanceof LinkCheck.Valid && wizard.ownRepo() != null;
+        return recovering && wizard.step() == 2 && wizard.working() == null && wizard.chosen() != null
+            && wizard.chosen().isFree();
+    }
+
+    private static UiState updateRecovery(UiState state, UnaryOperator<Sheet.Recovery> change) {
+        return state.sheet() instanceof Sheet.AddPack wizard && wizard.recovery() != null
+            ? state.withSheet(new Sheet.AddPack(wizard.firstRun(), wizard.step(), wizard.url(), wizard.link(),
+                wizard.folders(), wizard.chosen(), wizard.error(), null, change.apply(wizard.recovery()),
+                wizard.ownRepo(), wizard.working()))
             : state;
     }
 

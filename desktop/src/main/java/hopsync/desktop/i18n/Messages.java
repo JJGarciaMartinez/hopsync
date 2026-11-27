@@ -85,6 +85,8 @@ public final class Messages {
             case SyncFailure.GitHubDenied f -> get("failure.githubDenied");
             case SyncFailure.GitHubSignedOut f -> get("failure.githubSignedOut");
             case SyncFailure.RepoNameTaken f -> get("failure.repoNameTaken", f.name());
+            case SyncFailure.NotRepoOwner f -> get("failure.notRepoOwner", f.repo());
+            case SyncFailure.NotAHopSyncRepo f -> get("failure.notAHopSyncRepo", f.repo());
             case SyncFailure.PublishBuildFailed f -> get("failure.publishBuildFailed");
             case SyncFailure.UnsupportedFormat f -> get("failure.unsupportedFormat", String.valueOf(f.found()), String.valueOf(f.supported()));
             case SyncFailure.HashMismatch f -> get("failure.hashMismatch", f.file());

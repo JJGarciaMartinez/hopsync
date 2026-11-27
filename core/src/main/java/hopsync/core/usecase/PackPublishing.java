@@ -70,7 +70,7 @@ public final class PackPublishing {
     }
 
     /** The configs and the player's own jars, by their path in a pack repository. */
-    private static Map<String, Path> files(PackDefinition definition, Path folder) throws IOException {
+    static Map<String, Path> files(PackDefinition definition, Path folder) throws IOException {
         Map<String, Path> files = new TreeMap<>();
         Path configs = folder.resolve(DefinitionResolver.CONFIGS);
         if (Files.isDirectory(configs)) {

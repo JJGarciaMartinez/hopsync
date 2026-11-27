@@ -71,6 +71,16 @@ public sealed interface SyncFailure {
         public String describe() { return "a repository named " + name + " already exists"; }
     }
 
+    /** The repository is not the player's own, so its pack cannot be recovered for editing. */
+    record NotRepoOwner(String repo) implements SyncFailure {
+        public String describe() { return "the signed-in player does not own " + repo; }
+    }
+
+    /** The repository has no {@code hopsync.toml} (or no branch to read it from): HopSync did not create it. */
+    record NotAHopSyncRepo(String repo) implements SyncFailure {
+        public String describe() { return repo + " holds no hopsync.toml"; }
+    }
+
     /** The pack repository's build did not publish the manifest; the page shows why. */
     record PublishBuildFailed(String url) implements SyncFailure {
         public String describe() { return "the pack repository's build failed: " + url; }

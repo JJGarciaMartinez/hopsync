@@ -2,12 +2,10 @@ package hopsync.desktop.screens.sheets;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.util.UIScale;
-import hopsync.core.failure.SyncFailure;
 import hopsync.core.pack.PackSettings;
 import hopsync.desktop.config.AppVersion;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.ButtonStyle;
-import hopsync.desktop.kit.Fonts;
 import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.SegmentedControl;
@@ -31,7 +29,6 @@ import javax.swing.JPanel;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 import java.awt.BorderLayout;
-import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -59,8 +56,7 @@ public final class AppSettingsView extends JPanel {
         PackSettings.MIN_PARALLEL_DOWNLOADS, PackSettings.MAX_PARALLEL_DOWNLOADS, 1));
     private final JPanel general = SheetParts.column();
     private final JPanel about = SheetParts.column();
-    private final JPanel account = SheetParts.column();
-    private Account shownAccount;
+    private final AccountPanel account;
     private final Path settingsFile;
     private UiState.AppUpdate shownUpdate;
     private final JPanel body = new JPanel(new BorderLayout());
@@ -71,6 +67,7 @@ public final class AppSettingsView extends JPanel {
     public AppSettingsView(Consumer<UiAction> dispatch, Path settingsFile) {
         super(new BorderLayout(0, UIScale.scale(16)));
         this.dispatch = dispatch;
+        this.account = new AccountPanel(dispatch, "sheet.account.why");
         this.settingsFile = settingsFile;
         setOpaque(false);
         body.setOpaque(false);
@@ -118,10 +115,7 @@ public final class AppSettingsView extends JPanel {
 
     /** @param appUpdate a newer release, shown on top of "Acerca de", or {@code null} */
     public void render(Sheet.AppSettings sheet, Account gitHub, UiState.AppUpdate appUpdate) {
-        if (!gitHub.equals(shownAccount)) {
-            shownAccount = gitHub;
-            renderAccount(gitHub);
-        }
+        account.render(gitHub);
         if (!Objects.equals(appUpdate, shownUpdate)) {
             shownUpdate = appUpdate;
             renderAbout(appUpdate);
@@ -158,58 +152,6 @@ public final class AppSettingsView extends JPanel {
             revalidate();
             repaint();
         }
-    }
-
-    /**
-     * Signed out: why connect, and "Conectar GitHub". Signing in: the code to type on GitHub and the button that
-     * copies it and opens the page. Signed in: who, and "Desconectar".
-     */
-    private void renderAccount(Account gitHub) {
-        account.removeAll();
-        SheetParts.stack(account, 0, SheetParts.label(Messages.get("sheet.account.github")));
-        if (!gitHub.available()) {
-            SheetParts.stack(account, 8, SheetParts.notice(Messages.failure(new SyncFailure.GitHubNotConfigured()),
-                Palette.update()));
-        } else if (gitHub.signedIn()) {
-            SheetParts.stack(account, 6, SheetParts.paragraph(Messages.get("sheet.account.signedIn", gitHub.login()),
-                Palette.text()));
-            JButton disconnect = SheetParts.button("sheet.account.disconnect", ButtonStyle.DANGER, dispatch,
-                new UiAction.DisconnectGitHub());
-            ButtonStyle.apply(disconnect, ButtonStyle.DANGER, ButtonStyle.SMALL);
-            SheetParts.stack(account, 12, disconnect);
-            SheetParts.stack(account, 10, SheetParts.hint(Messages.get("sheet.account.revokeHint")));
-        } else if (gitHub.connecting()) {
-            SheetParts.stack(account, 6, SheetParts.paragraph(Messages.get(gitHub.userCode() == null
-                ? "sheet.account.asking" : "sheet.account.typeCode"), Palette.textSecondary()));
-            if (gitHub.userCode() != null) {
-                JLabel code = new JLabel(gitHub.userCode());
-                code.setFont(new Font(Fonts.MONO_FAMILY, Font.BOLD, Math.round(getFont().getSize2D() * 2)));
-                code.getAccessibleContext().setAccessibleName(Messages.get("sheet.account.code", gitHub.userCode()));
-                JButton open = SheetParts.button("sheet.account.openGitHub", ButtonStyle.PRIMARY, dispatch,
-                    new UiAction.OpenGitHubDevice());
-                open.setIcon(Icons.get(Icons.Glyph.EXTERNAL));
-                open.setHorizontalTextPosition(JButton.LEFT);
-                SheetParts.stack(account, 12, code);
-                SheetParts.stack(account, 12, SheetParts.footer(SheetParts.button("sheet.cancel", ButtonStyle.SECONDARY,
-                    dispatch, new UiAction.CancelGitHubConnect()), open));
-                SheetParts.stack(account, 10, SheetParts.hint(Messages.get("sheet.account.waiting")));
-            }
-        } else {
-            SheetParts.stack(account, 6, SheetParts.paragraph(Messages.get("sheet.account.why"), Palette.textSecondary()));
-            if (gitHub.error() != null) {
-                SheetParts.stack(account, 10, SheetParts.notice(Messages.failure(gitHub.error()), Palette.error()));
-            }
-            JButton connect = SheetParts.button("sheet.account.connect", ButtonStyle.PRIMARY, dispatch,
-                new UiAction.ConnectGitHub());
-            connect.setEnabled(gitHub.known());
-            SheetParts.stack(account, 12, connect);
-            SheetParts.stack(account, 10, SheetParts.hint(Messages.get("sheet.account.scope")));
-        }
-        if (gitHub.known() && !gitHub.persistent()) {
-            SheetParts.stack(account, 12, SheetParts.notice(Messages.get("sheet.account.noKeychain"), Palette.update()));
-        }
-        account.revalidate();
-        account.repaint();
     }
 
     /** A newer release first, with "Descargar", then what a bug report needs and the button that copies it. */

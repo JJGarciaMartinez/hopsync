@@ -13,6 +13,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 /** The GitHub REST API with the player's token, answering parsed JSON. */
@@ -70,6 +71,14 @@ public class GitHubApi {
                 throw new SyncException(new SyncFailure.HttpStatus(status, request));
             }
             return map;
+        }
+
+        /** The answer as a JSON array, or a failure naming the request when GitHub refused it. */
+        List<?> array() throws SyncException {
+            if (!ok() || !(json instanceof List<?> list)) {
+                throw new SyncException(new SyncFailure.HttpStatus(status, request));
+            }
+            return list;
         }
 
         String text(String key) throws SyncException {

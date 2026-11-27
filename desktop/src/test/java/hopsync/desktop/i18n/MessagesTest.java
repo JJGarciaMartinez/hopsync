@@ -38,6 +38,8 @@ class MessagesTest {
         new SyncFailure.GitHubDenied(),
         new SyncFailure.GitHubSignedOut(),
         new SyncFailure.RepoNameTaken("mi-pack"),
+        new SyncFailure.NotRepoOwner("other/pack"),
+        new SyncFailure.NotAHopSyncRepo("player/notes"),
         new SyncFailure.PublishBuildFailed("https://github.com/p/r/actions/runs/1"),
         new SyncFailure.UnsupportedFormat(3, 2),
         new SyncFailure.HashMismatch("create.jar"),

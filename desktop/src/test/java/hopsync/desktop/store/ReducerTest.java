@@ -5,6 +5,7 @@ import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.publish.PublishStep;
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.publish.FetchProgress;
 import hopsync.core.pack.Pack;
 import org.junit.jupiter.api.Test;
 
@@ -694,6 +695,100 @@ class ReducerTest {
         Sheet.AddPack back = (Sheet.AddPack) reduce(loaded, new UiAction.UseLink()).sheet();
         assertNull(back.creation());
         assertFalse(back.canContinue(), "the link was never checked");
+    }
+
+    @Test
+    void recoveringAPublishedPackNeedsARepositoryBeforeContinuing() {
+        UiState recovering = reduce(loaded(), new UiAction.AddPack(), new UiAction.StartRecovery());
+        assertEquals(Sheet.Recovery.start(), wizard(recovering).recovery());
+        assertFalse(wizard(recovering).canContinue(), "nothing picked yet");
+
+        UiState listed = reduce(recovering, new UiAction.RecoveryLoaded(List.of("player/a", "player/b")));
+        assertNull(wizard(listed).recovery().chosen(), "two repositories: the player picks");
+        UiState picked = reduce(listed, new UiAction.ChooseRecoveryRepo("player/b"));
+        assertTrue(wizard(picked).canContinue());
+        assertEquals(2, wizard(reduce(picked, new UiAction.WizardNext())).step());
+
+        UiState late = reduce(picked, new UiAction.WizardNext(), new UiAction.RecoveryLoaded(List.of("player/b")));
+        assertEquals(2, wizard(late).step(), "a late answer does not take the player back to step 1");
+        assertEquals("player/b", wizard(late).recovery().chosen());
+
+        assertEquals("player/only", wizard(reduce(recovering, new UiAction.RecoveryLoaded(List.of("player/only"))))
+            .recovery().chosen(), "a single repository is preselected");
+    }
+
+    @Test
+    void aRecoveryFailureCanBeRetriedAndALinkLeavesRecovery() {
+        UiState recovering = reduce(loaded(), new UiAction.AddPack(), new UiAction.StartRecovery());
+        UiState signedOut = reduce(recovering, new UiAction.RecoveryFailed(new SyncFailure.GitHubSignedOut()));
+        assertEquals(new SyncFailure.GitHubSignedOut(), wizard(signedOut).recovery().error());
+
+        assertNull(wizard(reduce(signedOut, new UiAction.StartRecovery())).recovery().error());
+        assertNull(wizard(reduce(signedOut, new UiAction.UseLink())).recovery());
+        assertNull(wizard(reduce(signedOut, new UiAction.StartFromScratch())).recovery());
+        assertNull(wizard(reduce(reduce(loaded(), new UiAction.AddPack(), new UiAction.StartFromScratch()),
+            new UiAction.StartRecovery())).creation(), "recovering and creating exclude each other");
+    }
+
+    private static UiState recoveryFolderStep() {
+        GameFolder free = new GameFolder(GameFolder.Kind.OFFICIAL, null, Path.of("/games/.minecraft").toAbsolutePath(),
+            0, null);
+        return reduce(loaded(), new UiAction.AddPack(), new UiAction.StartRecovery(),
+            new UiAction.RecoveryLoaded(List.of("player/mi-pack")), new UiAction.WizardNext(),
+            new UiAction.FoldersFound(List.of(free)));
+    }
+
+    @Test
+    void recoveringShowsWorkAtOnceAndLocksTheWizardUntilItEnds() {
+        UiState step2 = recoveryFolderStep();
+        assertNull(wizard(step2).working());
+        assertNull(wizard(reduce(step2, new UiAction.RecoveryProgress(1, 2))).working(), "nothing is running yet");
+
+        UiState working = reduce(step2, new UiAction.FinishAddPack());
+        assertEquals(new FetchProgress(0, 0), wizard(working).working());
+        UiState halfway = reduce(working, new UiAction.RecoveryProgress(5, 10));
+        assertEquals(new FetchProgress(5, 10), wizard(halfway).working());
+        assertEquals(new FetchProgress(5, 10), wizard(reduce(halfway, new UiAction.FinishAddPack())).working(),
+            "a second click does not start over");
+
+        assertEquals(2, wizard(reduce(halfway, new UiAction.WizardBack())).step(), "cannot go back meanwhile");
+        assertEquals(halfway.sheet(), reduce(halfway, new UiAction.CloseSheet()).sheet());
+        assertEquals(halfway.sheet(), reduce(halfway, new UiAction.Escape()).sheet());
+
+        UiState failed = reduce(halfway, new UiAction.SheetFailed(new SyncFailure.Network("github.com", "timeout")));
+        assertNull(wizard(failed).working());
+        assertEquals(new SyncFailure.Network("github.com", "timeout"), wizard(failed).error());
+        assertEquals(1, wizard(reduce(failed, new UiAction.WizardBack())).step());
+        assertNull(reduce(halfway, new UiAction.SheetSaved()).sheet());
+    }
+
+    @Test
+    void onlyARecoveryShowsWorkWhenFinishing() {
+        GameFolder free = new GameFolder(GameFolder.Kind.OFFICIAL, null, Path.of("/games/.minecraft").toAbsolutePath(),
+            0, null);
+        String url = "https://example.org/pack.json";
+        UiState followed = reduce(linkChecked(url), new UiAction.WizardNext(), new UiAction.FoldersFound(List.of(free)));
+        assertNull(wizard(reduce(followed, new UiAction.FinishAddPack())).working(), "following a link is quick");
+
+        UiState claimed = reduce(linkChecked(url), new UiAction.LinkOwnerFound(url, "player/mi-pack"),
+            new UiAction.WizardNext(), new UiAction.FoldersFound(List.of(free)));
+        assertEquals(new FetchProgress(0, 0), wizard(reduce(claimed, new UiAction.FinishAddPack())).working(),
+            "claiming an own pack downloads it");
+    }
+
+    @Test
+    void aCheckedLinkOfTheOwnRepositoryIsRememberedUntilTheLinkChanges() {
+        String url = "https://github.com/player/mi-pack/releases/download/hopsync/manifest.json";
+        UiState checked = linkChecked(url);
+
+        assertNull(wizard(checked).ownRepo());
+        assertNull(wizard(reduce(checked, new UiAction.LinkOwnerFound("https://example.org/other.json", "player/x")))
+            .ownRepo(), "the answer is for another link");
+        UiState owned = reduce(checked, new UiAction.LinkOwnerFound(url, "player/mi-pack"));
+        assertEquals("player/mi-pack", wizard(owned).ownRepo());
+        assertNull(wizard(reduce(owned, new UiAction.SetLinkUrl(url + "?x"))).ownRepo());
+        assertNull(wizard(reduce(loaded(), new UiAction.AddPack(), new UiAction.LinkOwnerFound(url, "player/mi-pack")))
+            .ownRepo(), "an unchecked link is not claimed");
     }
 
     @Test

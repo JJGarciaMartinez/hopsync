@@ -11,6 +11,7 @@ import hopsync.core.event.SyncEvent;
 import hopsync.core.publish.PublishStep;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.pack.Pack;
+import hopsync.core.pack.PackSource;
 import hopsync.desktop.kit.HopSyncDark;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.RemoteImages;
@@ -307,8 +308,34 @@ class ScreensTest {
         UiState scratch = reduce(empty, new UiAction.StartFromScratch());
         UiState described = reduce(scratch, new UiAction.GameVersionsLoaded(List.of("1.21.2", "1.21.1")),
             new UiAction.EditNewPack("Aventura con amigos", "1.21.1", "neoforge", ""));
+        UiState recovering = reduce(add, new UiAction.StartRecovery());
+        UiState signedIn = reduce(recovering, new UiAction.AccountLoaded("player", true, true));
+        UiState listed = reduce(signedIn, new UiAction.RecoveryLoaded(List.of("player/mi-pack", "player/otro-pack")));
+        UiState published = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(new Pack("published",
+            new PackSource.Local(new PackSource.Publication("player/mi-pack",
+                "https://github.com/player/mi-pack/releases/download/hopsync/manifest.json", "h")),
+            Path.of("/games/published").toAbsolutePath(), "Mi pack")), "published"));
         return List.of(
             empty,
+            recovering,
+            reduce(recovering, new UiAction.RecoveryFailed(new SyncFailure.GitHubSignedOut())),
+            reduce(recovering, new UiAction.AccountLoaded(null, true, true), new UiAction.ConnectGitHub(),
+                new UiAction.GitHubCodeShown("ABCD-1234", "https://github.com/login/device"),
+                new UiAction.RecoveryFailed(new SyncFailure.GitHubSignedOut())),
+            reduce(recovering, new UiAction.RecoveryFailed(new SyncFailure.Network("api.github.com", "timeout"))),
+            reduce(signedIn, new UiAction.RecoveryLoaded(List.of())),
+            listed,
+            reduce(listed, new UiAction.ChooseRecoveryRepo("player/otro-pack")),
+            reduce(listed, new UiAction.ChooseRecoveryRepo("player/otro-pack"), new UiAction.WizardNext(),
+                new UiAction.FoldersFound(List.of(free))),
+            reduce(valid, new UiAction.LinkOwnerFound(url, "player/mi-pack")),
+            reduce(listed, new UiAction.ChooseRecoveryRepo("player/otro-pack"), new UiAction.WizardNext(),
+                new UiAction.FoldersFound(List.of(free)), new UiAction.FinishAddPack()),
+            reduce(listed, new UiAction.ChooseRecoveryRepo("player/otro-pack"), new UiAction.WizardNext(),
+                new UiAction.FoldersFound(List.of(free)), new UiAction.FinishAddPack(),
+                new UiAction.RecoveryProgress(37, 186)),
+            reduce(published, new UiAction.OpenSettings(), new UiAction.SelectPackSection(Sheet.PackSettings.Section.REMOVE)),
+            reduce(created(), new UiAction.OpenSettings(), new UiAction.SelectPackSection(Sheet.PackSettings.Section.REMOVE)),
             scratch,
             reduce(scratch, new UiAction.GameVersionsFailed(new SyncFailure.Network("api.modrinth.com", "timeout"))),
             described,
