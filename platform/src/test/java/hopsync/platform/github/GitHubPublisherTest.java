@@ -38,6 +38,8 @@ class GitHubPublisherTest {
     private int generateStatus = 201;
     private String newTree = "tree-2";
     private String conclusion = "success";
+    private final List<String> releaseAssets = new ArrayList<>(List.of("manifest.json", "4833657844-mine.jar",
+        "27c74670ad-keep.json", "0123456789-create_connected.jar"));
 
     /** A GitHub that knows one template copy with the demo's files. */
     private final GitHubApi.Transport github = (method, url, json, token) -> {
@@ -68,7 +70,15 @@ class GitHubPublisherTest {
             case "GET /repos/player/mi-pack/actions/runs" -> new GitHubApi.Response(200, "{\"workflow_runs\":[{"
                 + "\"path\":\".github/workflows/build.yml\",\"status\":\"completed\",\"conclusion\":\"" + conclusion
                 + "\",\"html_url\":\"https://github.com/player/mi-pack/actions/runs/7\"}]}");
-            default -> throw new AssertionError("Unexpected call " + method + " " + path);
+            case "GET /repos/player/mi-pack/releases/tags/hopsync" -> new GitHubApi.Response(200, "{\"assets\":["
+                + releaseAssets.stream().map(name -> "{\"id\":" + (name.hashCode() & 0xffff) + ",\"name\":\"" + name + "\"}")
+                    .collect(Collectors.joining(",")) + "]}");
+            default -> {
+                if (method.equals("DELETE") && path.startsWith("/repos/player/mi-pack/releases/assets/")) {
+                    yield new GitHubApi.Response(204, "");
+                }
+                throw new AssertionError("Unexpected call " + method + " " + path);
+            }
         };
     };
 
@@ -104,6 +114,24 @@ class GitHubPublisherTest {
             "local-mods/mine.jar", "blob", "configs/demo.json", "deleted", "local-mods/demo.jar", "deleted",
             "manifest.json", "deleted", ".github/workflows/check-updates.yml", "deleted"), entries);
         assertTrue(calls.contains("PATCH /repos/player/mi-pack/git/refs/heads/main"));
+    }
+
+    @Test
+    void releaseAssetsNoFileOfThePackMapsToAreDeleted() throws IOException {
+        publisher.publish(request(null), step -> { }, CancellationToken.none());
+
+        List<String> deletions = calls.stream().filter(call -> call.startsWith("DELETE ")).toList();
+        assertEquals(List.of("DELETE /repos/player/mi-pack/releases/assets/"
+            + ("0123456789-create_connected.jar".hashCode() & 0xffff)), deletions);
+    }
+
+    @Test
+    void nothingIsDeletedWhileAFileOfThePackHasNoAssetYet() throws IOException {
+        releaseAssets.remove("4833657844-mine.jar");
+
+        publisher.publish(request(null), step -> { }, CancellationToken.none());
+
+        assertFalse(calls.stream().anyMatch(call -> call.startsWith("DELETE ")));
     }
 
     @Test

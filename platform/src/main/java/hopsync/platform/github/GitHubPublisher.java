@@ -14,15 +14,20 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 /**
  * Publishes created packs on GitHub: a first publish creates a public repository from the HopSync pack template
@@ -31,6 +36,10 @@ import java.util.function.Consumer;
  * release. The template's demo content and its weekly update workflow are removed: the pack is edited in HopSync.
  */
 public class GitHubPublisher implements PackPublisher {
+    private static final System.Logger LOG = System.getLogger(GitHubPublisher.class.getName());
+    static final String RELEASE_TAG = "hopsync";
+    static final String MANIFEST_ASSET = "manifest.json";
+    private static final Pattern UNSAFE_ASSET_CHARS = Pattern.compile("[^A-Za-z0-9._-]+");
     /** The template every pack repository starts from. */
     static final String TEMPLATE = "JJGarciaMartinez/hopsync-demo";
     static final String BRANCH = "main";
@@ -81,6 +90,7 @@ public class GitHubPublisher implements PackPublisher {
             progress.accept(PublishStep.BUILDING);
             awaitBuild(repo, commit, token, cancel);
         }
+        pruneRelease(repo, request, token);
         return new PackSource.Publication(repo, manifestUrl(repo), request.contentHash());
     }
 
@@ -209,6 +219,50 @@ public class GitHubPublisher implements PackPublisher {
             if (waited > BUILD_WAIT.toNanos()) {
                 throw new SyncException(new SyncFailure.PublishBuildFailed(String.valueOf(run.get("html_url"))));
             }
+        }
+    }
+
+    /**
+     * Deletes the release assets no file of the pack maps to, such as the jars of the template's demo that its first
+     * build uploaded before they were removed: the build only ever adds assets. Best effort, and it does nothing
+     * unless every file of the pack already has its asset, so a build that has not finished never costs a file.
+     */
+    private void pruneRelease(String repo, PublishRequest request, String token) {
+        try {
+            GitHubApi.Answer release = api.call("GET", "/repos/" + repo + "/releases/tags/" + RELEASE_TAG, null, token);
+            if (!release.ok() || !(release.object().get("assets") instanceof List<?> assets)) return;
+
+            Set<String> wanted = new HashSet<>();
+            wanted.add(MANIFEST_ASSET);
+            for (Map.Entry<String, Path> file : request.files().entrySet()) {
+                wanted.add(assetName(file.getKey(), file.getValue()));
+            }
+            Set<String> present = new HashSet<>();
+            for (Object item : assets) present.add(String.valueOf(((Map<?, ?>) item).get("name")));
+            if (!present.containsAll(wanted)) return;
+
+            for (Object item : assets) {
+                Map<?, ?> asset = (Map<?, ?>) item;
+                if (wanted.contains(String.valueOf(asset.get("name")))) continue;
+                api.call("DELETE", "/repos/" + repo + "/releases/assets/" + asset.get("id"), null, token);
+            }
+        } catch (IOException | RuntimeException e) {
+            LOG.log(System.Logger.Level.WARNING, "Could not clean the release of " + repo, e);
+        }
+    }
+
+    /**
+     * The name {@code scripts/hopsync.py} gives a file's release asset: the first 10 hex digits of its SHA-512, then
+     * the jar's name or the config's path under {@code configs/}, flattened.
+     */
+    static String assetName(String packPath, Path file) throws IOException {
+        String relative = packPath.startsWith("configs/") ? packPath.substring("configs/".length())
+            : packPath.substring(packPath.lastIndexOf('/') + 1);
+        try {
+            String sha = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-512").digest(Files.readAllBytes(file)));
+            return sha.substring(0, 10) + "-" + UNSAFE_ASSET_CHARS.matcher(relative.replace("/", "__")).replaceAll("_");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
         }
     }
 
