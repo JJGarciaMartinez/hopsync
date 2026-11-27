@@ -87,7 +87,7 @@ publish reaches them the next time they check.
    updated or removed, and the download size. Nothing is written yet.
 3. **Apply.** HopSync downloads the files in parallel and checks the size and SHA-512 hash of each one. It then
    moves each file into place in one step. You can cancel at any time.
-4. **Stay up to date.** HopSync checks again when you ask, or every time it opens if "Buscar cambios al abrir"
+4. **Stay up to date.** HopSync checks again when you ask, or every time it opens if "Check for changes on open"
    is on. If the pack changed, you
    review and apply again. Only what is missing or changed is downloaded.
 
@@ -95,16 +95,16 @@ You can follow several packs, each in its own folder. The same pack can also liv
 
 ### Creating and sharing your own pack
 
-1. **Start from scratch.** In the wizard, choose "Empieza desde cero". Give the pack a name, a Minecraft
+1. **Start from scratch.** In the wizard, choose "Start from scratch". Give the pack a name, a Minecraft
    version and a loader (Fabric, NeoForge, Forge or Quilt).
 2. **Add mods.** Search the [Modrinth](https://modrinth.com/) catalog from the app. HopSync picks the newest
    version that fits your Minecraft version and loader, and adds the mods it requires too. You can also add
    jars of your own, change a mod's version, or remove it. Every change goes through the same review and apply
    as any other pack, so your own game folder always matches what you edit.
-3. **Publish.** Connect your GitHub account in "Ajustes de HopSync › Cuenta" and choose "Publicar". The first
+3. **Publish.** Connect your GitHub account in "HopSync settings › Account" and choose "Publish". The first
    time, HopSync creates a public repository in your account from a template. Each publish uploads the pack
    in one commit and waits for the repository's build to make the manifest. You then get the link to share.
-4. **Publish changes.** After you edit the pack, HopSync shows "Publicar cambios". Your friends see the update
+4. **Publish changes.** After you edit the pack, HopSync shows "Publish changes". Your friends see the update
    the next time they check.
 
 Each published repository has a README with the pack's link and a content notice. The mods belong to their
