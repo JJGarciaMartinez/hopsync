@@ -123,8 +123,8 @@ public final class RemoteImages {
                     throw new IOException("image too large: " + width + "x" + height);
                 }
                 ImageReadParam param = reader.getDefaultReadParam();
-                // Skips whole rows and columns while staying at twice the edge, so the bicubic downscale keeps quality
-                int step = Math.max(1, Math.max(width, height) / (2 * key.edgePx()));
+                // Skips whole rows and columns (no filtering) only while staying at four times the edge
+                int step = Math.max(1, Math.max(width, height) / (4 * key.edgePx()));
                 param.setSourceSubsampling(step, step, 0, 0);
                 return scaled(reader.read(0, param), key.edgePx());
             } finally {
@@ -133,14 +133,20 @@ public final class RemoteImages {
         }
     }
 
+    // Halves until under twice the target, then one bicubic step: a single big jump aliases and looks soft
     private static BufferedImage scaled(BufferedImage image, int edgePx) {
-        int longest = Math.max(image.getWidth(), image.getHeight());
-        if (longest <= edgePx) {
-            return image;
+        BufferedImage current = image;
+        while (Math.max(current.getWidth(), current.getHeight()) > edgePx) {
+            int longest = Math.max(current.getWidth(), current.getHeight());
+            double ratio = longest >= 2 * edgePx ? 0.5 : (double) edgePx / longest;
+            int width = Math.max(1, (int) Math.round(current.getWidth() * ratio));
+            int height = Math.max(1, (int) Math.round(current.getHeight() * ratio));
+            current = resize(current, width, height);
         }
-        double ratio = (double) edgePx / longest;
-        int width = Math.max(1, (int) Math.round(image.getWidth() * ratio));
-        int height = Math.max(1, (int) Math.round(image.getHeight() * ratio));
+        return current;
+    }
+
+    private static BufferedImage resize(BufferedImage image, int width, int height) {
         BufferedImage out = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = out.createGraphics();
         try {

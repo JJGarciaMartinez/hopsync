@@ -8,6 +8,7 @@ import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.util.MarkdownText;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.ButtonStyle;
+import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.RemoteImages;
 import hopsync.desktop.kit.StatusTag;
@@ -48,8 +49,8 @@ import java.util.function.Consumer;
 final class ModDetailView extends JPanel {
     private static final int ICON = 84;
     private static final int THUMB_WIDTH = 86;
-    private static final int THUMB_HEIGHT = THUMB_WIDTH * 10 / 16;
-    private static final int SHOT_HEIGHT = SheetParts.CONTENT_WIDTH * 6 / 16;
+    private static final int THUMB_HEIGHT = THUMB_WIDTH * 9 / 16;
+    private static final int SHOT_HEIGHT = SheetParts.CONTENT_WIDTH * 9 / 16;
     private static final int BODY_CHARS = 600;
 
     private final Consumer<UiAction> dispatch;
@@ -77,8 +78,8 @@ final class ModDetailView extends JPanel {
         Sheet.ModDetail detail = sheet.detail();
         CatalogProject project = detail.project();
         content.removeAll();
-        SheetParts.stack(content, 0, SheetParts.textLink("", Messages.get("addMods.back"),
-            () -> dispatch.accept(new UiAction.BackToResults())));
+        SheetParts.stack(content, 0, SheetParts.iconLink(Messages.get("addMods.back"),
+            Icons.Glyph.CHEVRON_LEFT, false, () -> dispatch.accept(new UiAction.BackToResults())));
         SheetParts.stack(content, 12, header(sheet, detail));
         ProjectDetails details = detail.details();
         if (detail.failure() != null) {
@@ -95,8 +96,8 @@ final class ModDetailView extends JPanel {
                 SheetParts.stack(content, 16, facts(sheet, detail));
             }
         }
-        SheetParts.stack(content, 12, SheetParts.textLink("", Messages.get("addMods.openInModrinth"),
-            () -> dispatch.accept(new UiAction.OpenModPage("https://modrinth.com/mod/" + project.slug()))));
+        SheetParts.stack(content, 12, SheetParts.iconLink(Messages.get("addMods.openInModrinth"),
+            Icons.Glyph.EXTERNAL, true, () -> dispatch.accept(new UiAction.OpenModPage("https://modrinth.com/mod/" + project.slug()))));
         content.revalidate();
         content.repaint();
         if (!project.id().equals(shownProject)) {
@@ -256,7 +257,7 @@ final class ModDetailView extends JPanel {
             this.width = width;
             this.height = height;
             if (!url.isBlank()) {
-                int edge = UIScale.scale(Math.max(width, height)) * 2;
+                int edge = UIScale.scale(Math.max(width, height));
                 image = images.peek(url, edge);
                 if (image == null) {
                     images.load(url, edge, loaded -> {
@@ -282,7 +283,8 @@ final class ModDetailView extends JPanel {
             Graphics2D g2 = (Graphics2D) g.create();
             try {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
                 int arc = UIScale.scale(16);
                 RoundRectangle2D box = new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), arc, arc);
                 g2.setColor(Palette.raised());

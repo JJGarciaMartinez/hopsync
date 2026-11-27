@@ -29,7 +29,7 @@ final class Thumb extends JComponent {
         letter = title.isBlank() ? "?" : title.strip().substring(0, 1).toUpperCase(Locale.ROOT);
         setFont(Fonts.display(new JLabel().getFont(), Math.round(size / 3f) - 13));
         if (iconUrl != null && !iconUrl.isBlank()) {
-            int edge = UIScale.scale(size) * 2;
+            int edge = UIScale.scale(size);
             image = images.peek(iconUrl, edge);
             if (image == null) {
                 images.load(iconUrl, edge, loaded -> {
@@ -56,7 +56,7 @@ final class Thumb extends JComponent {
         try {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
             int edge = UIScale.scale(size);
             int arc = UIScale.scale(size * 3 / 7);
             int y = (getHeight() - edge) / 2;
