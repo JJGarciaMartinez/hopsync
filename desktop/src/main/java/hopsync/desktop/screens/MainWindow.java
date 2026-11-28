@@ -8,6 +8,7 @@ import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.RemoteImages;
 import hopsync.desktop.screens.library.PackLibrary;
 import hopsync.desktop.screens.mods.ModsPanel;
+import hopsync.desktop.screens.pack.OptionalOffersPanel;
 import hopsync.desktop.screens.pack.PackHero;
 import hopsync.desktop.screens.sheets.SheetLayer;
 import hopsync.desktop.store.PackUiState;
@@ -48,6 +49,7 @@ public final class MainWindow extends JFrame {
     private final PackLibrary library;
     private final PackHero hero;
     private final ModsPanel mods;
+    private final OptionalOffersPanel offers;
     private final StatusBar statusBar;
     private final Toast toast;
     private final SheetLayer sheets;
@@ -70,12 +72,16 @@ public final class MainWindow extends JFrame {
         library = new PackLibrary(dispatch);
         hero = new PackHero(dispatch, zone);
         mods = new ModsPanel(dispatch);
+        offers = new OptionalOffersPanel(dispatch);
         statusBar = new StatusBar(zone, dispatch);
         sheets = new SheetLayer(getLayeredPane(), dispatch, demoUrl, settingsFile, images);
 
         JPanel packArea = new JPanel(new BorderLayout());
         packArea.setBackground(Palette.background());
-        packArea.add(hero, BorderLayout.NORTH);
+        JPanel header = new JPanel(new BorderLayout());
+        header.add(hero, BorderLayout.NORTH);
+        header.add(offers, BorderLayout.CENTER);
+        packArea.add(header, BorderLayout.NORTH);
         packArea.add(mods, BorderLayout.CENTER);
         JPanel main = new JPanel(new BorderLayout());
         main.add(library, BorderLayout.WEST);
@@ -135,6 +141,7 @@ public final class MainWindow extends JFrame {
         library.render(state);
         if (pack != null) {
             hero.render(pack, state);
+            offers.render(pack);
             mods.render(pack, state);
         }
         statusBar.render(pack, state.appUpdate());

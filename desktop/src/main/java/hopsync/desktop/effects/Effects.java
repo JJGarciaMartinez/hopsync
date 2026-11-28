@@ -5,6 +5,7 @@ import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailures;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.pack.Pack;
+import hopsync.core.sync.ConfigUnits;
 import hopsync.core.pack.PackRegistry;
 import hopsync.core.pack.PackSource;
 import hopsync.core.port.ModCatalog;
@@ -121,7 +122,8 @@ public final class Effects {
             case UiAction.CheckAll a -> state.packs().values().stream()
                 .filter(pack -> !pack.phase().isBusy())
                 .forEach(pack -> sessions.get(pack.packId()).startUpdate());
-            case UiAction.ConfirmPlan a -> sessions.get(a.packId()).confirmPlan();
+            case UiAction.ConfirmPlan a -> sessions.get(a.packId())
+                .confirmPlan(state.packs().get(a.packId()).optionalPicks());
             case UiAction.DismissPlan a -> sessions.get(a.packId()).cancelUpdate();
             case UiAction.CancelUpdate a -> sessions.get(a.packId()).cancelUpdate();
             case UiAction.ContinueUpdate a -> sessions.get(a.packId()).continueUpdate(a.files());
@@ -155,6 +157,10 @@ public final class Effects {
                 a.versionId()), null);
             case UiAction.RemoveModFromPack a -> editPack(a.packId(), () -> editor.remove(a.packId(), a.slugOrFile(),
                 a.ownJar()), Messages.get("toast.modRemoved", a.name()));
+            case UiAction.SetConfigMode a -> editPack(a.packId(), () -> editor.setConfigMode(a.packId(),
+                ConfigUnits.Unit.fromKey(a.unitKey()), a.mode()), null);
+            case UiAction.RemoveConfig a -> editPack(a.packId(), () -> editor.removeConfig(a.packId(),
+                ConfigUnits.Unit.fromKey(a.unitKey())), Messages.get("toast.configRemoved", a.name()));
             case UiAction.ResizeLibrary a -> background.execute(() -> registry.rememberLibraryWidth(a.width()));
             case UiAction.ConnectGitHub a -> accounts.run(action, state);
             case UiAction.CancelGitHubConnect a -> accounts.run(action, state);

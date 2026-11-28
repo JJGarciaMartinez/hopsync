@@ -7,6 +7,7 @@ import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.publish.PublishStep;
+import hopsync.core.pack.ConfigMode;
 import hopsync.core.pack.Pack;
 
 import java.nio.file.Path;
@@ -48,6 +49,9 @@ public sealed interface UiAction {
     record CheckAll() implements UiAction {}
 
     record ConfirmPlan(String packId) implements UiAction {}
+
+    /** Ticks or unticks one optional config unit offered in the review; {@code unit} is {@code Unit#key()}. */
+    record TogglePick(String packId, String unit) implements UiAction {}
 
     record DismissPlan(String packId) implements UiAction {}
 
@@ -102,6 +106,38 @@ public sealed interface UiAction {
 
     /** "Agregar mods" of a pack the player created; Effects loads what it has and the most downloaded mods. */
     record OpenAddMods(String packId) implements UiAction {}
+
+    /** Opens the sheet that adds configs to a created pack. */
+    record OpenAddConfigs(String packId) implements UiAction {}
+
+    /** The files and folders found in the pack's game folder, or picked from the computer, to offer in the sheet. */
+    record ConfigCandidatesFound(String packId, List<Sheet.AddConfigs.Candidate> found) implements UiAction {}
+
+    /** Paths the player chose with the file chooser; they are turned into candidates in the background. */
+    record ConfigPathsPicked(String packId, List<Path> paths) implements UiAction {}
+
+    record ToggleConfigCandidate(String key) implements UiAction {}
+
+    record SetCandidateMode(String key, ConfigMode mode) implements UiAction {}
+
+    /** Copies the picked candidates into the pack. */
+    record ConfirmAddConfigs(String packId) implements UiAction {}
+
+    /** The picked candidates are in the pack; {@code rejected} names what could not be shared. */
+    record ConfigsAdded(String packId, List<String> added, List<String> rejected) implements UiAction {}
+
+    record ConfigsAddFailed(String packId, SyncFailure failure) implements UiAction {}
+
+    /**
+     * Changes how a config unit of a created pack is installed; the pack is checked so it goes through review.
+     *
+     * @param unitKey {@code ConfigUnits.Unit#key()}
+     * @param name    the unit as the player reads it, for messages
+     */
+    record SetConfigMode(String packId, String unitKey, ConfigMode mode, String name) implements UiAction {}
+
+    /** Takes a config unit out of a created pack and deletes the pack's copy of it. */
+    record RemoveConfig(String packId, String unitKey, String name) implements UiAction {}
 
     /** Search text of the add-mods sheet, dispatched once the player stops typing. */
     record SearchMods(String query) implements UiAction {}

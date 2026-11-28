@@ -2,6 +2,7 @@ package hopsync.desktop.store;
 
 import hopsync.core.event.SyncEvent;
 import hopsync.core.manifest.ConfigEntry;
+import hopsync.core.manifest.ConfigRoot;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.pack.Pack;
@@ -44,6 +45,7 @@ public final class Reducer {
             case UiAction.CheckPack a -> state;
             case UiAction.CheckAll a -> state;
             case UiAction.ConfirmPlan a -> state;
+            case UiAction.TogglePick a -> updatePack(state, a.packId(), pack -> pack.withPickToggled(a.unit()));
             case UiAction.DismissPlan a -> state;
             case UiAction.CancelUpdate a -> state;
             case UiAction.ContinueUpdate a -> state;
@@ -63,12 +65,26 @@ public final class Reducer {
             case UiAction.CloseModVersions a -> state.withModVersions(null);
             case UiAction.ChangeModVersion a -> state.withModVersions(null);
             case UiAction.RemoveModFromPack a -> state.withExpandedRow(null);
+            case UiAction.SetConfigMode a -> state.withExpandedRow(null);
+            case UiAction.RemoveConfig a -> state.withExpandedRow(null);
             case UiAction.OpenSettings a -> state.packs().isEmpty() ? state.withSheet(Sheet.AddPack.start(true))
                 : openPackSettings(state, Sheet.PackSettings.Section.LINK);
             case UiAction.AddPack a -> state.withSheet(Sheet.AddPack.start(state.packs().isEmpty()));
             case UiAction.AskRemovePack a -> state.packs().isEmpty() ? state
                 : openPackSettings(state, Sheet.PackSettings.Section.REMOVE);
             case UiAction.OpenAddMods a -> openAddMods(state, a.packId());
+            case UiAction.OpenAddConfigs a -> openAddConfigs(state, a.packId());
+            case UiAction.ConfigCandidatesFound a -> updateAddConfigs(state, a.packId(), sheet -> sheet.withFound(a.found()));
+            case UiAction.ConfigPathsPicked a -> state;
+            case UiAction.ToggleConfigCandidate a -> updateAddConfigs(state, null, sheet -> sheet.withChange(a.key(),
+                c -> c.with(!c.picked(), c.mode())));
+            case UiAction.SetCandidateMode a -> updateAddConfigs(state, null, sheet -> sheet.withChange(a.key(),
+                c -> c.root() == ConfigRoot.GAME ? c : c.with(true, a.mode())));
+            case UiAction.ConfirmAddConfigs a -> updateAddConfigs(state, a.packId(), sheet -> sheet.canAdd()
+                ? sheet.withSaving() : sheet);
+            case UiAction.ConfigsAdded a -> state.sheet() instanceof Sheet.AddConfigs sheet
+                && sheet.packId().equals(a.packId()) ? state.withSheet(null) : state;
+            case UiAction.ConfigsAddFailed a -> updateAddConfigs(state, a.packId(), sheet -> sheet.withError(a.failure()));
             case UiAction.SearchMods a -> updateAddMods(state, sheet -> sheet.query().equals(a.query()) ? sheet
                 : sheet.withQuery(a.query()));
             // Only the answer for the words still typed counts
@@ -386,6 +402,20 @@ public final class Reducer {
             return state;
         }
         return state.withSheet(Sheet.AddMods.start(packId, pack.packInfo().minecraft(), pack.packInfo().loader()));
+    }
+
+    private static UiState openAddConfigs(UiState state, String packId) {
+        PackUiState pack = state.packs().get(packId);
+        if (pack == null || !pack.created() || pack.phase().isWriting()) {
+            return state;
+        }
+        return state.withSheet(Sheet.AddConfigs.start(packId));
+    }
+
+    /** @param packId the pack the answer is for, or {@code null} for an action that is the open sheet's own */
+    private static UiState updateAddConfigs(UiState state, String packId, UnaryOperator<Sheet.AddConfigs> change) {
+        return state.sheet() instanceof Sheet.AddConfigs sheet && (packId == null || sheet.packId().equals(packId))
+            ? state.withSheet(change.apply(sheet)) : state;
     }
 
     private static boolean isOpen(Sheet.AddMods sheet, String projectId) {

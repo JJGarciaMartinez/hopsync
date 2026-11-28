@@ -8,6 +8,8 @@ import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.screens.sheets.AddModsView;
 import java.awt.event.MouseEvent;
 import hopsync.core.event.SyncEvent;
+import hopsync.core.manifest.ConfigRoot;
+import hopsync.core.pack.ConfigMode;
 import hopsync.core.publish.PublishStep;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.pack.Pack;
@@ -17,6 +19,7 @@ import hopsync.desktop.kit.Palette;
 import hopsync.desktop.kit.RemoteImages;
 import hopsync.desktop.screens.library.PackLibrary;
 import hopsync.desktop.screens.mods.ModsPanel;
+import hopsync.desktop.screens.pack.OptionalOffersPanel;
 import hopsync.desktop.screens.pack.PackHero;
 import hopsync.desktop.screens.sheets.SheetLayer;
 import hopsync.desktop.store.GameFolder;
@@ -56,6 +59,7 @@ import static hopsync.desktop.store.StoreFixtures.created;
 import static hopsync.desktop.store.StoreFixtures.manifest;
 import static hopsync.desktop.store.StoreFixtures.OTHER;
 import static hopsync.desktop.store.StoreFixtures.loaded;
+import static hopsync.desktop.store.StoreFixtures.offeredPlan;
 import static hopsync.desktop.store.StoreFixtures.plan;
 import static hopsync.desktop.store.StoreFixtures.reduce;
 import static hopsync.desktop.store.StoreFixtures.upToDatePlan;
@@ -90,6 +94,9 @@ class ScreensTest {
             reduce(base, new SyncEvent.UpdateStarted(D)),
             reduce(base, new SyncEvent.UpdateStarted(OTHER.id()), new SyncEvent.PlanReady(OTHER.id(), plan()),
                 new SyncEvent.ApplyStarted(OTHER.id()), new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan())),
+            reduce(base, new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, offeredPlan())),
+            reduce(base, new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, offeredPlan()),
+                new UiAction.TogglePick(D, "game:options.txt")),
             reduce(base, new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()), new SyncEvent.Queued(D)),
             reduce(base, new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()), new SyncEvent.ApplyStarted(D),
                 new SyncEvent.ModDownloading(D, "new.jar"), new SyncEvent.Progress(D, 1, 3, 40, 100, 0)),
@@ -118,6 +125,7 @@ class ScreensTest {
         StatusBar statusBar = new StatusBar(ZoneOffset.UTC, dispatched::add);
         UiState.AppUpdate update = new UiState.AppUpdate("26.2.1", "https://github.com/o/h/releases/tag/26.2.1");
         ModsPanel mods = new ModsPanel(dispatched::add);
+        OptionalOffersPanel offers = new OptionalOffersPanel(dispatched::add);
         for (UiState phase : everyPhaseAndCreated()) {
             for (UiState state : List.of(phase, reduce(phase, new UiAction.SetFilter(UiState.Filter.ALL),
                     new UiAction.ToggleRow("kept.jar")), reduce(phase, new UiAction.SelectTab(UiState.Tab.OWN_MODS)),
@@ -127,7 +135,9 @@ class ScreensTest {
                 library.render(state);
                 statusBar.render(pack, update);
                 mods.render(pack, state);
+                offers.render(pack);
                 paint(hero, 746, 134);
+                if (offers.isVisible()) paint(offers, 746, 160);
                 paint(library, 214, 560);
                 paint(statusBar, 960, 28);
                 paint(mods, 746, 420);
@@ -397,6 +407,19 @@ class ScreensTest {
             reduce(withMods(), new UiAction.AccountLoaded("player", true, true), new UiAction.OpenPublish(MINE.id()),
                 new UiAction.PublishFilesLoaded(MINE.id(), List.of()), new UiAction.StartPublish(),
                 new UiAction.Published(MINE.id(), "https://github.com/player/aventura/releases/download/hopsync/manifest.json")),
+            reduce(created(), new UiAction.OpenAddConfigs(MINE.id())),
+            reduce(created(), new UiAction.OpenAddConfigs(MINE.id()), new UiAction.ConfigCandidatesFound(MINE.id(), List.of())),
+            reduce(created(), new UiAction.OpenAddConfigs(MINE.id()), new UiAction.ConfigCandidatesFound(MINE.id(), List.of(
+                new Sheet.AddConfigs.Candidate(Path.of("/games/mine/config/jei"), ConfigRoot.CONFIG, "jei", true, 8, 31_000,
+                    false, ConfigMode.IF_MISSING),
+                new Sheet.AddConfigs.Candidate(Path.of("/games/mine/config/sodium-options.json"), ConfigRoot.CONFIG,
+                    "sodium-options.json", false, 1, 2_000, false, ConfigMode.IF_MISSING),
+                new Sheet.AddConfigs.Candidate(Path.of("/games/mine/options.txt"), ConfigRoot.GAME, "options.txt", false,
+                    1, 4_000, false, ConfigMode.OPTIONAL))),
+                new UiAction.ToggleConfigCandidate("config:jei"), new UiAction.SetCandidateMode("config:jei", ConfigMode.ALWAYS),
+                new UiAction.ToggleConfigCandidate("game:options.txt")),
+            reduce(created(), new UiAction.OpenAddConfigs(MINE.id()), new UiAction.ConfigsAddFailed(MINE.id(),
+                new SyncFailure.UnsafePath("x.jar"))),
             reduce(created(), new UiAction.OpenAddMods(MINE.id())),
             reduce(created(), new UiAction.OpenAddMods(MINE.id()), new UiAction.PackModsLoaded(MINE.id(), Set.of("a")),
                 new UiAction.ModsFound("", List.of(
