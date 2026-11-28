@@ -11,8 +11,8 @@ import java.util.function.Consumer;
 public interface PackRepository {
 
     /**
-     * Reads a pack repository: its {@code hopsync.toml} comes back as text and its {@code configs/} and
-     * {@code local-mods/} files are downloaded into {@code into} under the same paths.
+     * Reads a pack repository: its {@code hopsync.toml} comes back as text and its {@code configs/},
+     * {@code game-files/} and {@code local-mods/} files are downloaded into {@code into} under the same paths.
      *
      * @param repo     GitHub repository as {@code owner/name}
      * @param progress told after each file, possibly from several threads; a pack can hold hundreds of jars

@@ -173,4 +173,16 @@ class GitHubPublisherTest {
         assertFalse(readme.contains("{name}") || readme.contains("{link}"));
         assertEquals(Set.of("manifest.json", ".github/workflows/check-updates.yml"), GitHubPublisher.TEMPLATE_ONLY);
     }
+
+    @Test
+    void assetNamesMatchTheBuildScriptForEveryKindOfFile(@org.junit.jupiter.api.io.TempDir Path tmp)
+            throws IOException, java.security.NoSuchAlgorithmException {
+        Path file = Files.writeString(tmp.resolve("f"), "x");
+        String sha = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-512")
+            .digest(Files.readAllBytes(file))).substring(0, 10);
+
+        assertEquals(sha + "-sub__a.toml", GitHubPublisher.assetName("configs/sub/a.toml", file));
+        assertEquals(sha + "-game-files__options.txt", GitHubPublisher.assetName("game-files/options.txt", file));
+        assertEquals(sha + "-mine.jar", GitHubPublisher.assetName("local-mods/mine.jar", file));
+    }
 }
