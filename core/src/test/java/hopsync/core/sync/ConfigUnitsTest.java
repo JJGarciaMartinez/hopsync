@@ -46,6 +46,15 @@ class ConfigUnitsTest {
     }
 
     @Test
+    void aKeyReadsBackAsItsUnit() {
+        for (Unit unit : List.of(new Unit(ConfigRoot.CONFIG, "jei/"), new Unit(ConfigRoot.GAME, "options.txt"))) {
+            assertEquals(unit, Unit.fromKey(unit.key()));
+        }
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> Unit.fromKey("jei/"));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> Unit.fromKey("home:a"));
+    }
+
+    @Test
     void aRuleNamesTheSameUnitAsItsFiles() {
         assertEquals(ConfigUnits.unitOf(config("jei/a.json", "a")), ConfigUnits.configUnit("jei/"));
         assertEquals(ConfigUnits.unitOf(config("a.toml", "a")), ConfigUnits.configUnit("a.toml"));

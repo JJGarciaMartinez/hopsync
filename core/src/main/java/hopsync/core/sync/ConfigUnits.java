@@ -33,6 +33,18 @@ public final class ConfigUnits {
         public boolean isFolder() {
             return id.endsWith("/");
         }
+
+        /** The unit a {@link #key()} names.
+         *
+         * @throws IllegalArgumentException if the text is not a key
+         */
+        public static Unit fromKey(String key) {
+            int colon = key.indexOf(':');
+            if (colon < 1 || colon == key.length() - 1) {
+                throw new IllegalArgumentException("Not a config unit key: " + key);
+            }
+            return new Unit(ConfigRoot.fromJson(key.substring(0, colon)), key.substring(colon + 1));
+        }
     }
 
     public static Unit unitOf(ConfigEntry entry) {
