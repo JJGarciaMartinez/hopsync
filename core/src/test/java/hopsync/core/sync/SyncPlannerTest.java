@@ -2,6 +2,7 @@ package hopsync.core.sync;
 
 import hopsync.core.manifest.ConfigEntry;
 import hopsync.core.manifest.ModEntry;
+import hopsync.core.pack.OptionalChoice;
 import hopsync.core.sync.SyncPlan.ConfigChange;
 import hopsync.core.sync.SyncPlan.ModChange;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,10 +14,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static hopsync.core.sync.Fixtures.config;
 import static hopsync.core.sync.Fixtures.manifest;
+import static hopsync.core.sync.Fixtures.gameFile;
 import static hopsync.core.sync.Fixtures.mod;
+import static hopsync.core.sync.Fixtures.optionalConfig;
 import static hopsync.core.sync.Fixtures.recordOf;
 import static hopsync.core.sync.Fixtures.write;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -35,7 +39,7 @@ class SyncPlannerTest {
     void setUp() throws IOException {
         mods = Files.createDirectories(root.resolve("mods"));
         configs = Files.createDirectories(root.resolve("config"));
-        planner = new SyncPlanner(mods, configs);
+        planner = new SyncPlanner(mods, configs, root);
     }
 
     private SyncPlan plan(List<ModEntry> modEntries, List<ConfigEntry> configEntries, LocalState state)
@@ -220,5 +224,112 @@ class SyncPlannerTest {
         assertEquals(1, plan.count(ModChange.UPDATE));
         assertEquals(1, plan.count(ModChange.NEW));
         assertEquals(5 + 2 + 3, plan.downloadBytes());
+    }
+
+    // ---------------------------------------------------------------- optional configs
+
+    private SyncPlan planWith(List<ConfigEntry> entries, LocalState state, Map<String, OptionalChoice> choices)
+            throws IOException {
+        return planner.plan(manifest(List.of(), entries), state, choices);
+    }
+
+    private static String revisionOf(ConfigEntry... entries) {
+        return ConfigUnits.revision(List.of(entries));
+    }
+
+    private static ConfigChange changeOfKey(SyncPlan plan, String stateKey) {
+        return plan.configs().stream().filter(a -> a.config().stateKey().equals(stateKey)).findFirst().orElseThrow()
+            .change();
+    }
+
+    @Test
+    void optionalUnitWithoutADecisionIsOfferedAndNeverWritten() throws IOException {
+        ConfigEntry a = optionalConfig("jei/a.json", "A");
+        ConfigEntry b = optionalConfig("jei/b.json", "B");
+
+        SyncPlan plan = planWith(List.of(a, b), LocalState.empty(), Map.of());
+
+        assertEquals(List.of(ConfigChange.OFFERED, ConfigChange.OFFERED),
+            plan.configs().stream().map(SyncPlan.ConfigAction::change).toList());
+        assertEquals(2, plan.offered().size());
+        assertTrue(plan.configDownloads().isEmpty());
+        assertFalse(plan.isUpToDate(), "an offer needs the player's review");
+        assertTrue(plan.pendingFiles().isEmpty());
+    }
+
+    @Test
+    void optionalUnitAlreadyMatchingTheManifestHasNothingToOffer() throws IOException {
+        write(configs, "jei/a.json", "A");
+        SyncPlan plan = planWith(List.of(optionalConfig("jei/a.json", "A")), LocalState.empty(), Map.of());
+
+        assertEquals(ConfigChange.UP_TO_DATE, plan.configs().get(0).change());
+        assertTrue(plan.isUpToDate());
+    }
+
+    @Test
+    void aChangedUnitIsOfferedAgainEvenIfAcceptedBefore() throws IOException {
+        ConfigEntry changed = optionalConfig("jei/a.json", "A2");
+        OptionalChoice old = new OptionalChoice(revisionOf(optionalConfig("jei/a.json", "A1")), true, true);
+
+        SyncPlan plan = planWith(List.of(changed), LocalState.empty(), Map.of("config:jei/", old));
+
+        assertEquals(ConfigChange.OFFERED, plan.configs().get(0).change());
+    }
+
+    @Test
+    void aDeclinedUnitIsSkippedWhileItsRevisionHolds() throws IOException {
+        ConfigEntry a = optionalConfig("jei/a.json", "A");
+        OptionalChoice declined = new OptionalChoice(revisionOf(a), false, false);
+
+        SyncPlan plan = planWith(List.of(a), LocalState.empty(), Map.of("config:jei/", declined));
+
+        assertEquals(ConfigChange.SKIPPED, plan.configs().get(0).change());
+        assertEquals(1, plan.skipped().size());
+        assertTrue(plan.isUpToDate());
+    }
+
+    @Test
+    void anAcceptedUnitIsInstalledReplacingWithBackupOrLeftAlone() throws IOException {
+        ConfigEntry missing = optionalConfig("jei/missing.json", "M");
+        ConfigEntry same = optionalConfig("jei/same.json", "S");
+        ConfigEntry other = optionalConfig("jei/other.json", "O");
+        write(configs, "jei/same.json", "S");
+        write(configs, "jei/other.json", "player's");
+        OptionalChoice accepted = new OptionalChoice(revisionOf(missing, same, other), true, false);
+
+        SyncPlan plan = planWith(List.of(missing, same, other), LocalState.empty(), Map.of("config:jei/", accepted));
+
+        assertEquals(ConfigChange.INSTALL, configChangeOf(plan, "jei/missing.json"));
+        assertEquals(ConfigChange.UP_TO_DATE, configChangeOf(plan, "jei/same.json"));
+        assertEquals(ConfigChange.REPLACE_WITH_BACKUP, configChangeOf(plan, "jei/other.json"));
+        assertEquals(2, plan.configDownloads().size());
+    }
+
+    @Test
+    void anAppliedUnitFollowsTheNormalRulesSoPlayerEditsSurvive() throws IOException {
+        ConfigEntry entry = optionalConfig("jei/a.json", "A");
+        Path file = write(configs, "jei/a.json", "A");
+        LocalState installed = state(Map.of(), Map.of("jei/a.json", recordOf(file)));
+        Files.writeString(file, "edited by the player, longer");
+        OptionalChoice applied = new OptionalChoice(revisionOf(entry), true, true);
+
+        SyncPlan plan = planWith(List.of(entry), installed, Map.of("config:jei/", applied));
+
+        assertEquals(ConfigChange.KEEP_EDITED, plan.configs().get(0).change());
+    }
+
+    @Test
+    void gameFilesLiveInTheGameFolderAndHaveTheirOwnStateKey() throws IOException {
+        ConfigEntry inGame = gameFile("options.txt", "G");
+        ConfigEntry inConfig = config("options.txt", "C", false);
+        write(root, "options.txt", "G");
+        write(configs, "options.txt", "C");
+        OptionalChoice accepted = new OptionalChoice(revisionOf(inGame), true, false);
+
+        SyncPlan plan = planWith(List.of(inGame, inConfig), LocalState.empty(), Map.of("game:options.txt", accepted));
+
+        assertEquals(ConfigChange.UP_TO_DATE, changeOfKey(plan, "game:options.txt"));
+        assertEquals(ConfigChange.UP_TO_DATE, changeOfKey(plan, "options.txt"));
+        assertEquals(Set.of("game:options.txt", "options.txt"), plan.keptConfigs().keySet());
     }
 }

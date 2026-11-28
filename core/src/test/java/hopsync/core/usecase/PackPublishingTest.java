@@ -101,6 +101,22 @@ class PackPublishingTest {
     }
 
     @Test
+    void gameFilesArePublishedAndTheirChangeShowsAsAPendingPublish() throws IOException {
+        Path folder = dir.resolve("packs").resolve(pack.id());
+        Files.createDirectories(folder.resolve("game-files"));
+        Files.writeString(folder.resolve("game-files/options.txt"), "v1");
+        Files.writeString(folder.resolve("game-files/servers.dat"), "not allowed");
+
+        publishing.publish(pack, "mi-pack", step -> { }, CancellationToken.none());
+
+        assertEquals(Set.of("configs/server/rules.json", "local-mods/mine.jar", "game-files/options.txt"),
+            sent.getFirst().files().keySet());
+        assertFalse(publishing.changedSincePublished(current()));
+        Files.writeString(folder.resolve("game-files/options.txt"), "v2");
+        assertTrue(publishing.changedSincePublished(current()));
+    }
+
+    @Test
     void aFirstPublishSendsTheTomlAndFilesAndRemembersWhere() throws IOException {
         List<PublishStep> steps = new ArrayList<>();
 

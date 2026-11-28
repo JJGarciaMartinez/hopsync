@@ -143,7 +143,7 @@ public class GitHubPublisher implements PackPublisher {
         for (Object item : (List<?>) tree.get("tree")) {
             Map<?, ?> existing = (Map<?, ?>) item;
             String path = String.valueOf(existing.get("path"));
-            boolean packFile = path.startsWith("configs/") || path.startsWith("local-mods/");
+            boolean packFile = path.startsWith("configs/") || path.startsWith("game-files/") || path.startsWith("local-mods/");
             if ("blob".equals(existing.get("type"))
                     && (TEMPLATE_ONLY.contains(path) || packFile && !request.files().containsKey(path))) {
                 Map<String, Object> removal = new HashMap<>();
@@ -253,11 +253,11 @@ public class GitHubPublisher implements PackPublisher {
 
     /**
      * The name {@code scripts/hopsync.py} gives a file's release asset: the first 10 hex digits of its SHA-512, then
-     * the jar's name or the config's path under {@code configs/}, flattened.
+     * the jar's name, the config's path under {@code configs/} or a game file's whole path, flattened.
      */
     static String assetName(String packPath, Path file) throws IOException {
         String relative = packPath.startsWith("configs/") ? packPath.substring("configs/".length())
-            : packPath.substring(packPath.lastIndexOf('/') + 1);
+            : packPath.startsWith("game-files/") ? packPath : packPath.substring(packPath.lastIndexOf('/') + 1);
         try {
             String sha = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-512").digest(Files.readAllBytes(file)));
             return sha.substring(0, 10) + "-" + UNSAFE_ASSET_CHARS.matcher(relative.replace("/", "__")).replaceAll("_");

@@ -5,15 +5,19 @@ import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.failure.SyncFailures;
+import hopsync.core.manifest.ConfigRoot;
 import hopsync.core.manifest.PackInfo;
+import hopsync.core.pack.ConfigMode;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackDefinition;
 import hopsync.core.pack.PackRegistry;
 import hopsync.core.pack.PackSource;
 import hopsync.core.port.ModCatalog;
 import hopsync.core.port.PackOwnership;
+import hopsync.core.sync.ConfigUnits;
 import hopsync.core.usecase.PackEditor;
 import hopsync.core.usecase.PackImporter;
+import hopsync.core.util.SafePaths;
 import hopsync.desktop.config.AppVersion;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.logging.Logging;
@@ -34,11 +38,15 @@ import java.awt.datatransfer.StringSelection;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 /**
  * Side effects of the sheets: checking a pack link, finding launcher instances, telling which pack uses a
@@ -115,6 +123,10 @@ final class SheetEffects {
             case UiAction.AddCatalogMod a when state.sheet() instanceof Sheet.AddMods sheet
                 && sheet.adding().contains(a.projectId()) -> addCatalogMod(sheet.packId(), a.projectId());
             // Outside the sheet nothing else will check the pack, so the jars are checked at once
+            case UiAction.OpenAddConfigs a when state.sheet() instanceof Sheet.AddConfigs sheet -> scanConfigs(sheet.packId());
+            case UiAction.ConfigPathsPicked a -> candidatesFrom(a.packId(), a.paths());
+            case UiAction.ConfirmAddConfigs a when state.sheet() instanceof Sheet.AddConfigs sheet && sheet.saving() ->
+                addConfigs(sheet);
             case UiAction.AddOwnJars a -> addOwnJars(a.packId(), a.jars(), !(state.sheet() instanceof Sheet.AddMods));
             // What was added reaches the game folder through the usual check and review
             case UiAction.CloseSheet a when previous instanceof Sheet.AddMods closed && state.sheet() == null
@@ -260,6 +272,105 @@ final class SheetEffects {
             } catch (Exception e) {
                 LOG.log(System.Logger.Level.WARNING, "Could not add " + projectId + " to pack " + packId, e);
                 store.dispatch(new UiAction.ModAddFailed(projectId, SyncFailures.from(e, "")));
+            }
+        });
+    }
+
+    private static final int MAX_SCANNED_FILES = 2000;
+
+    /** What the pack's game folder offers: the top-level entries of {@code config/} and the allowed game files. */
+    private void scanConfigs(String packId) {
+        background.execute(() -> registry.find(packId).ifPresent(pack -> {
+            try {
+                List<Sheet.AddConfigs.Candidate> found = new ArrayList<>();
+                Path config = pack.paths().config();
+                if (Files.isDirectory(config)) {
+                    try (Stream<Path> entries = Files.list(config)) {
+                        for (Path entry : entries.sorted().toList()) {
+                            candidate(entry, ConfigRoot.CONFIG, false).ifPresent(found::add);
+                        }
+                    }
+                }
+                for (String name : ConfigUnits.GAME_FILES.stream().sorted().toList()) {
+                    candidate(pack.paths().gameDir().resolve(name), ConfigRoot.GAME, false).ifPresent(found::add);
+                }
+                store.dispatch(new UiAction.ConfigCandidatesFound(packId, found));
+            } catch (IOException | RuntimeException e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not look through the game folder of pack " + packId, e);
+                store.dispatch(new UiAction.ConfigsAddFailed(packId, SyncFailures.from(e, "")));
+            }
+        }));
+    }
+
+    /** Files and folders the player picked from the computer; ticked, since they chose them. */
+    private void candidatesFrom(String packId, List<Path> paths) {
+        background.execute(() -> {
+            try {
+                List<Sheet.AddConfigs.Candidate> found = new ArrayList<>();
+                for (Path path : paths) {
+                    ConfigRoot root = ConfigUnits.GAME_FILES.contains(String.valueOf(path.getFileName()))
+                        && Files.isRegularFile(path) ? ConfigRoot.GAME : ConfigRoot.CONFIG;
+                    candidate(path, root, true).ifPresent(found::add);
+                }
+                store.dispatch(new UiAction.ConfigCandidatesFound(packId, found));
+            } catch (IOException | RuntimeException e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not read the picked configs " + paths, e);
+                store.dispatch(new UiAction.ConfigsAddFailed(packId, SyncFailures.from(e, "")));
+            }
+        });
+    }
+
+    private static java.util.Optional<Sheet.AddConfigs.Candidate> candidate(Path path, ConfigRoot root, boolean picked)
+            throws IOException {
+        String name = String.valueOf(path.getFileName());
+        if (Files.isSymbolicLink(path) || !SafePaths.isSafeFileName(name)
+            || !(Files.isRegularFile(path) || root == ConfigRoot.CONFIG && Files.isDirectory(path))) {
+            return java.util.Optional.empty();
+        }
+        boolean folder = Files.isDirectory(path);
+        int files = 1;
+        long bytes = folder ? 0 : Files.size(path);
+        if (folder) {
+            files = 0;
+            try (Stream<Path> tree = Files.walk(path)) {
+                for (Path file : tree.filter(Files::isRegularFile).limit(MAX_SCANNED_FILES).toList()) {
+                    files++;
+                    bytes += Files.size(file);
+                }
+            }
+        }
+        return java.util.Optional.of(new Sheet.AddConfigs.Candidate(path, root, name, folder, files, bytes, picked,
+            root == ConfigRoot.GAME ? ConfigMode.OPTIONAL : ConfigMode.IF_MISSING));
+    }
+
+    private void addConfigs(Sheet.AddConfigs sheet) {
+        String packId = sheet.packId();
+        List<Sheet.AddConfigs.Candidate> picked = sheet.picked();
+        background.execute(() -> {
+            try {
+                Map<ConfigMode, List<PackEditor.ConfigSource>> byMode = new EnumMap<>(ConfigMode.class);
+                for (Sheet.AddConfigs.Candidate candidate : picked) {
+                    byMode.computeIfAbsent(candidate.mode(), mode -> new ArrayList<>())
+                        .add(new PackEditor.ConfigSource(candidate.path(), candidate.root()));
+                }
+                List<String> added = new ArrayList<>();
+                List<String> rejected = new ArrayList<>();
+                for (Map.Entry<ConfigMode, List<PackEditor.ConfigSource>> group : byMode.entrySet()) {
+                    PackEditor.Configs result = editor.addConfigs(packId, group.getValue(), group.getKey());
+                    added.addAll(result.added());
+                    rejected.addAll(result.rejected());
+                }
+                if (!rejected.isEmpty()) {
+                    LOG.log(System.Logger.Level.WARNING, "Skipped " + rejected + " for pack " + packId);
+                }
+                store.dispatch(new UiAction.ConfigsAdded(packId, added, rejected));
+                store.dispatch(new UiAction.ShowToast(rejected.isEmpty()
+                    ? Messages.get("toast.configsAdded", added.size())
+                    : Messages.get("toast.configsSkipped", added.size(), Messages.list(rejected))));
+                checkPack.accept(packId);
+            } catch (Exception e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not add configs to pack " + packId, e);
+                store.dispatch(new UiAction.ConfigsAddFailed(packId, SyncFailures.from(e, "")));
             }
         });
     }

@@ -134,7 +134,7 @@ public class GitHubPacks implements PackRepository, PackOwnership {
             String path = String.valueOf(entry.get("path"));
             if (path.equals("hopsync.toml")) {
                 tomlEntry = entry;
-            } else if (path.startsWith("configs/")
+            } else if (path.startsWith("configs/") || path.startsWith("game-files/")
                     || path.startsWith("local-mods/") && path.indexOf('/', "local-mods/".length()) < 0) {
                 if (!SafePaths.isSafeRelativePath(path)) {
                     throw new SyncException(new SyncFailure.UnsafePath(path));

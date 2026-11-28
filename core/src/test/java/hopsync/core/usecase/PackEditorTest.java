@@ -5,7 +5,10 @@ import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.catalog.CatalogVersion;
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.manifest.ConfigRoot;
 import hopsync.core.manifest.PackInfo;
+import hopsync.core.pack.ConfigMode;
+import hopsync.core.pack.ConfigRule;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackDefinition;
 import hopsync.core.pack.PackRegistry;
@@ -13,6 +16,7 @@ import hopsync.core.pack.PackSettings;
 import hopsync.core.port.ModCatalog;
 import hopsync.core.port.PackDefinitionRepository;
 import hopsync.core.port.PackSettingsRepository;
+import hopsync.core.sync.ConfigUnits;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -32,6 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PackEditorTest {
     private static final PackInfo INFO = new PackInfo("Mi pack", "1.0.0", "", null, "1.21.1", "fabric");
@@ -235,6 +240,100 @@ class PackEditorTest {
         assertEquals(List.of("a.jar", "b.jar"), result.added());
         assertEquals(List.of("notes.txt"), result.rejected());
         assertEquals(List.of(new PackDefinition.OwnMod("a.jar"), new PackDefinition.OwnMod("b.jar")), mods());
+    }
+
+    private Path packFolder() {
+        return dir.resolve("packs").resolve(pack.id());
+    }
+
+    private List<ConfigRule> rules() {
+        return registry.definition(pack.id()).orElseThrow().configRules();
+    }
+
+    @Test
+    void aFolderOfConfigsIsCopiedWithItsModeAndReplacedWholeNextTime() throws IOException {
+        Path jei = dir.resolve("src/jei");
+        Files.createDirectories(jei.resolve("deep"));
+        Files.writeString(jei.resolve("deep/a.json"), "a");
+        Files.writeString(jei.resolve("old.json"), "old");
+
+        PackEditor.Configs first = editor.addConfigs(pack.id(),
+            List.of(new PackEditor.ConfigSource(dir.resolve("src/jei"), ConfigRoot.CONFIG)), ConfigMode.OPTIONAL);
+        Files.delete(jei.resolve("old.json"));
+        Files.writeString(jei.resolve("deep/b.json"), "b");
+        editor.addConfigs(pack.id(),
+            List.of(new PackEditor.ConfigSource(dir.resolve("src/jei"), ConfigRoot.CONFIG)), ConfigMode.OPTIONAL);
+
+        assertEquals(List.of("jei/"), first.added());
+        assertEquals(List.of(new ConfigRule("jei/", ConfigMode.OPTIONAL)), rules());
+        assertTrue(Files.exists(packFolder().resolve("configs/jei/deep/b.json")));
+        assertFalse(Files.exists(packFolder().resolve("configs/jei/old.json")), "the folder is replaced, not merged");
+    }
+
+    @Test
+    void gameFilesAreAlwaysOptionalAndOnlyTheAllowedOnesGoIn() throws IOException {
+        Path options = Files.writeString(dir.resolve("options.txt"), "o");
+        Path servers = Files.writeString(dir.resolve("servers.dat"), "s");
+
+        PackEditor.Configs result = editor.addConfigs(pack.id(), List.of(
+            new PackEditor.ConfigSource(options, ConfigRoot.GAME),
+            new PackEditor.ConfigSource(servers, ConfigRoot.GAME)), ConfigMode.ALWAYS);
+
+        assertEquals(List.of("options.txt"), result.added());
+        assertEquals(List.of("servers.dat"), result.rejected());
+        assertTrue(Files.exists(packFolder().resolve("game-files/options.txt")));
+        assertEquals(List.of(), rules(), "a game file has no rule");
+    }
+
+    @Test
+    void jarsLinksAndBigFilesAreSkippedButTheRestOfTheFolderGoesIn() throws IOException {
+        Path folder = Files.createDirectories(dir.resolve("src/mixed"));
+        Files.writeString(folder.resolve("ok.toml"), "ok");
+        Files.writeString(folder.resolve("evil.jar"), "jar");
+        Files.write(folder.resolve("big.bin"), new byte[(int) PackEditor.MAX_CONFIG_FILE_BYTES + 1]);
+
+        PackEditor.Configs result = editor.addConfigs(pack.id(),
+            List.of(new PackEditor.ConfigSource(folder, ConfigRoot.CONFIG)), ConfigMode.IF_MISSING);
+
+        assertEquals(List.of("mixed/"), result.added());
+        assertEquals(List.of("mixed/big.bin", "mixed/evil.jar"), result.rejected().stream().sorted().toList());
+        assertTrue(Files.exists(packFolder().resolve("configs/mixed/ok.toml")));
+        assertFalse(Files.exists(packFolder().resolve("configs/mixed/evil.jar")));
+        assertEquals(List.of(), rules(), "install-if-missing needs no rule");
+    }
+
+    @Test
+    void aFolderWithNothingShareableAddsNothing() throws IOException {
+        Path folder = Files.createDirectories(dir.resolve("src/onlyjars"));
+        Files.writeString(folder.resolve("a.jar"), "jar");
+
+        PackEditor.Configs result = editor.addConfigs(pack.id(),
+            List.of(new PackEditor.ConfigSource(folder, ConfigRoot.CONFIG)), ConfigMode.OPTIONAL);
+
+        assertEquals(List.of(), result.added());
+        assertFalse(Files.exists(packFolder().resolve("configs/onlyjars")));
+    }
+
+    @Test
+    void theModeOfAUnitCanChangeAndTheUnitCanBeRemoved() throws IOException {
+        Path file = Files.writeString(dir.resolve("a.toml"), "a");
+        editor.addConfigs(pack.id(), List.of(new PackEditor.ConfigSource(file, ConfigRoot.CONFIG)), ConfigMode.ALWAYS);
+        ConfigUnits.Unit unit = new ConfigUnits.Unit(ConfigRoot.CONFIG, "a.toml");
+
+        editor.setConfigMode(pack.id(), unit, ConfigMode.OPTIONAL);
+        assertEquals(List.of(new ConfigRule("a.toml", ConfigMode.OPTIONAL)), rules());
+
+        editor.setConfigMode(pack.id(), unit, ConfigMode.IF_MISSING);
+        assertEquals(List.of(), rules());
+        assertThrows(IllegalArgumentException.class, () -> editor.setConfigMode(pack.id(),
+            new ConfigUnits.Unit(ConfigRoot.GAME, "options.txt"), ConfigMode.ALWAYS));
+        assertThrows(IllegalArgumentException.class, () -> editor.setConfigMode(pack.id(),
+            new ConfigUnits.Unit(ConfigRoot.CONFIG, "nope.toml"), ConfigMode.ALWAYS));
+
+        editor.setConfigMode(pack.id(), unit, ConfigMode.ALWAYS);
+        editor.removeConfig(pack.id(), unit);
+        assertEquals(List.of(), rules());
+        assertFalse(Files.exists(packFolder().resolve("configs/a.toml")));
     }
 
     @Test

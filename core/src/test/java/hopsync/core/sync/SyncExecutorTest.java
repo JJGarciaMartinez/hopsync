@@ -1,7 +1,9 @@
 package hopsync.core.sync;
 
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.manifest.ConfigEntry;
 import hopsync.core.manifest.ModEntry;
+import hopsync.core.pack.OptionalChoice;
 import hopsync.core.util.CancellationToken;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static hopsync.core.sync.Fixtures.config;
+import static hopsync.core.sync.Fixtures.gameFile;
+import static hopsync.core.sync.Fixtures.optionalConfig;
 import static hopsync.core.sync.Fixtures.manifest;
 import static hopsync.core.sync.Fixtures.mod;
 import static hopsync.core.sync.Fixtures.recordOf;
@@ -90,11 +94,11 @@ class SyncExecutorTest {
     }
 
     private SyncExecutor.Result run(SyncPlan plan, LocalState previous, CancellationToken cancel) {
-        return new SyncExecutor(fakeDownloader, mods, configs, 3).execute(plan, previous, listener, cancel);
+        return new SyncExecutor(fakeDownloader, mods, configs, root, 3).execute(plan, previous, listener, cancel);
     }
 
     private SyncPlan plan(hopsync.core.manifest.Manifest manifest, LocalState state) throws IOException {
-        return new SyncPlanner(mods, configs).plan(manifest, state);
+        return new SyncPlanner(mods, configs, root).plan(manifest, state);
     }
 
     @Test
@@ -208,7 +212,7 @@ class SyncExecutorTest {
             if (downloads.incrementAndGet() >= 2) cancel.cancel();
         };
 
-        SyncExecutor.Result result = new SyncExecutor(cancelAfterTwo, mods, configs, 1)
+        SyncExecutor.Result result = new SyncExecutor(cancelAfterTwo, mods, configs, root, 1)
             .execute(plan(manifest(entries, List.of()), LocalState.empty()), LocalState.empty(), listener, cancel);
 
         assertTrue(result.cancelled());
@@ -241,5 +245,73 @@ class SyncExecutorTest {
         assertFalse(Files.exists(mods.resolve("x.jar" + FileDownloader.PART_SUFFIX)));
         assertFalse(Files.exists(configs.resolve("deep/y.toml" + FileDownloader.PART_SUFFIX)));
         assertTrue(Files.exists(mods.resolve("unrelated.part")));
+    }
+
+    // ---------------------------------------------------------------- optional configs
+
+    private SyncPlan planAccepting(ConfigEntry... entries) throws IOException {
+        Map<String, OptionalChoice> choices = new HashMap<>();
+        for (ConfigEntry entry : entries) {
+            ConfigUnits.Unit unit = ConfigUnits.unitOf(entry);
+            choices.put(unit.key(), new OptionalChoice(ConfigUnits.revision(List.of(entry)), true, false));
+        }
+        return new SyncPlanner(mods, configs, root)
+            .plan(manifest(List.of(), List.of(entries)), LocalState.empty(), choices);
+    }
+
+    @Test
+    void acceptedGameFileKeepsThePlayersCopyAsBackup() throws IOException {
+        write(root, "options.txt", "player");
+        ConfigEntry entry = gameFile("options.txt", "creator");
+        remote.put(entry.url(), "creator");
+
+        SyncExecutor.Result result = run(planAccepting(entry), LocalState.empty(), CancellationToken.none());
+
+        assertEquals(0, result.failed());
+        assertEquals("creator", Files.readString(root.resolve("options.txt")));
+        assertEquals("player", Files.readString(root.resolve("options.txt.hopsync-bak")));
+        assertFalse(Files.exists(configs.resolve("options.txt")), "the game file is not written under config/");
+        assertNotNull(result.state().configs().get("game:options.txt"));
+    }
+
+    @Test
+    void anOlderBackupIsReplacedByTheNewOne() throws IOException {
+        write(root, "options.txt", "player");
+        write(root, "options.txt.hopsync-bak", "very old");
+        ConfigEntry entry = gameFile("options.txt", "creator");
+        remote.put(entry.url(), "creator");
+
+        run(planAccepting(entry), LocalState.empty(), CancellationToken.none());
+
+        assertEquals("player", Files.readString(root.resolve("options.txt.hopsync-bak")));
+    }
+
+    @Test
+    void aFailedDownloadPutsThePlayersFileBack() throws IOException {
+        write(root, "options.txt", "player");
+        ConfigEntry entry = gameFile("options.txt", "creator");
+        failing.add(entry.url());
+
+        SyncExecutor.Result result = run(planAccepting(entry), LocalState.empty(), CancellationToken.none());
+
+        assertEquals(1, result.failed());
+        assertEquals("player", Files.readString(root.resolve("options.txt")));
+        assertFalse(Files.exists(root.resolve("options.txt.hopsync-bak")));
+        assertNull(result.state().configs().get("game:options.txt"));
+    }
+
+    @Test
+    void offeredUnitsWriteNothingAndKeepTheirRecords() throws IOException {
+        Path file = write(configs, "jei/a.json", "installed before");
+        FileRecord record = recordOf(file);
+        LocalState previous = new LocalState(null, Map.of(), Map.of("jei/a.json", record));
+        ConfigEntry entry = optionalConfig("jei/a.json", "creator changed it");
+
+        SyncExecutor.Result result = run(
+            new SyncPlanner(mods, configs, root).plan(manifest(List.of(), List.of(entry)), previous),
+            previous, CancellationToken.none());
+
+        assertEquals("installed before", Files.readString(file));
+        assertEquals(record, result.state().configs().get("jei/a.json"));
     }
 }

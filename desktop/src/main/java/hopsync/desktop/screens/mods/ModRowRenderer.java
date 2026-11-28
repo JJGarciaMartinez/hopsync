@@ -15,16 +15,19 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.ListCellRenderer;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.FontMetrics;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagLayout;
@@ -49,6 +52,7 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
     private final DetailLine detail = new DetailLine();
     private final JLabel group = text(true);
     private final JLabel more = text(false);
+    private final AddLine add = new AddLine();
     private final JLabel message = text(false);
     private final JLabel banner = new JLabel();
     private int hoverIndex = -1;
@@ -101,6 +105,7 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
                 more.setForeground(index == hoverIndex ? Palette.text() : Palette.textSecondary());
                 yield more;
             }
+            case ModRow.Add a -> add.show(a, index == hoverIndex);
             case ModRow.Message m -> {
                 message.setText(m.text());
                 yield message;
@@ -392,6 +397,68 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
             // Values in mono, as in the design: they are file names and handles, not prose
             return escape(Messages.get(key)) + " <span style='font-family:" + Fonts.MONO_FAMILY + ";color:"
                 + hex(Palette.textSecondary()) + "'>" + escape(value) + "</span>";
+        }
+    }
+
+    /**
+     * "Agregar configs…": a dashed outline that turns coral on hover, so it reads as a place to add more. The icon
+     * and text are drawn here rather than laid out, so the row looks the same at any width.
+     */
+    private static final class AddLine extends JPanel {
+        private static final int MARGIN_X = 16;
+        private static final int MARGIN_Y = 8;
+        private static final int HEIGHT = 52;
+        private ModRow.Add row;
+        private boolean hover;
+
+        AddLine() {
+            setOpaque(false);
+        }
+
+        AddLine show(ModRow.Add added, boolean hovered) {
+            row = added;
+            hover = hovered;
+            return this;
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            return new Dimension(0, UIScale.scale(HEIGHT));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            if (row == null) return;
+            Graphics2D g2 = (Graphics2D) g.create();
+            try {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                Color color = hover ? Palette.action() : Palette.textSecondary();
+                int x = UIScale.scale(MARGIN_X);
+                int y = UIScale.scale(MARGIN_Y);
+                int width = getWidth() - 2 * x;
+                int height = getHeight() - 2 * y;
+                float dash = UIScale.scale(5f);
+                g2.setStroke(new BasicStroke(UIScale.scale(1.5f), BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 10,
+                    new float[] {dash, dash * 0.7f}, 0));
+                g2.setColor(hover ? Palette.action() : Palette.edge());
+                int arc = UIScale.scale(14);
+                g2.drawRoundRect(x, y, width - 1, height - 1, arc, arc);
+
+                Icon icon = Icons.get(row.icon(), 14, color);
+                FontMetrics metrics = g2.getFontMetrics(getFont());
+                int gap = UIScale.scale(8);
+                int content = icon.getIconWidth() + gap + metrics.stringWidth(row.text());
+                int left = x + (width - content) / 2;
+                icon.paintIcon(this, g2, left, y + (height - icon.getIconHeight()) / 2);
+                g2.setColor(color);
+                g2.setFont(getFont());
+                g2.drawString(row.text(), left + icon.getIconWidth() + gap,
+                    y + (height + metrics.getAscent() - metrics.getDescent()) / 2);
+            } finally {
+                g2.dispose();
+            }
         }
     }
 }

@@ -149,6 +149,9 @@ public final class PublishView extends JPanel {
         } else if (!sheet.ownFiles().isEmpty()) {
             SheetParts.stack(body, 14, SheetParts.notice(Messages.get("publish.ownFiles", sheet.ownFiles().size(),
                 named(sheet.ownFiles())), Palette.update()));
+            if (sheet.ownFiles().stream().anyMatch(file -> file.startsWith("game-files/"))) {
+                SheetParts.stack(body, 8, SheetParts.notice(Messages.get("publish.gameFiles"), Palette.update()));
+            }
             SheetParts.stack(body, 8, confirm);
         }
         if (sheet.error() != null) {

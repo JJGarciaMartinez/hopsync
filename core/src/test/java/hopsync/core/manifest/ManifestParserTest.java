@@ -1,6 +1,7 @@
 package hopsync.core.manifest;
 
 import hopsync.core.manifest.ConfigEntry;
+import hopsync.core.manifest.ConfigRoot;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.manifest.ModSource;
@@ -169,6 +170,56 @@ class ManifestParserTest {
     @Test
     void rejectsNonBooleanOverwrite() {
         assertRejected(manifest("2", "", config("a.toml", "https://x.org/a", "\"yes\"")));
+    }
+
+    private static String configWith(String path, String extra) {
+        return """
+            {"path": "%s", "url": "https://x.org/a", "sha512": "%s", "size": 5, "overwrite": false%s}
+            """.formatted(path, SHA512, extra);
+    }
+
+    @Test
+    void configsDefaultToTheConfigFolderAndNotOptional() throws IOException {
+        ConfigEntry entry = ManifestParser.parse(manifest("2", "", validConfig())).configs().get(0);
+        assertEquals(ConfigRoot.CONFIG, entry.root());
+        assertFalse(entry.optional());
+    }
+
+    @Test
+    void parsesRootAndOptional() throws IOException {
+        Manifest manifest = ManifestParser.parse(manifest("2", "",
+            configWith("options.txt", ", \"root\": \"game\", \"optional\": true") + ","
+                + configWith("jei/a.json", ", \"optional\": true")));
+        assertEquals(ConfigRoot.GAME, manifest.configs().get(0).root());
+        assertTrue(manifest.configs().get(0).optional());
+        assertEquals(ConfigRoot.CONFIG, manifest.configs().get(1).root());
+        assertTrue(manifest.configs().get(1).optional());
+    }
+
+    @Test
+    void rejectsOptionalThatOverwrites() {
+        assertRejected(manifest("2", "", """
+            {"path": "a.toml", "url": "https://x.org/a", "sha512": "%s", "size": 5, "overwrite": true, "optional": true}
+            """.formatted(SHA512)));
+    }
+
+    @Test
+    void rejectsUnknownRootAndNonBooleanOptional() {
+        assertRejected(manifest("2", "", configWith("a.toml", ", \"root\": \"home\"")));
+        assertRejected(manifest("2", "", configWith("a.toml", ", \"optional\": \"yes\"")));
+    }
+
+    @Test
+    void rejectsGameFilesOutsideTheWhitelistOrNotOptional() {
+        assertRejected(manifest("2", "", configWith("servers.dat", ", \"root\": \"game\", \"optional\": true")));
+        assertRejected(manifest("2", "", configWith("options.txt", ", \"root\": \"game\"")));
+    }
+
+    @Test
+    void allowsTheSamePathInBothRoots() throws IOException {
+        Manifest manifest = ManifestParser.parse(manifest("2", "",
+            configWith("options.txt", "") + "," + configWith("options.txt", ", \"root\": \"game\", \"optional\": true")));
+        assertEquals(2, manifest.configs().size());
     }
 
     @Test

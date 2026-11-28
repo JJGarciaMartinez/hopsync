@@ -5,6 +5,7 @@ import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,7 +31,13 @@ public record SyncPlan(Manifest manifest, List<ModAction> mods, List<String> rem
         REPLACE,
         /** The player edited it and the manifest does not enforce it. */
         KEEP_EDITED,
-        UP_TO_DATE
+        UP_TO_DATE,
+        /** Optional and not decided yet at this revision: offered to the player, nothing is written. */
+        OFFERED,
+        /** Optional and declined at this revision: nothing is written. */
+        SKIPPED,
+        /** The player accepted it and a different file is there: that file is kept as {@code .hopsync-bak}. */
+        REPLACE_WITH_BACKUP
     }
 
     public record ModAction(ModEntry mod, ModChange change) {
@@ -41,7 +48,8 @@ public record SyncPlan(Manifest manifest, List<ModAction> mods, List<String> rem
 
     public record ConfigAction(ConfigEntry config, ConfigChange change) {
         public boolean needsDownload() {
-            return change == ConfigChange.INSTALL || change == ConfigChange.REPLACE;
+            return change == ConfigChange.INSTALL || change == ConfigChange.REPLACE
+                || change == ConfigChange.REPLACE_WITH_BACKUP;
         }
     }
 
@@ -61,6 +69,25 @@ public record SyncPlan(Manifest manifest, List<ModAction> mods, List<String> rem
         return configs.stream().filter(ConfigAction::needsDownload).toList();
     }
 
+    /** Optional configs the player has to decide on, files of every offered unit. */
+    public List<ConfigAction> offered() {
+        return configs.stream().filter(a -> a.change() == ConfigChange.OFFERED).toList();
+    }
+
+    /** The units behind {@link #offered()}, each with the manifest files it holds. */
+    public Map<ConfigUnits.Unit, List<ConfigEntry>> offeredUnits() {
+        Map<ConfigUnits.Unit, List<ConfigEntry>> units = new LinkedHashMap<>();
+        for (ConfigAction action : offered()) {
+            ConfigUnits.Unit unit = ConfigUnits.unitOf(action.config());
+            units.computeIfAbsent(unit, u -> ConfigUnits.entriesOf(u, manifest.configs()));
+        }
+        return units;
+    }
+
+    public List<ConfigAction> skipped() {
+        return configs.stream().filter(a -> a.change() == ConfigChange.SKIPPED).toList();
+    }
+
     public long count(ModChange change) {
         return mods.stream().filter(a -> a.change() == change).count();
     }
@@ -75,11 +102,11 @@ public record SyncPlan(Manifest manifest, List<ModAction> mods, List<String> rem
         Set<String> files = new HashSet<>();
         modDownloads().forEach(action -> files.add(action.mod().file()));
         files.addAll(removals);
-        configDownloads().forEach(action -> files.add(action.config().path()));
+        configDownloads().forEach(action -> files.add(action.config().stateKey()));
         return files;
     }
 
     public boolean isUpToDate() {
-        return modDownloads().isEmpty() && removals.isEmpty() && configDownloads().isEmpty();
+        return modDownloads().isEmpty() && removals.isEmpty() && configDownloads().isEmpty() && offered().isEmpty();
     }
 }

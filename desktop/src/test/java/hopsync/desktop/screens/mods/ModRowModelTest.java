@@ -3,6 +3,8 @@ package hopsync.desktop.screens.mods;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.ConfigEntry;
+import hopsync.core.manifest.ConfigRoot;
+import hopsync.core.pack.ConfigMode;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.manifest.ModSource;
@@ -54,11 +56,16 @@ class ModRowModelTest {
         return ModRowModel.of(state.packs().get(D), state);
     }
 
+    private static ModRowModel modelOfMine(UiState state) {
+        return ModRowModel.of(state.packs().get(MINE.id()), state);
+    }
+
     private static List<String> keys(ModRowModel model) {
         return model.rows().stream().map(row -> switch (row) {
             case ModRow.Mod m -> m.key();
             case ModRow.Group g -> "# " + g.title();
             case ModRow.More m -> "more";
+            case ModRow.Add a -> "add";
             case ModRow.Detail d -> "detail " + d.key();
             case ModRow.Message m -> "msg " + m.text();
             case ModRow.Banner b -> "banner";
@@ -214,6 +221,60 @@ class ModRowModelTest {
         assertInstanceOf(ModRow.Group.class, model.rows().getFirst());
         assertEquals(Messages.get("mods.config.kept"), mod(model, "edited.toml").tag().text());
         assertEquals(1, model.configCount());
+    }
+
+    private static UiState createdWithConfigs(Object... more) {
+        ConfigEntry jei = new ConfigEntry("jei/a.json", "https://x.org/a", "a".repeat(128), 10, false, ConfigRoot.CONFIG, true);
+        ConfigEntry always = new ConfigEntry("always.toml", "https://x.org/b", "b".repeat(128), 10, true);
+        ConfigEntry options = new ConfigEntry("options.txt", "https://x.org/c", "c".repeat(128), 10, false, ConfigRoot.GAME, true);
+        Manifest withConfigs = new Manifest(2, MINE_INFO, "c".repeat(64), List.of(), List.of(jei, always, options));
+        UiState state = reduce(created(), new UiAction.ManifestLoaded(MINE.id(), withConfigs),
+            new UiAction.SelectTab(Tab.CONFIGS));
+        return more.length == 0 ? state : reduce(state, more);
+    }
+
+    @Test
+    void aCreatedPacksConfigsOfferToAddMoreAndShowTheirMode() {
+        ModRowModel model = modelOfMine(createdWithConfigs());
+
+        ModRow.Add add = assertInstanceOf(ModRow.Add.class, model.rows().getFirst());
+        assertEquals(new UiAction.OpenAddConfigs(MINE.id()), add.action());
+        assertEquals(Messages.get("mods.configs.mode.optional"), mod(model, "jei/a.json").tag().text());
+        assertEquals(Messages.get("mods.configs.mode.always"), mod(model, "always.toml").tag().text());
+        assertTrue(mod(model, "game:options.txt").name().contains(Messages.get("mods.configs.gameFolder")));
+        assertTrue(mod(model, "always.toml").expandable());
+    }
+
+    @Test
+    void anExpandedConfigOffersTheOtherModesAndRemovingItsUnit() {
+        ModRowModel model = modelOfMine(createdWithConfigs(new UiAction.ToggleRow("always.toml")));
+
+        ModRow.Detail detail = model.rows().stream().filter(ModRow.Detail.class::isInstance)
+            .map(ModRow.Detail.class::cast).findFirst().orElseThrow();
+        assertEquals(List.of(new UiAction.SetConfigMode(MINE.id(), "config:always.toml", ConfigMode.IF_MISSING, "always.toml"),
+            new UiAction.SetConfigMode(MINE.id(), "config:always.toml", ConfigMode.OPTIONAL, "always.toml"),
+            new UiAction.RemoveConfig(MINE.id(), "config:always.toml", "always.toml")),
+            detail.actions().stream().map(ModRow.DetailAction::action).toList());
+    }
+
+    @Test
+    void aGameFileCanOnlyBeRemoved() {
+        ModRowModel model = modelOfMine(createdWithConfigs(new UiAction.ToggleRow("game:options.txt")));
+
+        ModRow.Detail detail = model.rows().stream().filter(ModRow.Detail.class::isInstance)
+            .map(ModRow.Detail.class::cast).findFirst().orElseThrow();
+        assertEquals(List.of(new UiAction.RemoveConfig(MINE.id(), "game:options.txt", "options.txt")),
+            detail.actions().stream().map(ModRow.DetailAction::action).toList());
+    }
+
+    @Test
+    void aPackFollowedByLinkNeverOffersToEditItsConfigs() {
+        ConfigEntry config = new ConfigEntry("a.toml", "https://x.org/a", "a".repeat(128), 10, false);
+        Manifest withConfig = new Manifest(2, INFO, "c".repeat(64), List.of(), List.of(config));
+        ModRowModel model = model(reduce(loaded(), new UiAction.ManifestLoaded(D, withConfig), new UiAction.SelectTab(Tab.CONFIGS)));
+
+        assertFalse(model.rows().stream().anyMatch(ModRow.Add.class::isInstance));
+        assertFalse(mod(model, "a.toml").expandable());
     }
 
     @Test

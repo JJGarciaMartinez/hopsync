@@ -6,12 +6,15 @@ import hopsync.core.catalog.CatalogVersion;
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.ConfigEntry;
+import hopsync.core.manifest.ConfigRoot;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.manifest.ModSource;
 import hopsync.core.manifest.PackInfo;
 import hopsync.core.pack.InMemoryDefinitions;
 import hopsync.core.pack.Pack;
+import hopsync.core.pack.ConfigMode;
+import hopsync.core.pack.ConfigRule;
 import hopsync.core.pack.PackDefinition;
 import hopsync.core.pack.PackSource;
 import hopsync.core.port.ModCatalog;
@@ -88,7 +91,7 @@ class DefinitionResolverTest {
         Path config = Files.writeString(Files.createDirectories(dir.resolve("configs/server")).resolve("rules.json"), "{}");
         Files.writeString(dir.resolve("configs/client.txt"), "x");
         PackDefinition definition = new PackDefinition(INFO,
-            List.of(new PackDefinition.OwnMod("Mine.jar"), sodium("v1")), List.of("server/rules.json"));
+            List.of(new PackDefinition.OwnMod("Mine.jar"), sodium("v1")), List.of(new ConfigRule("server/", ConfigMode.ALWAYS)));
 
         Manifest manifest = resolver.resolve(definition, dir);
 
@@ -101,6 +104,34 @@ class DefinitionResolverTest {
         assertEquals(List.of("client.txt", "server/rules.json"), manifest.configs().stream().map(ConfigEntry::path).toList());
         assertEquals(List.of(false, true), manifest.configs().stream().map(ConfigEntry::overwrite).toList());
         assertEquals(config.toUri().toString(), manifest.configs().get(1).url());
+    }
+
+    @Test
+    void optionalUnitsAndGameFilesAreFlaggedAndNeverOverwrite() throws IOException {
+        Files.writeString(Files.createDirectories(dir.resolve("configs/shaders/deep")).resolve("a.json"), "a");
+        Files.writeString(dir.resolve("configs/shaders/b.json"), "b");
+        Files.writeString(dir.resolve("configs/plain.toml"), "p");
+        Files.writeString(Files.createDirectories(dir.resolve("game-files")).resolve("options.txt"), "o");
+        Files.writeString(dir.resolve("game-files/servers.dat"), "not whitelisted");
+        PackDefinition definition = new PackDefinition(INFO, List.of(sodium("v1")),
+            List.of(new ConfigRule("shaders/", ConfigMode.OPTIONAL)));
+
+        List<ConfigEntry> configs = resolver.resolve(definition, dir).configs();
+
+        assertEquals(List.of("plain.toml", "shaders/b.json", "shaders/deep/a.json", "options.txt"),
+            configs.stream().map(ConfigEntry::path).toList());
+        assertEquals(List.of(false, true, true, true), configs.stream().map(ConfigEntry::optional).toList());
+        assertEquals(List.of(false, false, false, false), configs.stream().map(ConfigEntry::overwrite).toList());
+        assertEquals(ConfigRoot.GAME, configs.get(3).root());
+    }
+
+    @Test
+    void theContentHashChangesWhenAConfigBecomesOptional() throws IOException {
+        Files.writeString(Files.createDirectories(dir.resolve("configs")).resolve("a.toml"), "a");
+        String plain = resolver.resolve(new PackDefinition(INFO, List.of(sodium("v1")), List.of()), dir).contentHash();
+        String optional = resolver.resolve(new PackDefinition(INFO, List.of(sodium("v1")),
+            List.of(new ConfigRule("a.toml", ConfigMode.OPTIONAL))), dir).contentHash();
+        assertNotEquals(plain, optional);
     }
 
     @Test

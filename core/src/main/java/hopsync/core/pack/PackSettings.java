@@ -1,6 +1,8 @@
 package hopsync.core.pack;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -15,10 +17,12 @@ import java.util.Optional;
  * @param libraryWidth      width of the pack library the player dragged to, in unscaled pixels, 200–360
  * @param language          language tag of the app's texts the player picked, or blank to follow the system
  * @param checkAppUpdates   ask HopSync's repository for a newer release when the app starts
+ * @param choices           per pack id, the player's decision on each optional config unit, by
+ *                          {@link hopsync.core.sync.ConfigUnits.Unit#key()}
  */
 public record PackSettings(List<Pack> packs, String activeId, boolean checkOnStart, boolean chainQueue,
                            int parallelDownloads, boolean reduceMotion, int libraryWidth, String language,
-                           boolean checkAppUpdates) {
+                           boolean checkAppUpdates, Map<String, Map<String, OptionalChoice>> choices) {
 
     public static final int MIN_PARALLEL_DOWNLOADS = 1;
     public static final int MAX_PARALLEL_DOWNLOADS = 8;
@@ -36,6 +40,13 @@ public record PackSettings(List<Pack> packs, String activeId, boolean checkOnSta
         this(packs, activeId, checkOnStart, chainQueue, parallelDownloads, reduceMotion, DEFAULT_LIBRARY_WIDTH, "", true);
     }
 
+    public PackSettings(List<Pack> packs, String activeId, boolean checkOnStart, boolean chainQueue,
+                        int parallelDownloads, boolean reduceMotion, int libraryWidth, String language,
+                        boolean checkAppUpdates) {
+        this(packs, activeId, checkOnStart, chainQueue, parallelDownloads, reduceMotion, libraryWidth, language,
+            checkAppUpdates, Map.of());
+    }
+
     public PackSettings {
         packs = List.copyOf(packs);
         String requested = activeId;
@@ -45,6 +56,27 @@ public record PackSettings(List<Pack> packs, String activeId, boolean checkOnSta
         parallelDownloads = Math.clamp(parallelDownloads, MIN_PARALLEL_DOWNLOADS, MAX_PARALLEL_DOWNLOADS);
         libraryWidth = Math.clamp(libraryWidth, MIN_LIBRARY_WIDTH, MAX_LIBRARY_WIDTH);
         language = language == null ? "" : language.strip();
+        Map<String, Map<String, OptionalChoice>> kept = new HashMap<>();
+        if (choices != null) {
+            choices.forEach((packId, byUnit) -> kept.put(packId, Map.copyOf(byUnit)));
+        }
+        choices = Map.copyOf(kept);
+    }
+
+    /** The player's decisions on the optional config units of one pack. */
+    public Map<String, OptionalChoice> choicesOf(String packId) {
+        return choices.getOrDefault(packId, Map.of());
+    }
+
+    public PackSettings withChoices(String packId, Map<String, OptionalChoice> packChoices) {
+        Map<String, Map<String, OptionalChoice>> next = new HashMap<>(choices);
+        if (packChoices.isEmpty()) {
+            next.remove(packId);
+        } else {
+            next.put(packId, packChoices);
+        }
+        return new PackSettings(packs, activeId, checkOnStart, chainQueue, parallelDownloads, reduceMotion,
+            libraryWidth, language, checkAppUpdates, next);
     }
 
     public Optional<Pack> active() {
@@ -56,7 +88,9 @@ public record PackSettings(List<Pack> packs, String activeId, boolean checkOnSta
     }
 
     public PackSettings withPacks(List<Pack> newPacks, String newActiveId) {
+        Map<String, Map<String, OptionalChoice>> kept = new HashMap<>(choices);
+        kept.keySet().removeIf(id -> newPacks.stream().noneMatch(pack -> pack.id().equals(id)));
         return new PackSettings(newPacks, newActiveId, checkOnStart, chainQueue, parallelDownloads, reduceMotion,
-            libraryWidth, language, checkAppUpdates);
+            libraryWidth, language, checkAppUpdates, kept);
     }
 }

@@ -7,6 +7,8 @@ import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.PackInfo;
 import hopsync.core.pack.Pack;
+import hopsync.core.pack.ConfigMode;
+import hopsync.core.pack.ConfigRule;
 import hopsync.core.pack.PackDefinition;
 import hopsync.core.pack.PackRegistry;
 import hopsync.core.pack.PackSettings;
@@ -136,7 +138,7 @@ class PackImporterTest {
             List.of("fabric"), true, List.of(), List.of()));
         repoToml = PackToml.write(new PackDefinition(INFO,
             List.of(new PackDefinition.ModrinthMod("AANobbMI", "sodium", "Lwa1Q6e4", "0.6.13")),
-            List.of("server/rules.json")));
+            List.of(new ConfigRule("server/", ConfigMode.ALWAYS))));
         repoFiles.put("configs/server/rules.json", "{}");
         repoFiles.put("local-mods/mine.jar", "jar");
     }
@@ -149,7 +151,7 @@ class PackImporterTest {
         assertEquals(INFO, definition.pack());
         assertEquals(List.of(new PackDefinition.ModrinthMod("AANobbMI", "sodium", "Lwa1Q6e4", "0.6.13"),
             new PackDefinition.OwnMod("mine.jar")), definition.mods());
-        assertEquals(List.of("server/rules.json"), definition.overwriteConfigs());
+        assertEquals(List.of(new ConfigRule("server/", ConfigMode.ALWAYS)), definition.configRules());
         Path folder = definitions.folder(pack.id());
         assertEquals("jar", Files.readString(folder.resolve("local-mods/mine.jar")));
         assertEquals("{}", Files.readString(folder.resolve("configs/server/rules.json")));

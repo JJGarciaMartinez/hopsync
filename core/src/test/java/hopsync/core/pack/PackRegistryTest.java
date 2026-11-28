@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -212,5 +214,39 @@ class PackRegistryTest {
             saved = settings;
             saves++;
         }
+    }
+
+    @Test
+    void optionalChoicesAreSavedMergedAndMarkedApplied() throws IOException {
+        Pack pack = registry.addLocal(PackDefinition.empty(INFO), dir.resolve("mine"));
+
+        registry.recordChoices(pack.id(), Map.of("game:options.txt", new OptionalChoice("r1", true, false),
+            "config:jei/", new OptionalChoice("r1", false, false)));
+        registry.recordChoices(pack.id(), Map.of("config:jei/", new OptionalChoice("r2", true, false)));
+        registry.markApplied(pack.id(), Set.of("game:options.txt", "config:jei/", "config:unknown/"));
+
+        assertEquals(Map.of("game:options.txt", new OptionalChoice("r1", true, true),
+            "config:jei/", new OptionalChoice("r2", true, true)), registry.choices(pack.id()));
+        assertEquals(registry.choices(pack.id()), new PackRegistry(repository, definitions).choices(pack.id()));
+    }
+
+    @Test
+    void aDeclinedChoiceIsNeverMarkedApplied() throws IOException {
+        Pack pack = registry.addLocal(PackDefinition.empty(INFO), dir.resolve("mine"));
+        registry.recordChoices(pack.id(), Map.of("config:jei/", new OptionalChoice("r1", false, false)));
+
+        registry.markApplied(pack.id(), Set.of("config:jei/"));
+
+        assertEquals(new OptionalChoice("r1", false, false), registry.choices(pack.id()).get("config:jei/"));
+    }
+
+    @Test
+    void removingAPackForgetsItsChoices() throws IOException {
+        Pack pack = registry.addLocal(PackDefinition.empty(INFO), dir.resolve("mine"));
+        registry.recordChoices(pack.id(), Map.of("config:jei/", new OptionalChoice("r1", true, false)));
+
+        registry.remove(pack.id());
+
+        assertEquals(Map.of(), registry.choices(pack.id()));
     }
 }

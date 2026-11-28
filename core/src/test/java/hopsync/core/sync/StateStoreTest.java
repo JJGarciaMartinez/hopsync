@@ -30,6 +30,18 @@ class StateStoreTest {
     }
 
     @Test
+    void gameFilesKeepTheirOwnKeyNextToAConfigOfTheSameName() throws IOException {
+        Path file = dir.resolve("state.json");
+        LocalState state = new LocalState("abc", Map.of(),
+            Map.of("options.txt", new FileRecord("1".repeat(128), 1, 1),
+                "game:options.txt", new FileRecord("2".repeat(128), 2, 2)), "pack-1");
+
+        new StateStore(file).save(state);
+
+        assertEquals(state, new StateStore(file).load("pack-1"));
+    }
+
+    @Test
     void aPackOnlySeesTheFilesItInstalled() throws IOException {
         Path file = dir.resolve("state.json");
         LocalState removedPacks = new LocalState("abc", Map.of("a.jar", new FileRecord("1".repeat(128), 10, 5)),

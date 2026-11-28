@@ -1,6 +1,9 @@
 package hopsync.desktop.screens.mods;
 
 import hopsync.core.manifest.ConfigEntry;
+import hopsync.core.manifest.ConfigRoot;
+import hopsync.core.pack.ConfigMode;
+import hopsync.core.sync.ConfigUnits;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.manifest.ModSource;
@@ -55,7 +58,7 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
 
         List<ModRow> rows = switch (state.tab()) {
             case OWN_MODS -> ownRows(own, pack.installed(), matches);
-            case CONFIGS -> configRows(manifest, plan, matches);
+            case CONFIGS -> configRows(pack, manifest, plan, matches, state.expandedRow());
             case PACK -> {
                 if (manifest == null) {
                     yield List.of(new ModRow.Message(pack.manifestError() != null
@@ -249,22 +252,85 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
         return rows;
     }
 
-    private static List<ModRow> configRows(Manifest manifest, SyncPlan plan, Predicate<String> matches) {
+    private static List<ModRow> configRows(PackUiState pack, Manifest manifest, SyncPlan plan, Predicate<String> matches,
+                                           String expanded) {
         if (manifest == null) return List.of(new ModRow.Message(Messages.get("mods.loading")));
         Map<String, ConfigAction> actions = new HashMap<>();
         if (plan != null) {
-            plan.configs().forEach(action -> actions.put(action.config().path(), action));
+            plan.configs().forEach(action -> actions.put(action.config().stateKey(), action));
+        }
+        boolean editable = canEditConfigs(pack);
+        List<ModRow> rows = new ArrayList<>();
+        if (editable) {
+            rows.add(new ModRow.Add(Messages.get("mods.configs.add"), Glyph.PLUS, new UiAction.OpenAddConfigs(pack.packId())));
         }
         List<ConfigEntry> shown = manifest.configs().stream().filter(config -> matches.test(config.path())).toList();
-        if (shown.isEmpty()) return List.of();
-        List<ModRow> rows = new ArrayList<>();
+        if (shown.isEmpty()) return rows;
         rows.add(new ModRow.Group(Messages.get("mods.configs.group"), Messages.get("mods.configs.note")));
         for (ConfigEntry config : shown) {
-            rows.add(new ModRow.Mod(config.path(), Glyph.FILE, ModRow.IconTone.FAINT, config.path(), "—", null,
+            ConfigAction action = actions.get(config.stateKey());
+            String key = config.stateKey();
+            String path = config.root() == ConfigRoot.GAME ? config.path() + " · " + Messages.get("mods.configs.gameFolder")
+                : config.path();
+            rows.add(new ModRow.Mod(key, Glyph.FILE, ModRow.IconTone.FAINT, path, "—", null,
                 Messages.get("mods.configs.author"), PlanSummary.formatBytes(config.size()),
-                configTag(actions.get(config.path())), null, null, ModRow.Look.NORMAL, false));
+                action != null ? configTag(action) : editable ? modeTag(config) : null, null, null, ModRow.Look.NORMAL,
+                editable));
+            if (editable && key.equals(expanded)) {
+                rows.add(new ModRow.Detail(key, Messages.get(descriptionKey(config)), config.path(), "", null, null,
+                    configActions(pack, config)));
+            }
         }
         return rows;
+    }
+
+    /** A created pack's configs change from its Configs tab; not while it checks, waits or writes files. */
+    static boolean canEditConfigs(PackUiState pack) {
+        PackPhase phase = pack.phase();
+        return pack.created() && phase != PackPhase.CHECKING && phase != PackPhase.QUEUED && !phase.isWriting();
+    }
+
+    private static ConfigMode modeOf(ConfigEntry config) {
+        return config.optional() ? ConfigMode.OPTIONAL : config.overwrite() ? ConfigMode.ALWAYS : ConfigMode.IF_MISSING;
+    }
+
+    private static String descriptionKey(ConfigEntry config) {
+        return switch (modeOf(config)) {
+            case OPTIONAL -> "mods.configs.mode.optional.text";
+            case ALWAYS -> "mods.configs.mode.always.text";
+            case IF_MISSING -> "mods.configs.mode.ifMissing.text";
+        };
+    }
+
+    private static ModRow.Tag modeTag(ConfigEntry config) {
+        return switch (modeOf(config)) {
+            case OPTIONAL -> tag("mods.configs.mode.optional", Tone.UPDATE);
+            case ALWAYS -> tag("mods.configs.mode.always", Tone.ADDED);
+            case IF_MISSING -> tag("mods.configs.mode.ifMissing", Tone.NEUTRAL);
+        };
+    }
+
+    /** The other modes of the config's unit (game files are always optional) and taking the unit out of the pack. */
+    static List<ModRow.DetailAction> configActions(PackUiState pack, ConfigEntry config) {
+        ConfigUnits.Unit unit = ConfigUnits.unitOf(config);
+        String id = pack.packId();
+        List<ModRow.DetailAction> actions = new ArrayList<>();
+        if (config.root() == ConfigRoot.CONFIG) {
+            ConfigMode current = modeOf(config);
+            for (ConfigMode mode : ConfigMode.values()) {
+                if (mode == current) continue;
+                String label = Messages.get(switch (mode) {
+                    case OPTIONAL -> "mods.configs.make.optional";
+                    case ALWAYS -> "mods.configs.make.always";
+                    case IF_MISSING -> "mods.configs.make.ifMissing";
+                });
+                actions.add(new ModRow.DetailAction(label, new UiAction.SetConfigMode(id, unit.key(), mode, unit.id()),
+                    false, false));
+            }
+        }
+        actions.add(new ModRow.DetailAction(Messages.get("mods.detail.removeFromPack"),
+            new UiAction.RemoveConfig(id, unit.key(), unit.id()), false, true));
+        return actions;
     }
 
     private static ModRow.Tag configTag(ConfigAction action) {
@@ -274,6 +340,9 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
             case REPLACE -> tag("mods.config.update", Tone.UPDATE);
             case KEEP_EDITED -> tag("mods.config.kept", Tone.NEUTRAL);
             case UP_TO_DATE -> tag("mods.config.upToDate", Tone.MINE);
+            case OFFERED -> tag("mods.config.offered", Tone.UPDATE);
+            case SKIPPED -> tag("mods.config.skipped", Tone.NEUTRAL);
+            case REPLACE_WITH_BACKUP -> tag("mods.config.replaceBackup", Tone.UPDATE);
         };
     }
 

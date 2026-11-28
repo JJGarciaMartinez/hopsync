@@ -9,6 +9,7 @@ import hopsync.core.manifest.ModEntry;
 import hopsync.core.manifest.ModSource;
 import hopsync.core.manifest.PackInfo;
 import hopsync.core.util.Json;
+import hopsync.core.sync.ConfigUnits;
 import hopsync.core.util.SafePaths;
 
 import java.io.IOException;
@@ -109,7 +110,8 @@ public final class ManifestParser {
             if (!SafePaths.isSafeRelativePath(path)) {
                 throw new ManifestException(where + ".path is not a valid relative path: " + path);
             }
-            if (!paths.add(path.toLowerCase(Locale.ROOT))) {
+            ConfigRoot root = parseRoot(config, where);
+            if (!paths.add(root + ":" + path.toLowerCase(Locale.ROOT))) {
                 throw new ManifestException(where + ".path is duplicated: " + path);
             }
 
@@ -118,15 +120,40 @@ public final class ManifestParser {
                 throw new ManifestException(where + ".overwrite must be true or false");
             }
 
+            Object optionalValue = config.getOrDefault("optional", Boolean.FALSE);
+            if (!(optionalValue instanceof Boolean optional)) {
+                throw new ManifestException(where + ".optional must be true or false");
+            }
+            if (optional && flag) {
+                throw new ManifestException(where + " cannot be both optional and overwrite");
+            }
+            if (root == ConfigRoot.GAME && (!optional || !ConfigUnits.GAME_FILES.contains(path))) {
+                throw new ManifestException(where + " is not an optional game file we allow: " + path);
+            }
+
             configs.add(new ConfigEntry(
                 path,
                 requireHttpsUrl(config, where),
                 requireMatching(config, "sha512", where, SHA512),
                 requireSize(config, where),
-                flag
+                flag,
+                root,
+                optional
             ));
         }
         return configs;
+    }
+
+    private static ConfigRoot parseRoot(Map<String, Object> config, String where) throws ManifestException {
+        Object value = config.getOrDefault("root", ConfigRoot.CONFIG.json());
+        if (value instanceof String name) {
+            for (ConfigRoot root : ConfigRoot.values()) {
+                if (root.json().equals(name)) {
+                    return root;
+                }
+            }
+        }
+        throw new ManifestException(where + ".root must be \"config\" or \"game\"");
     }
 
     private static ModSource parseSource(String source, String where) throws ManifestException {

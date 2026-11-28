@@ -4,13 +4,18 @@ import hopsync.core.catalog.CatalogProject;
 import hopsync.core.catalog.CatalogVersion;
 import hopsync.core.catalog.ProjectDetails;
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.manifest.ConfigRoot;
 import hopsync.core.manifest.PackInfo;
+import hopsync.core.pack.ConfigMode;
 import hopsync.core.publish.FetchProgress;
 import hopsync.core.publish.PublishStep;
 
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.function.UnaryOperator;
 
 /**
  * A sheet open on top of the window. Everything it shows lives here, so it renders like any other view.
@@ -283,6 +288,74 @@ public sealed interface Sheet {
 
         AddMods withoutDetail() {
             return withDetail(null);
+        }
+    }
+
+    /**
+     * Choosing the files and folders to share with a created pack's players.
+     *
+     * @param candidates what can be added: found in the pack's game folder or picked from the computer
+     * @param scanning   the game folder is still being looked through
+     * @param saving     the picked ones are being copied into the pack
+     * @param error      why adding failed, or {@code null}
+     */
+    record AddConfigs(String packId, List<Candidate> candidates, boolean scanning, boolean saving,
+                      SyncFailure error) implements Sheet {
+
+        /**
+         * @param path   where it is on this computer
+         * @param folder a folder of {@code config/} rather than a single file
+         * @param files  files it holds (1 for a file)
+         * @param mode   how it would be installed; a game file is always optional
+         */
+        public record Candidate(Path path, ConfigRoot root, String name, boolean folder, int files, long bytes,
+                                boolean picked, ConfigMode mode) {
+            public String key() {
+                return root.json() + ":" + name;
+            }
+
+            Candidate with(boolean nowPicked, ConfigMode newMode) {
+                return new Candidate(path, root, name, folder, files, bytes, nowPicked, newMode);
+            }
+        }
+
+        public AddConfigs {
+            candidates = List.copyOf(candidates);
+        }
+
+        public static AddConfigs start(String packId) {
+            return new AddConfigs(packId, List.of(), true, false, null);
+        }
+
+        public List<Candidate> picked() {
+            return candidates.stream().filter(Candidate::picked).toList();
+        }
+
+        public boolean canAdd() {
+            return !saving && !picked().isEmpty();
+        }
+
+        /** Adds what was found; one already listed keeps the player's choices. */
+        AddConfigs withFound(List<Candidate> found) {
+            List<Candidate> all = new ArrayList<>(candidates);
+            for (Candidate candidate : found) {
+                if (all.stream().noneMatch(known -> known.key().equals(candidate.key()))) all.add(candidate);
+            }
+            return new AddConfigs(packId, all, false, saving, error);
+        }
+
+        AddConfigs withChange(String key, UnaryOperator<Candidate> change) {
+            return new AddConfigs(packId, candidates.stream()
+                .map(candidate -> candidate.key().equals(key) ? change.apply(candidate) : candidate).toList(),
+                scanning, saving, error);
+        }
+
+        AddConfigs withSaving() {
+            return new AddConfigs(packId, candidates, scanning, true, null);
+        }
+
+        AddConfigs withError(SyncFailure failure) {
+            return new AddConfigs(packId, candidates, false, false, failure);
         }
     }
 

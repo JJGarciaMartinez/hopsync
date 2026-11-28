@@ -99,10 +99,14 @@ public record HeroModel(StatusMark.Kind mark, String title, String detail, List<
             case REVIEW -> {
                 PlanSummary summary = PlanSummary.of(pack.plan());
                 boolean waits = state.anotherPackApplying(id);
-                yield new HeroModel(StatusMark.Kind.WARN, Messages.get("hero.state.review", summary.changes()),
-                    version(pack), reviewTags(summary),
+                // Only optional files to decide on: nothing to apply, the player just saves the choice
+                boolean onlyChoices = summary.changes() == 0 && !pack.plan().offered().isEmpty();
+                yield new HeroModel(StatusMark.Kind.WARN,
+                    onlyChoices ? Messages.get("hero.state.reviewChoices") : Messages.get("hero.state.review", summary.changes()),
+                    version(pack), onlyChoices ? List.of() : reviewTags(summary),
                     List.of(new Action(Messages.get("hero.notNow"), null, new UiAction.DismissPlan(id), ButtonStyle.QUIET),
-                        new Action(Messages.get(waits ? "hero.enqueue" : "hero.apply"), waits ? Glyph.CLOCK : Glyph.CHECK,
+                        new Action(Messages.get(onlyChoices ? "hero.saveChoices" : waits ? "hero.enqueue" : "hero.apply"),
+                            waits && !onlyChoices ? Glyph.CLOCK : Glyph.CHECK,
                             new UiAction.ConfirmPlan(id), ButtonStyle.PRIMARY)),
                     null);
             }

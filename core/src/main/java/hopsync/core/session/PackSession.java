@@ -4,15 +4,22 @@ import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.failure.SyncFailures;
+import hopsync.core.manifest.ConfigEntry;
+import hopsync.core.pack.OptionalChoice;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackRegistry;
 import hopsync.core.session.UpdateState.Phase;
+import hopsync.core.sync.ConfigUnits;
+import hopsync.core.sync.FileRecord;
 import hopsync.core.sync.SyncExecutor;
 import hopsync.core.sync.SyncPlan;
 import hopsync.core.usecase.ModUpdateService;
 import hopsync.core.util.CancellationToken;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -87,10 +94,32 @@ public class PackSession {
      * applying, {@code Queued} is published and this one starts after it.
      */
     public synchronized void confirmPlan() {
+        confirmPlan(Set.of());
+    }
+
+    /**
+     * Like {@link #confirmPlan()}, with the optional config units the player ticked ({@link ConfigUnits.Unit#key()}).
+     * Every unit the plan offered is recorded as accepted or declined at its current revision, and the plan is
+     * computed again so the accepted ones are installed.
+     */
+    public synchronized void confirmPlan(Set<String> picked) {
         if (pendingPlan == null || !state.transition(Phase.AWAITING_CONFIRMATION, Phase.QUEUED)) return;
         SyncPlan plan = pendingPlan;
         Pack pack = plannedPack;
         pendingPlan = null;
+        if (!plan.offered().isEmpty()) {
+            try {
+                Map<String, OptionalChoice> decided = new HashMap<>();
+                plan.offeredUnits().forEach((unit, files) -> decided.put(unit.key(),
+                    new OptionalChoice(ConfigUnits.revision(files), picked.contains(unit.key()), false)));
+                registry.recordChoices(packId, decided);
+                plan = modUpdateService.replan(pack, plan.manifest(), registry.choices(packId));
+            } catch (IOException | RuntimeException e) {
+                fail(e);
+                return;
+            }
+        }
+        SyncPlan confirmed = plan;
 
         applyQueue.submit(new ApplyQueue.Job() {
             @Override
@@ -105,7 +134,7 @@ public class PackSession {
 
             @Override
             public void run() {
-                apply(pack, plan);
+                apply(pack, confirmed);
             }
         });
     }
@@ -139,13 +168,14 @@ public class PackSession {
     private void prepare() {
         try {
             Pack pack = registry.find(packId).orElseThrow(() -> new SyncException(new SyncFailure.NotConfigured()));
-            SyncPlan plan = modUpdateService.prepare(pack, events);
+            SyncPlan plan = modUpdateService.prepare(pack, events, registry.choices(packId));
             registry.rememberName(packId, plan.manifest().pack().name());
             if (cancel.isCancelled()) {
                 finishCancelled();
             } else if (plan.isUpToDate()) {
                 // Nothing to download, but the state still records the files and manifest
-                modUpdateService.apply(pack, plan, events, cancel);
+                SyncExecutor.Result result = modUpdateService.apply(pack, plan, events, cancel);
+                markApplied(plan, result);
                 state.setPhase(Phase.COMPLETED);
                 events.accept(new SyncEvent.UpToDate(packId, plan));
             } else {
@@ -186,12 +216,37 @@ public class PackSession {
             if (result.cancelled()) {
                 finishCancelled();
             } else {
+                markApplied(plan, result);
                 state.setPhase(Phase.COMPLETED);
                 events.accept(new SyncEvent.UpdateCompleted(packId, result.succeeded(), result.failed()));
             }
         } catch (IOException | RuntimeException e) {
             fail(e);
         }
+    }
+
+    /**
+     * Accepted optional units whose files are all on disk as the manifest has them stop being forced in: from now on
+     * the player's own edits to them are respected.
+     */
+    private void markApplied(SyncPlan plan, SyncExecutor.Result result) throws IOException {
+        Set<String> installed = new HashSet<>();
+        for (SyncPlan.ConfigAction action : plan.configs()) {
+            ConfigEntry config = action.config();
+            if (!config.optional() || action.change() == SyncPlan.ConfigChange.OFFERED
+                || action.change() == SyncPlan.ConfigChange.SKIPPED) {
+                continue;
+            }
+            ConfigUnits.Unit unit = ConfigUnits.unitOf(config);
+            boolean allThere = ConfigUnits.entriesOf(unit, plan.manifest().configs()).stream().allMatch(entry -> {
+                FileRecord record = result.state().configs().get(entry.stateKey());
+                return record != null && record.sha512().equals(entry.sha512());
+            });
+            if (allThere) {
+                installed.add(unit.key());
+            }
+        }
+        registry.markApplied(packId, installed);
     }
 
     private void finishCancelled() {

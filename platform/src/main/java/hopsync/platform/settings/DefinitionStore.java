@@ -1,6 +1,8 @@
 package hopsync.platform.settings;
 
 import hopsync.core.manifest.PackInfo;
+import hopsync.core.pack.ConfigMode;
+import hopsync.core.pack.ConfigRule;
 import hopsync.core.pack.PackDefinition;
 import hopsync.core.port.PackDefinitionRepository;
 import hopsync.core.util.AtomicFiles;
@@ -27,6 +29,21 @@ import java.util.Optional;
  * {@code configs/} with the configs the pack installs.
  */
 public class DefinitionStore implements PackDefinitionRepository {
+    private static List<String> units(PackDefinition definition, ConfigMode mode) {
+        return definition.configRules().stream().filter(rule -> rule.mode() == mode).map(ConfigRule::unit).toList();
+    }
+
+    private static void addRules(List<ConfigRule> rules, Object units, ConfigMode mode) {
+        if (units instanceof List<?> list) {
+            for (Object unit : list) {
+                if (!(unit instanceof String text)) {
+                    throw new IllegalArgumentException("Unsafe config unit " + unit);
+                }
+                rules.add(new ConfigRule(text, mode));
+            }
+        }
+    }
+
     private static final System.Logger LOG = System.getLogger(DefinitionStore.class.getName());
     private static final long FORMAT = 1;
     private static final String FILE = "pack.json";
@@ -124,7 +141,8 @@ public class DefinitionStore implements PackDefinitionRepository {
         root.put("format", FORMAT);
         root.put("pack", pack);
         root.put("mods", mods);
-        root.put("configs", Map.of("overwrite", List.copyOf(definition.overwriteConfigs())));
+        root.put("configs", Map.of("overwrite", units(definition, ConfigMode.ALWAYS),
+            "optional", units(definition, ConfigMode.OPTIONAL)));
         return root;
     }
 
@@ -142,16 +160,12 @@ public class DefinitionStore implements PackDefinitionRepository {
                 default -> throw new IllegalArgumentException("Unknown mod source " + mod.get("source"));
             });
         }
-        List<String> overwrite = new ArrayList<>();
-        if (root.get("configs") instanceof Map<?, ?> configs && configs.get("overwrite") instanceof List<?> paths) {
-            for (Object path : paths) {
-                if (!(path instanceof String relative) || !SafePaths.isSafeRelativePath(relative)) {
-                    throw new IllegalArgumentException("Unsafe config path " + path);
-                }
-                overwrite.add(relative);
-            }
+        List<ConfigRule> rules = new ArrayList<>();
+        if (root.get("configs") instanceof Map<?, ?> configs) {
+            addRules(rules, configs.get("overwrite"), ConfigMode.ALWAYS);
+            addRules(rules, configs.get("optional"), ConfigMode.OPTIONAL);
         }
-        return new PackDefinition(info, mods, overwrite);
+        return new PackDefinition(info, mods, rules);
     }
 
     private static String safeFile(String name) {

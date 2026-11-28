@@ -1,6 +1,8 @@
 package hopsync.desktop.store;
 
 import hopsync.core.event.SyncEvent;
+import hopsync.core.manifest.ConfigEntry;
+import hopsync.core.manifest.ConfigRoot;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.manifest.ModSource;
@@ -52,6 +54,23 @@ public final class StoreFixtures {
             List.of(new ModAction(fresh, ModChange.NEW), new ModAction(updated, ModChange.UPDATE),
                 new ModAction(kept, ModChange.UP_TO_DATE)),
             List.of("gone.jar"), List.of(), Map.of(), Map.of());
+    }
+
+    /** Nothing to download, but the creator offers a folder of configs and the player's options.txt. */
+    public static SyncPlan offeredPlan() {
+        ModEntry kept = mod("kept.jar");
+        ConfigEntry jei = new ConfigEntry("jei/a.json", "https://example.org/a", "d".repeat(128), 2048, false,
+            ConfigRoot.CONFIG, true);
+        ConfigEntry jeiB = new ConfigEntry("jei/b.json", "https://example.org/b", "e".repeat(128), 1024, false,
+            ConfigRoot.CONFIG, true);
+        ConfigEntry options = new ConfigEntry("options.txt", "https://example.org/o", "f".repeat(128), 4096, false,
+            ConfigRoot.GAME, true);
+        Manifest manifest = new Manifest(2, INFO, "c".repeat(64), List.of(kept), List.of(jei, jeiB, options));
+        return new SyncPlan(manifest, List.of(new ModAction(kept, ModChange.UP_TO_DATE)), List.of(),
+            List.of(new SyncPlan.ConfigAction(jei, SyncPlan.ConfigChange.OFFERED),
+                new SyncPlan.ConfigAction(jeiB, SyncPlan.ConfigChange.OFFERED),
+                new SyncPlan.ConfigAction(options, SyncPlan.ConfigChange.OFFERED)),
+            Map.of(), Map.of());
     }
 
     public static SyncPlan upToDatePlan() {

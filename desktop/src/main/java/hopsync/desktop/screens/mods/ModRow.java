@@ -61,6 +61,13 @@ public sealed interface ModRow {
     record DetailAction(String label, UiAction action, boolean menu, boolean danger) {
     }
 
+    /**
+     * A place to add more, drawn as a dashed outline that turns coral on hover, like "Agregar pack": what the Configs
+     * tab of a created pack opens its sheet with.
+     */
+    record Add(String text, Glyph icon, UiAction action) implements ModRow {
+    }
+
     /** A clickable line such as "70 mods ya están al día · Ver todos". */
     record More(String text, UiAction action) implements ModRow {
     }

@@ -1,6 +1,7 @@
 package hopsync.core.sync;
 
 import hopsync.core.manifest.ConfigEntry;
+import hopsync.core.manifest.ConfigRoot;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.manifest.ModSource;
@@ -38,6 +39,16 @@ public final class Fixtures {
     public static ConfigEntry config(String path, String content, boolean overwrite) {
         return new ConfigEntry(path, "https://example.org/config/" + path, sha512(content),
             content.getBytes(StandardCharsets.UTF_8).length, overwrite);
+    }
+
+    public static ConfigEntry optionalConfig(String path, String content) {
+        return new ConfigEntry(path, "https://example.org/config/" + path, sha512(content),
+            content.getBytes(StandardCharsets.UTF_8).length, false, ConfigRoot.CONFIG, true);
+    }
+
+    public static ConfigEntry gameFile(String path, String content) {
+        return new ConfigEntry(path, "https://example.org/game/" + path, sha512(content),
+            content.getBytes(StandardCharsets.UTF_8).length, false, ConfigRoot.GAME, true);
     }
 
     public static Manifest manifest(List<ModEntry> mods, List<ConfigEntry> configs) {

@@ -16,6 +16,16 @@ public final class FileChoosers {
     private FileChoosers() {
     }
 
+    /** Files and folders of configs to share with a pack, from anywhere on the computer; empty when they cancel. */
+    public static List<Path> chooseConfigs(Component parent) {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle(Messages.get("addConfigs.chooserTitle"));
+        chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
+        chooser.setMultiSelectionEnabled(true);
+        return chooser.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION
+            ? Arrays.stream(chooser.getSelectedFiles()).map(File::toPath).toList() : List.of();
+    }
+
     /** The mod jars the player has, to add to a pack they created; empty when they cancel. */
     public static List<Path> chooseJars(Component parent) {
         JFileChooser chooser = new JFileChooser();

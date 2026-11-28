@@ -13,6 +13,7 @@ import hopsync.core.publish.PublishRequest;
 import hopsync.core.publish.PublishStep;
 import hopsync.core.sync.FileHasher;
 import hopsync.core.util.CancellationToken;
+import hopsync.core.sync.ConfigUnits;
 import hopsync.core.util.SafePaths;
 
 import java.io.IOException;
@@ -69,7 +70,7 @@ public final class PackPublishing {
         return publication;
     }
 
-    /** The configs and the player's own jars, by their path in a pack repository. */
+    /** The configs, game files and the player's own jars, by their path in a pack repository. */
     static Map<String, Path> files(PackDefinition definition, Path folder) throws IOException {
         Map<String, Path> files = new TreeMap<>();
         Path configs = folder.resolve(DefinitionResolver.CONFIGS);
@@ -80,6 +81,10 @@ public final class PackPublishing {
                     if (SafePaths.isSafeRelativePath(relative)) files.put("configs/" + relative, file);
                 }
             }
+        }
+        Path gameFiles = folder.resolve(DefinitionResolver.GAME_FILES);
+        for (String name : ConfigUnits.GAME_FILES) {
+            if (Files.isRegularFile(gameFiles.resolve(name))) files.put("game-files/" + name, gameFiles.resolve(name));
         }
         for (PackDefinition.Mod mod : definition.mods()) {
             if (mod instanceof PackDefinition.OwnMod own) {
