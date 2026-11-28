@@ -1,6 +1,7 @@
 package hopsync.platform.settings;
 
 import hopsync.core.pack.Pack;
+import hopsync.core.pack.OptionalChoice;
 import hopsync.core.pack.PackSettings;
 import hopsync.core.pack.PackSource;
 import hopsync.core.port.PackSettingsRepository;
@@ -111,6 +112,7 @@ public class SettingsStore implements PackSettingsRepository {
         root.put("library_width", settings.libraryWidth());
         root.put("language", settings.language());
         root.put("check_app_updates", settings.checkAppUpdates());
+        root.put("optional_choices", writeChoices(settings.choices()));
 
         AtomicFiles.writeString(file, Json.write(root));
     }
@@ -137,7 +139,45 @@ public class SettingsStore implements PackSettingsRepository {
             root.get("reduce_motion") instanceof Boolean reduce ? reduce : defaults.reduceMotion(),
             root.get("library_width") instanceof Long width ? width.intValue() : defaults.libraryWidth(),
             root.get("language") instanceof String language ? language : defaults.language(),
-            root.get("check_app_updates") instanceof Boolean updates ? updates : defaults.checkAppUpdates());
+            root.get("check_app_updates") instanceof Boolean updates ? updates : defaults.checkAppUpdates(),
+            readChoices(root.get("optional_choices")));
+    }
+
+    private static Map<String, Object> writeChoices(Map<String, Map<String, OptionalChoice>> choices) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        choices.forEach((packId, byUnit) -> {
+            Map<String, Object> units = new LinkedHashMap<>();
+            byUnit.forEach((key, choice) -> {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("revision", choice.revision());
+                entry.put("accepted", choice.accepted());
+                entry.put("applied", choice.applied());
+                units.put(key, entry);
+            });
+            out.put(packId, units);
+        });
+        return out;
+    }
+
+    private static Map<String, Map<String, OptionalChoice>> readChoices(Object value) {
+        Map<String, Map<String, OptionalChoice>> choices = new LinkedHashMap<>();
+        if (value instanceof Map<?, ?> packs) {
+            packs.forEach((packId, units) -> {
+                if (packId instanceof String id && units instanceof Map<?, ?> byUnit) {
+                    Map<String, OptionalChoice> read = new LinkedHashMap<>();
+                    byUnit.forEach((key, entry) -> {
+                        if (key instanceof String unit && entry instanceof Map<?, ?> fields
+                            && fields.get("revision") instanceof String revision
+                            && fields.get("accepted") instanceof Boolean accepted) {
+                            read.put(unit, new OptionalChoice(revision, accepted,
+                                fields.get("applied") instanceof Boolean applied && applied));
+                        }
+                    });
+                    choices.put(id, read);
+                }
+            });
+        }
+        return choices;
     }
 
     private static Map<String, Object> writeSource(PackSource source) {

@@ -5,13 +5,17 @@ import hopsync.core.catalog.CatalogVersion;
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.ConfigEntry;
+import hopsync.core.manifest.ConfigRoot;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.manifest.ModSource;
+import hopsync.core.pack.ConfigMode;
+import hopsync.core.pack.ConfigRule;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackDefinition;
 import hopsync.core.port.ModCatalog;
 import hopsync.core.port.PackDefinitionRepository;
+import hopsync.core.sync.ConfigUnits;
 import hopsync.core.sync.FileHasher;
 import hopsync.core.util.SafePaths;
 
@@ -41,6 +45,7 @@ import java.util.stream.Stream;
 public final class DefinitionResolver {
     static final String OWN_MODS = "local-mods";
     static final String CONFIGS = "configs";
+    static final String GAME_FILES = "game-files";
 
     private final ModCatalog catalog;
     private final PackDefinitionRepository definitions;
@@ -68,7 +73,8 @@ public final class DefinitionResolver {
             }
         }
         mods.sort(Comparator.comparing(mod -> mod.file().toLowerCase(Locale.ROOT)));
-        List<ConfigEntry> configs = configs(folder.resolve(CONFIGS), Set.copyOf(definition.overwriteConfigs()));
+        List<ConfigEntry> configs = new ArrayList<>(configs(folder.resolve(CONFIGS), definition.configRules()));
+        configs.addAll(gameFiles(folder.resolve(GAME_FILES)));
         return new Manifest(Manifest.SUPPORTED_FORMAT_VERSION, definition.pack(), contentHash(mods, configs),
             mods, configs);
     }
@@ -114,30 +120,53 @@ public final class DefinitionResolver {
             Files.size(jar), ModSource.LOCAL);
     }
 
-    private static List<ConfigEntry> configs(Path configs, Set<String> overwrite) throws IOException {
-        if (!Files.isDirectory(configs)) {
-            return List.of();
-        }
+    private static List<ConfigEntry> configs(Path configs, List<ConfigRule> rules) throws IOException {
+        Map<String, ConfigMode> modes = rules.stream().collect(Collectors.toMap(ConfigRule::unit, ConfigRule::mode));
         List<ConfigEntry> entries = new ArrayList<>();
-        try (Stream<Path> files = Files.walk(configs)) {
-            for (Path file : files.filter(Files::isRegularFile).sorted().toList()) {
-                String relative = configs.relativize(file).toString().replace('\\', '/');
-                if (!SafePaths.isSafeRelativePath(relative)) {
-                    continue;
-                }
-                entries.add(new ConfigEntry(relative, file.toUri().toString(), FileHasher.sha512(file),
-                    Files.size(file), overwrite.contains(relative)));
+        for (Path file : regularFiles(configs)) {
+            String relative = configs.relativize(file).toString().replace('\\', '/');
+            if (!SafePaths.isSafeRelativePath(relative)) {
+                continue;
+            }
+            ConfigMode mode = modes.getOrDefault(ConfigUnits.configUnit(relative).id(), ConfigMode.IF_MISSING);
+            entries.add(entry(relative, file, ConfigRoot.CONFIG, mode));
+        }
+        return entries;
+    }
+
+    /** Everything in {@code game-files/} is optional; only the whitelisted names are offered. */
+    private static List<ConfigEntry> gameFiles(Path folder) throws IOException {
+        List<ConfigEntry> entries = new ArrayList<>();
+        for (Path file : regularFiles(folder)) {
+            String name = folder.relativize(file).toString().replace('\\', '/');
+            if (ConfigUnits.GAME_FILES.contains(name)) {
+                entries.add(entry(name, file, ConfigRoot.GAME, ConfigMode.OPTIONAL));
             }
         }
         return entries;
+    }
+
+    private static List<Path> regularFiles(Path folder) throws IOException {
+        if (!Files.isDirectory(folder)) {
+            return List.of();
+        }
+        try (Stream<Path> files = Files.walk(folder)) {
+            return files.filter(Files::isRegularFile).sorted().toList();
+        }
+    }
+
+    private static ConfigEntry entry(String relative, Path file, ConfigRoot root, ConfigMode mode) throws IOException {
+        return new ConfigEntry(relative, file.toUri().toString(), FileHasher.sha512(file), Files.size(file),
+            mode == ConfigMode.ALWAYS, root, mode == ConfigMode.OPTIONAL);
     }
 
     /** Changes whenever a file to install changes, which is all the sync state compares. */
     private static String contentHash(List<ModEntry> mods, List<ConfigEntry> configs) {
         StringBuilder content = new StringBuilder();
         mods.forEach(mod -> content.append(mod.file()).append('\t').append(mod.sha512()).append('\n'));
-        configs.forEach(config -> content.append(config.path()).append('\t').append(config.sha512())
-            .append('\t').append(config.overwrite()).append('\n'));
+        configs.forEach(config -> content.append(config.root().json()).append('\t').append(config.path())
+            .append('\t').append(config.sha512()).append('\t').append(config.overwrite())
+            .append('\t').append(config.optional()).append('\n'));
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(content.toString().getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);

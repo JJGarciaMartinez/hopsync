@@ -2,8 +2,10 @@ package hopsync.core.pack;
 
 import hopsync.core.manifest.PackInfo;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * A pack the player created, as {@code hopsync.toml} describes it in a pack repository: the pack's details,
@@ -12,15 +14,21 @@ import java.util.Objects;
  *
  * @param pack             name, version, description, server, Minecraft version and loader
  * @param mods             in the order they were added
- * @param overwriteConfigs config paths, relative to the pack's {@code configs/}, installed even over the
- *                         player's own changes
+ * @param configRules      the config units, relative to the pack's {@code configs/}, that are not left at the
+ *                         install-if-missing default: those that replace the player's copy and those that are optional
  */
-public record PackDefinition(PackInfo pack, List<Mod> mods, List<String> overwriteConfigs) {
+public record PackDefinition(PackInfo pack, List<Mod> mods, List<ConfigRule> configRules) {
 
     public PackDefinition {
         Objects.requireNonNull(pack, "pack");
         mods = List.copyOf(mods);
-        overwriteConfigs = List.copyOf(overwriteConfigs);
+        configRules = List.copyOf(configRules);
+        Set<String> units = new HashSet<>();
+        for (ConfigRule rule : configRules) {
+            if (!units.add(rule.unit())) {
+                throw new IllegalArgumentException("Two modes for the config unit " + rule.unit());
+            }
+        }
     }
 
     /** A new pack with no mods yet. */
@@ -29,11 +37,15 @@ public record PackDefinition(PackInfo pack, List<Mod> mods, List<String> overwri
     }
 
     public PackDefinition withPack(PackInfo newPack) {
-        return new PackDefinition(newPack, mods, overwriteConfigs);
+        return new PackDefinition(newPack, mods, configRules);
+    }
+
+    public PackDefinition withConfigRules(List<ConfigRule> newRules) {
+        return new PackDefinition(pack, mods, newRules);
     }
 
     public PackDefinition withMods(List<Mod> newMods) {
-        return new PackDefinition(pack, newMods, overwriteConfigs);
+        return new PackDefinition(pack, newMods, configRules);
     }
 
     /** One mod of the pack. */

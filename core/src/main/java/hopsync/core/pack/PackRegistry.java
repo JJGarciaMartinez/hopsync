@@ -9,8 +9,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -175,6 +178,34 @@ public class PackRegistry {
         }
     }
 
+    /** The player's decisions on the pack's optional config units, by unit key. */
+    public synchronized Map<String, OptionalChoice> choices(String packId) {
+        return settings.choicesOf(packId);
+    }
+
+    /** Saves the decisions for these units, keeping the ones for other units of the pack. */
+    public synchronized void recordChoices(String packId, Map<String, OptionalChoice> decided) throws IOException {
+        Map<String, OptionalChoice> merged = new HashMap<>(settings.choicesOf(packId));
+        merged.putAll(decided);
+        save(settings.withChoices(packId, merged));
+    }
+
+    /** Marks the accepted units as installed, so later updates treat their files like any other config. */
+    public synchronized void markApplied(String packId, Set<String> unitKeys) throws IOException {
+        Map<String, OptionalChoice> merged = new HashMap<>(settings.choicesOf(packId));
+        boolean changed = false;
+        for (String key : unitKeys) {
+            OptionalChoice choice = merged.get(key);
+            if (choice != null && choice.accepted() && !choice.applied()) {
+                merged.put(key, choice.asApplied());
+                changed = true;
+            }
+        }
+        if (changed) {
+            save(settings.withChoices(packId, merged));
+        }
+    }
+
     private void save(PackSettings next) throws IOException {
         repository.save(next);
         settings = next;
@@ -207,7 +238,7 @@ public class PackRegistry {
                                                boolean reduceMotion, String language, boolean checkAppUpdates)
             throws IOException {
         save(new PackSettings(settings.packs(), settings.activeId(), checkOnStart, chainQueue, parallelDownloads,
-            reduceMotion, settings.libraryWidth(), language, checkAppUpdates));
+            reduceMotion, settings.libraryWidth(), language, checkAppUpdates, settings.choices()));
     }
 
     /**
@@ -219,7 +250,7 @@ public class PackRegistry {
         try {
             save(new PackSettings(settings.packs(), settings.activeId(), settings.checkOnStart(), settings.chainQueue(),
                 settings.parallelDownloads(), settings.reduceMotion(), width, settings.language(),
-                settings.checkAppUpdates()));
+                settings.checkAppUpdates(), settings.choices()));
         } catch (IOException e) {
             LOG.log(System.Logger.Level.WARNING, "Could not save the library width", e);
         }

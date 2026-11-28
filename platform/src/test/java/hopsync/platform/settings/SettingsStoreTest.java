@@ -1,5 +1,6 @@
 package hopsync.platform.settings;
 
+import hopsync.core.pack.OptionalChoice;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackSettings;
 import hopsync.core.pack.PackSource;
@@ -30,7 +31,8 @@ class SettingsStoreTest {
         Pack published = new Pack("d4", new PackSource.Local(new PackSource.Publication("player/pack",
             "https://github.com/player/pack/releases/download/hopsync/manifest.json", "f".repeat(64))), dir.resolve("pub"), "Pub");
         PackSettings settings = new PackSettings(List.of(first, second, created, published), "b2", false, false, 6, true, 300,
-            "en", false);
+            "en", false, Map.of("c3", Map.of("game:options.txt", new OptionalChoice("r1", true, false),
+                "config:jei/", new OptionalChoice("r2", false, false))));
 
         store.save(settings);
 

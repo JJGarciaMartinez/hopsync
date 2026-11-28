@@ -32,13 +32,11 @@ public final class PackToml {
             line(toml, "server_ip", pack.serverIp());
         }
         toml.append("\n[configs]\n");
-        toml.append("# Files under configs/ are installed only if the player does not have them yet;\n");
-        toml.append("# the ones listed here always replace the player's copy.\n");
-        toml.append("overwrite = [");
-        for (int i = 0; i < definition.overwriteConfigs().size(); i++) {
-            toml.append(i == 0 ? "" : ", ").append(quote(definition.overwriteConfigs().get(i)));
-        }
-        toml.append("]\n");
+        toml.append("# Units under configs/ are a top-level folder (\"jei/\") or a file directly in it. They are installed\n");
+        toml.append("# only if the player does not have them yet; \"overwrite\" ones always replace the player's copy and\n");
+        toml.append("# \"optional\" ones are installed only if the player chooses them.\n");
+        units(toml, "overwrite", definition, ConfigMode.ALWAYS);
+        units(toml, "optional", definition, ConfigMode.OPTIONAL);
         toml.append("\n# Mods hosted on Modrinth. Jars that are not on Modrinth are in local-mods/.\n");
         for (PackDefinition.Mod mod : definition.mods()) {
             if (mod instanceof PackDefinition.ModrinthMod modrinth) {
@@ -106,8 +104,16 @@ public final class PackToml {
             mods.add(new PackDefinition.ModrinthMod("", required(mod, "mods", "modrinth"),
                 required(mod, "mods", "version"), mod.get("version").comment()));
         }
-        Entry overwrite = configs.get("overwrite");
-        return new PackDefinition(info, mods, overwrite == null ? List.of() : overwrite.items());
+        List<ConfigRule> rules = new ArrayList<>();
+        addRules(rules, configs.get("overwrite"), ConfigMode.ALWAYS);
+        addRules(rules, configs.get("optional"), ConfigMode.OPTIONAL);
+        return new PackDefinition(info, mods, rules);
+    }
+
+    private static void addRules(List<ConfigRule> rules, Entry entry, ConfigMode mode) {
+        if (entry != null) {
+            entry.items().forEach(unit -> rules.add(new ConfigRule(unit, mode)));
+        }
     }
 
     /** A value and the comment after it; {@code text} is {@code null} for an array and {@code items} is empty for a string. */
@@ -202,6 +208,18 @@ public final class PackToml {
             }
         }
         throw new IllegalArgumentException("unterminated string");
+    }
+
+    private static void units(StringBuilder toml, String key, PackDefinition definition, ConfigMode mode) {
+        toml.append(key).append(" = [");
+        boolean first = true;
+        for (ConfigRule rule : definition.configRules()) {
+            if (rule.mode() == mode) {
+                toml.append(first ? "" : ", ").append(quote(rule.unit()));
+                first = false;
+            }
+        }
+        toml.append("]\n");
     }
 
     private static void line(StringBuilder toml, String key, String value) {

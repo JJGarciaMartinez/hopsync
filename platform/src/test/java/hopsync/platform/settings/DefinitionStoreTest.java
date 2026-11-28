@@ -1,6 +1,8 @@
 package hopsync.platform.settings;
 
 import hopsync.core.manifest.PackInfo;
+import hopsync.core.pack.ConfigMode;
+import hopsync.core.pack.ConfigRule;
 import hopsync.core.pack.PackDefinition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -28,7 +30,7 @@ class DefinitionStoreTest {
             new PackInfo("Mi pack", "1.0.0", "Con amigos", "play.example.net", "1.21.1", "fabric"),
             List.of(new PackDefinition.ModrinthMod("P7dR8mSH", "fabric-api", "Lwa1Q6e4", "0.102.0+1.21.1"),
                 new PackDefinition.OwnMod("my-mod-1.0.jar")),
-            List.of("server/rules.json"));
+            List.of(new ConfigRule("server/", ConfigMode.ALWAYS), new ConfigRule("shaders/", ConfigMode.OPTIONAL)));
 
         store.save(ID, definition);
 
