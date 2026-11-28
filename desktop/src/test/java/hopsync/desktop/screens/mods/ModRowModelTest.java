@@ -65,6 +65,7 @@ class ModRowModelTest {
             case ModRow.Mod m -> m.key();
             case ModRow.Group g -> "# " + g.title();
             case ModRow.More m -> "more";
+            case ModRow.Add a -> "add";
             case ModRow.Detail d -> "detail " + d.key();
             case ModRow.Message m -> "msg " + m.text();
             case ModRow.Banner b -> "banner";
@@ -236,7 +237,7 @@ class ModRowModelTest {
     void aCreatedPacksConfigsOfferToAddMoreAndShowTheirMode() {
         ModRowModel model = modelOfMine(createdWithConfigs());
 
-        ModRow.More add = assertInstanceOf(ModRow.More.class, model.rows().getFirst());
+        ModRow.Add add = assertInstanceOf(ModRow.Add.class, model.rows().getFirst());
         assertEquals(new UiAction.OpenAddConfigs(MINE.id()), add.action());
         assertEquals(Messages.get("mods.configs.mode.optional"), mod(model, "jei/a.json").tag().text());
         assertEquals(Messages.get("mods.configs.mode.always"), mod(model, "always.toml").tag().text());
@@ -272,7 +273,7 @@ class ModRowModelTest {
         Manifest withConfig = new Manifest(2, INFO, "c".repeat(64), List.of(), List.of(config));
         ModRowModel model = model(reduce(loaded(), new UiAction.ManifestLoaded(D, withConfig), new UiAction.SelectTab(Tab.CONFIGS)));
 
-        assertFalse(model.rows().stream().anyMatch(ModRow.More.class::isInstance));
+        assertFalse(model.rows().stream().anyMatch(ModRow.Add.class::isInstance));
         assertFalse(mod(model, "a.toml").expandable());
     }
 

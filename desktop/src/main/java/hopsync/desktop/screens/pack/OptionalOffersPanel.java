@@ -66,7 +66,7 @@ public final class OptionalOffersPanel extends JPanel {
         title.add(new StatusTag(Messages.get("offers.tag"), StatusTag.Tone.UPDATE));
         content.add(left(title));
 
-        JTextArea note = new JTextArea(Messages.get("offers.note"));
+        JTextArea note = new Note(Messages.get("offers.note"));
         note.setEditable(false);
         note.setFocusable(false);
         note.setOpaque(false);
@@ -84,9 +84,10 @@ public final class OptionalOffersPanel extends JPanel {
             box.addActionListener(e -> dispatch.accept(offer.toggle()));
             JLabel detail = new JLabel(offer.detail());
             detail.setForeground(Palette.textSecondary());
-            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, UIScale.scale(10), 0));
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
             row.setOpaque(false);
             row.add(box);
+            row.add(Box.createHorizontalStrut(UIScale.scale(10)));
             row.add(detail);
             content.add(left(row));
         }
@@ -104,5 +105,25 @@ public final class OptionalOffersPanel extends JPanel {
     private static Component left(JTextArea area) {
         area.setAlignmentX(Component.LEFT_ALIGNMENT);
         return area;
+    }
+
+    /** Wrapped text that is as tall as its lines need at the panel's width, and never taller. */
+    private final class Note extends JTextArea {
+        Note(String text) {
+            super(text);
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            int width = OptionalOffersPanel.this.getWidth() - OptionalOffersPanel.this.getInsets().left
+                - OptionalOffersPanel.this.getInsets().right;
+            setSize(width > 0 ? width : UIScale.scale(600), Short.MAX_VALUE);
+            return super.getPreferredSize();
+        }
+
+        @Override
+        public Dimension getMaximumSize() {
+            return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+        }
     }
 }

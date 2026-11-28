@@ -262,7 +262,7 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
         boolean editable = canEditConfigs(pack);
         List<ModRow> rows = new ArrayList<>();
         if (editable) {
-            rows.add(new ModRow.More(Messages.get("mods.configs.add"), new UiAction.OpenAddConfigs(pack.packId())));
+            rows.add(new ModRow.Add(Messages.get("mods.configs.add"), Glyph.PLUS, new UiAction.OpenAddConfigs(pack.packId())));
         }
         List<ConfigEntry> shown = manifest.configs().stream().filter(config -> matches.test(config.path())).toList();
         if (shown.isEmpty()) return rows;

@@ -72,6 +72,7 @@ final class ModTable extends JScrollPane {
                         dispatch.accept(row.statusAction());
                     case ModRow.Mod row when row.expandable() -> dispatch.accept(new UiAction.ToggleRow(row.key()));
                     case ModRow.More row -> dispatch.accept(row.action());
+                    case ModRow.Add row -> dispatch.accept(row.action());
                     case ModRow.Detail row when actionAt(index, row, e.getPoint()) >= 0 -> {
                         ModRow.DetailAction action = row.actions().get(actionAt(index, row, e.getPoint()));
                         dispatch.accept(action.action());
@@ -141,6 +142,7 @@ final class ModTable extends JScrollPane {
 
     private static boolean clickable(ModRow row) {
         return row instanceof ModRow.Mod mod && mod.expandable() || row instanceof ModRow.More
+            || row instanceof ModRow.Add
             || row instanceof ModRow.Detail detail && (detail.url() != null || !detail.actions().isEmpty());
     }
 
