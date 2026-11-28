@@ -3,8 +3,10 @@ package hopsync.core.sync;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.failure.SyncFailures;
 import hopsync.core.manifest.ConfigEntry;
+import hopsync.core.manifest.ConfigRoot;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.sync.SyncPlan.ConfigAction;
+import hopsync.core.sync.SyncPlan.ConfigChange;
 import hopsync.core.sync.SyncPlan.ModAction;
 import hopsync.core.util.CancellationToken;
 import hopsync.core.util.SafePaths;
@@ -12,6 +14,7 @@ import hopsync.core.util.SafePaths;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +39,9 @@ import java.util.stream.Stream;
  */
 public class SyncExecutor {
     private static final System.Logger LOG = System.getLogger(SyncExecutor.class.getName());
+
+    /** Appended to the player's file when they accept an optional config over it. */
+    public static final String BACKUP_SUFFIX = ".hopsync-bak";
 
     /** Progress callbacks; may be invoked from worker threads. */
     public interface Listener {
@@ -65,12 +71,14 @@ public class SyncExecutor {
     private final FileDownloader downloader;
     private final Path modsDir;
     private final Path configDir;
+    private final Path gameDir;
     private final int parallelism;
 
-    public SyncExecutor(FileDownloader downloader, Path modsDir, Path configDir, int parallelism) {
+    public SyncExecutor(FileDownloader downloader, Path modsDir, Path configDir, Path gameDir, int parallelism) {
         this.downloader = downloader;
         this.modsDir = modsDir;
         this.configDir = configDir;
+        this.gameDir = gameDir;
         this.parallelism = parallelism;
     }
 
@@ -186,32 +194,45 @@ public class SyncExecutor {
                                 CancellationToken cancel, BooleanSupplier isCancelled) {
         for (ConfigAction action : actions) {
             ConfigEntry config = action.config();
-            FileRecord old = previous.configs().get(config.path());
+            String key = config.stateKey();
+            FileRecord old = previous.configs().get(key);
             switch (action.change()) {
                 case UP_TO_DATE -> { }
+                case OFFERED, SKIPPED -> {
+                    if (old != null) configs.put(key, old);
+                }
                 case KEEP_EDITED -> {
                     // Remember the version HopSync installed, so later updates still see the player's edit
-                    if (old != null) configs.put(config.path(), old);
+                    if (old != null) configs.put(key, old);
                     listener.log("Kept config edited by the player: " + config.path());
                 }
-                case INSTALL, REPLACE -> {
+                case INSTALL, REPLACE, REPLACE_WITH_BACKUP -> {
                     if (isCancelled.getAsBoolean()) {
-                        if (old != null) configs.put(config.path(), old);
+                        if (old != null) configs.put(key, old);
                         continue;
                     }
+                    Path target = null;
+                    Path backup = null;
                     try {
-                        Path target = SafePaths.resolveInside(configDir, config.path());
+                        target = SafePaths.resolveInside(baseOf(config), config.path());
                         Files.createDirectories(target.getParent());
+                        if (action.change() == ConfigChange.REPLACE_WITH_BACKUP && Files.isRegularFile(target)) {
+                            backup = target.resolveSibling(target.getFileName() + BACKUP_SUFFIX);
+                            Files.move(target, backup, StandardCopyOption.REPLACE_EXISTING);
+                            listener.log("Saved the player's " + config.path() + " as " + backup.getFileName());
+                        }
                         downloader.download(config.url(), target, config.sha512(), config.size(), progress::add,
                             cancel);
-                        configs.put(config.path(), recordOf(target, config.sha512()));
+                        configs.put(key, recordOf(target, config.sha512()));
                         listener.log("Installed config " + config.path());
                         progress.fileDone();
                     } catch (CancellationException e) {
-                        if (old != null) configs.put(config.path(), old);
+                        restoreBackup(target, backup);
+                        if (old != null) configs.put(key, old);
                     } catch (IOException | RuntimeException e) {
                         failed.incrementAndGet();
-                        if (old != null) configs.put(config.path(), old);
+                        restoreBackup(target, backup);
+                        if (old != null) configs.put(key, old);
                         listener.log("Could not install config " + config.path() + ": " + SyncFailures.from(e, config.path()).describe());
                         progress.fileDone();
                     }
@@ -220,21 +241,38 @@ public class SyncExecutor {
         }
     }
 
+    private Path baseOf(ConfigEntry config) {
+        return config.root() == ConfigRoot.GAME ? gameDir : configDir;
+    }
+
+    /** Puts the player's file back when its replacement did not arrive, so a failed apply loses nothing. */
+    private static void restoreBackup(Path target, Path backup) {
+        if (target == null || backup == null || Files.exists(target) || !Files.exists(backup)) {
+            return;
+        }
+        try {
+            Files.move(backup, target);
+        } catch (IOException e) {
+            LOG.log(System.Logger.Level.WARNING, "Could not restore " + target + " from " + backup, e);
+        }
+    }
+
     private static void keepPreviousConfigRecords(SyncPlan plan, LocalState previous, Map<String, FileRecord> configs) {
         for (ConfigAction action : plan.configs()) {
-            FileRecord old = previous.configs().get(action.config().path());
-            if (!configs.containsKey(action.config().path()) && old != null) {
-                configs.put(action.config().path(), old);
+            String key = action.config().stateKey();
+            FileRecord old = previous.configs().get(key);
+            if (!configs.containsKey(key) && old != null) {
+                configs.put(key, old);
             }
         }
     }
 
     private void deleteStaleParts(Listener listener) {
-        for (Path dir : List.of(modsDir, configDir)) {
+        for (Path dir : List.of(modsDir, configDir, gameDir)) {
             if (!Files.isDirectory(dir)) {
                 continue;
             }
-            try (Stream<Path> files = Files.walk(dir, dir.equals(modsDir) ? 1 : 8)) {
+            try (Stream<Path> files = Files.walk(dir, dir.equals(configDir) ? 8 : 1)) {
                 for (Path part : files.filter(p -> p.getFileName().toString().endsWith(FileDownloader.PART_SUFFIX)).toList()) {
                     Files.deleteIfExists(part);
                 }

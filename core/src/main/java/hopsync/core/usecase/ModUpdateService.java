@@ -4,6 +4,7 @@ import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.Manifest;
+import hopsync.core.pack.OptionalChoice;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackPaths;
 import hopsync.core.pack.PackSource;
@@ -21,6 +22,7 @@ import hopsync.core.util.CancellationToken;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
@@ -55,6 +57,12 @@ public class ModUpdateService {
     }
 
     public SyncPlan prepare(Pack pack, Consumer<SyncEvent> eventPublisher) throws IOException {
+        return prepare(pack, eventPublisher, Map.of());
+    }
+
+    /** @param choices the player's decisions on the pack's optional configs, by unit key */
+    public SyncPlan prepare(Pack pack, Consumer<SyncEvent> eventPublisher, Map<String, OptionalChoice> choices)
+            throws IOException {
         PackPaths paths = pack.paths();
         ensureFoldersExist(pack, paths, eventPublisher);
 
@@ -71,8 +79,14 @@ public class ModUpdateService {
             + ": " + manifest.mods().size() + " mods, " + manifest.configs().size() + " configs");
 
         log(pack, eventPublisher, "Comparing with the installed files");
-        SyncPlanner planner = new SyncPlanner(paths.mods(), paths.config());
-        return planner.plan(manifest, new StateStore(paths.stateFile()).load(pack.id()));
+        return replan(pack, manifest, choices);
+    }
+
+    /** Compares a manifest already fetched with the disk again, after the player decided on optional configs. */
+    public SyncPlan replan(Pack pack, Manifest manifest, Map<String, OptionalChoice> choices) throws IOException {
+        PackPaths paths = pack.paths();
+        SyncPlanner planner = new SyncPlanner(paths.mods(), paths.config(), paths.gameDir());
+        return planner.plan(manifest, new StateStore(paths.stateFile()).load(pack.id()), choices);
     }
 
     /**
@@ -88,7 +102,7 @@ public class ModUpdateService {
         try {
             StateStore store = new StateStore(paths.stateFile());
             LocalState previous = store.load(id);
-            SyncExecutor executor = new SyncExecutor(downloader, paths.mods(), paths.config(),
+            SyncExecutor executor = new SyncExecutor(downloader, paths.mods(), paths.config(), paths.gameDir(),
                 parallelDownloads.getAsInt());
 
             SpeedMeter speed = new SpeedMeter(clock);

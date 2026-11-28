@@ -274,6 +274,9 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
             case REPLACE -> tag("mods.config.update", Tone.UPDATE);
             case KEEP_EDITED -> tag("mods.config.kept", Tone.NEUTRAL);
             case UP_TO_DATE -> tag("mods.config.upToDate", Tone.MINE);
+            case OFFERED -> tag("mods.config.offered", Tone.UPDATE);
+            case SKIPPED -> tag("mods.config.skipped", Tone.NEUTRAL);
+            case REPLACE_WITH_BACKUP -> tag("mods.config.replaceBackup", Tone.UPDATE);
         };
     }
 

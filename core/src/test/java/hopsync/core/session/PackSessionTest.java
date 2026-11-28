@@ -4,6 +4,7 @@ import hopsync.core.event.EventBus;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncException;
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.manifest.ConfigEntry;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.pack.InMemoryDefinitions;
@@ -38,6 +39,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import static hopsync.core.sync.Fixtures.gameFile;
 import static hopsync.core.sync.Fixtures.manifest;
 import static hopsync.core.sync.Fixtures.mod;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -344,6 +346,77 @@ class PackSessionTest {
         assertEquals(6, last.bytesDone());
         assertEquals(6, last.bytesTotal());
         assertTrue(all.contains(new SyncEvent.ModProgress(pack.id(), "a.jar", 100)));
+    }
+
+    // ---------------------------------------------------------------- optional configs
+
+    private ConfigEntry serveGameFile(String name, String content) {
+        ConfigEntry entry = gameFile(name, content);
+        remote.put(entry.url(), content);
+        return entry;
+    }
+
+    @Test
+    void anOptionalFileIsOfferedAndInstalledOnlyWhenTicked() throws InterruptedException, IOException {
+        ConfigEntry options = serveGameFile("options.txt", "creator");
+        served = manifest(List.of(), List.of(options));
+        Files.writeString(game.resolve("options.txt"), "player");
+
+        coordinator.startUpdate();
+        SyncEvent.PlanReady ready = next(SyncEvent.PlanReady.class);
+        assertEquals(1, ready.plan().offered().size());
+        assertEquals("player", Files.readString(game.resolve("options.txt")), "an offer writes nothing");
+        coordinator.confirmPlan(Set.of("game:options.txt"));
+        next(SyncEvent.UpdateCompleted.class);
+
+        assertEquals("creator", Files.readString(game.resolve("options.txt")));
+        assertEquals("player", Files.readString(game.resolve("options.txt.hopsync-bak")));
+        assertTrue(registry.choices(pack.id()).get("game:options.txt").applied());
+    }
+
+    @Test
+    void notTickingAnOptionalFileDeclinesItUntilTheCreatorChangesIt() throws InterruptedException, IOException {
+        ConfigEntry options = serveGameFile("options.txt", "creator");
+        served = manifest(List.of(), List.of(options));
+        Files.writeString(game.resolve("options.txt"), "player");
+
+        coordinator.startUpdate();
+        next(SyncEvent.PlanReady.class);
+        coordinator.confirmPlan();
+        next(SyncEvent.UpdateCompleted.class);
+
+        assertEquals("player", Files.readString(game.resolve("options.txt")));
+        assertFalse(registry.choices(pack.id()).get("game:options.txt").accepted());
+
+        coordinator.startUpdate();
+        next(SyncEvent.UpToDate.class);
+        assertEquals(1, ((SyncEvent.UpToDate) all.get(all.size() - 1)).plan().skipped().size());
+
+        served = manifest(List.of(), List.of(serveGameFile("options.txt", "creator v2")));
+        coordinator.startUpdate();
+        assertEquals(1, next(SyncEvent.PlanReady.class).plan().offered().size(), "changed content is offered again");
+    }
+
+    @Test
+    void aFailedInstallLeavesTheAcceptedFileToBeRetried() throws InterruptedException, IOException {
+        ConfigEntry options = serveGameFile("options.txt", "creator");
+        served = manifest(List.of(), List.of(options));
+        FileDownloader working = downloader;
+        downloader = (url, destination, sha512, size, onBytes, cancel) -> {
+            throw new IOException("boom");
+        };
+
+        coordinator.startUpdate();
+        next(SyncEvent.PlanReady.class);
+        coordinator.confirmPlan(Set.of("game:options.txt"));
+        next(SyncEvent.UpdateCompleted.class);
+
+        assertFalse(registry.choices(pack.id()).get("game:options.txt").applied());
+        downloader = working;
+        coordinator.startUpdate();
+        SyncEvent.PlanReady retry = next(SyncEvent.PlanReady.class);
+        assertEquals(0, retry.plan().offered().size(), "an accepted file is not offered again");
+        assertEquals(1, retry.plan().configDownloads().size());
     }
 
     /** Blocks a fake download until the test releases it. */
